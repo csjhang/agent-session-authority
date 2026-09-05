@@ -42,7 +42,8 @@ Unknown `kind` values are **rejected**.
 | `generation.observe` | `observe` |
 | `action.propose` / `action.bind` | `invoke`, `ok`, `fail`, `info` |
 | `approval.request` / `approval.grant` / `approval.deny` / `approval.record` | `invoke`, `ok`, `fail`, `info` |
-| `effect.dispatch` / `effect.receipt` / `effect.query` | `invoke`, `ok`, `fail`, `info` |
+| `effect.dispatch` / `effect.receipt` / `effect.query` / `effect.cancel` / `effect.reconcile` | `invoke`, `ok`, `fail`, `info` |
+| `task.cancel` / `task.complete` / `task.timeout` / `task.reconcile` | `invoke`, `ok`, `fail`, `info` |
 | `session.attach` / `session.detach` | `invoke`, `ok`, `fail`, `info` |
 | `control.handoff` | `invoke`, `ok`, `fail`, `info` |
 
@@ -63,7 +64,7 @@ Unknown `kind` values are **rejected**.
 
 ## `attrs` keys used by checkers
 
-These keys appear under `attrs` and are consumed by Week-1 checkers / vocabulary types. Not every event uses every key.
+These keys appear under `attrs` and are consumed by checkers / vocabulary types. Not every event uses every key.
 
 | Attr key | Type | Used by / meaning |
 | --- | --- | --- |
@@ -72,21 +73,24 @@ These keys appear under `attrs` and are consumed by Week-1 checkers / vocabulary
 | `runtime_id` | string | Runtime identity |
 | `scope_id` | string | AUTH-03 lease / action scope |
 | `holder` | string | Lease holder (`ControlLease.holder`) |
-| `fence_epoch` | number | AUTH-03 / AUTH-05 fence (`FenceEpoch`) |
+| `fence_epoch` | number | AUTH-03 / AUTH-04 / AUTH-05 fence (`FenceEpoch`) |
 | `accepted` | boolean | Lease acquire acceptance |
 | `action_type` | string | Action binding type |
 | `target` | string | Action target |
-| `action_digest` | string | AUTH-05 binding digest |
+| `action_digest` | string | AUTH-02 / AUTH-05 binding digest |
 | `approver` | string | ApprovalDecision.approver |
 | `decision` | `"grant"` \| `"deny"` | Approval outcome |
-| `effect_id` | string | AUTH-06 effect identity |
+| `effect_id` | string | AUTH-06 / AUTH-07 effect identity |
+| `task_id` | string | AUTH-07 terminal subject |
 | `status` | string | Dispatch status |
 | `outcome` | `"committed"` \| `"rejected"` \| `"failed"` \| `"unknown"` | EffectReceipt.outcome |
 | `controller` | string | Acting controller at receipt |
 | `boundary_id` | string | Effect boundary |
-| `policy_version` | string | Binding policy version |
-| `nonce` | string | Binding nonce |
-| `expiry` | string | Binding / approval expiry |
+| `policy_version` | string | Binding policy version (AUTH-02) |
+| `nonce` | string | Binding nonce (AUTH-02) |
+| `expiry` | string | Binding / approval expiry (AUTH-02) |
+| `stale_fence` / `stale_controller` | boolean | AUTH-04 markers |
+| `terminal` / `resolved_terminal` | string | AUTH-07 terminal race |
 
 ## Validation rules (parser)
 
@@ -133,8 +137,8 @@ Report also exposes:
 | --- | --- | --- |
 | Meaning | Checker not implemented or not run | Profile does not claim the invariant |
 | Source | Checker stub / runner | `AuthorityProfile.claimed_invariants` |
-| Can co-occur? | **Yes** — e.g. AUTH-02 stub with a profile that only claims AUTH-01 | |
+| Can co-occur? | **Yes** | |
 
-Never treat `not_tested` as "the target doesn't claim this." Use `claim_status` for declaration and `result` for measurement.
+Never treat `not_tested` as “the target doesn’t claim this.” Use `claim_status` for declaration and `result` for measurement.
 
 Top-level report fields: `target`, `profile_version`, `test_basis`, `findings`, `capability_vector`, `claim_status_vector`.
