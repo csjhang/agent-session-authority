@@ -1,9 +1,33 @@
 {
   "name": "@asa/adapter-acp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
-  "exports": { ".": "./src/index.ts" },
-  "scripts": { "build": "echo adapter-stub" }
+  "description": "ACP adapter for claude-agent-acp (fixture mock peer + optional live spawn)",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "echo adapter-acp-ok",
+    "test": "vitest run --config vitest.config.ts",
+    "fixture": "tsx src/cli.ts --mode fixture"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "peerDependencies": {
+    "@agentclientprotocol/claude-agent-acp": "0.75.1"
+  },
+  "peerDependenciesMeta": {
+    "@agentclientprotocol/claude-agent-acp": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
 }
