@@ -1,6 +1,6 @@
 {
   "name": "agent-session-authority",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Session Authority Fault Probe",
   "license": "Apache-2.0",
@@ -8,8 +8,13 @@
   "engines": {"node": ">=20"},
   "scripts": {
     "test": "pnpm --filter @asa/core test",
+    "test:core": "pnpm --filter @asa/core test",
+    "test:sink": "pnpm --filter @asa/sink test",
+    "test:acp": "pnpm --filter @asa/adapter-acp test",
     "asa": "pnpm --filter @asa/core exec tsx src/cli.ts",
-    "check": "pnpm --filter @asa/core exec tsx src/cli.ts check"
+    "check": "pnpm --filter @asa/core exec tsx src/cli.ts check",
+    "sink": "pnpm --filter @asa/sink exec tsx src/cli.ts",
+    "adapter:acp:fixture": "pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode fixture"
   },
   "devDependencies": {
     "typescript": "^5.7.2",
