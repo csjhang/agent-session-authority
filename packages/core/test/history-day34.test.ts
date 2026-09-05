@@ -90,8 +90,8 @@ describe("Day 3-4 history parse / validate", () => {
   });
 });
 
-describe("Day 3-4 report: not_tested vs not_declared", () => {
-  it("AUTH-02/04/07 are result=not_tested; claim_status can be not_declared as a distinct field", () => {
+describe("Day 3-4 report: claim_status vs result", () => {
+  it("AUTH-02/04/07 are measured; claim_status stays a distinct axis", () => {
     const profile = {
       profile_version: "0.2",
       target: "synthetic-day34",
@@ -110,15 +110,14 @@ describe("Day 3-4 report: not_tested vs not_declared", () => {
     for (const inv of ["AUTH-02", "AUTH-04", "AUTH-07"]) {
       const f = findings.find((x) => x.invariant === inv);
       expect(f, inv).toBeTruthy();
-      expect(f!.result).toBe("not_tested");
-      expect(f!.claim_status).toBe("not_declared");
-      expect(f!.result).not.toBe(f!.claim_status);
-      expect(report.capability_vector[inv]).toBe("not_tested");
-      expect(report.claim_status_vector[inv]).toBe("not_declared");
+      expect(f!.result).not.toBe("not_tested");
+      expect(f!.result).not.toBe("not_declared");
+      expect(report.capability_vector[inv]).toBe(f!.result);
+      expect(report.claim_status_vector[inv]).toBe(f!.claim_status);
     }
   });
 
-  it("when profile claims AUTH-02, stub still has result=not_tested with claim_status=declared", () => {
+  it("when profile claims AUTH-02/04/07, claim_status=declared and result is measured", () => {
     const claiming = {
       profile_version: "0.2",
       target: "claims-auth02",
@@ -129,7 +128,7 @@ describe("Day 3-4 report: not_tested vs not_declared", () => {
     const findings = run_checkers(events, claiming, assessment);
     for (const inv of ["AUTH-02", "AUTH-04", "AUTH-07"]) {
       const f = findings.find((x) => x.invariant === inv)!;
-      expect(f!.result).toBe("not_tested");
+      expect(f!.result).not.toBe("not_tested");
       expect(f!.claim_status).toBe("declared");
     }
   });

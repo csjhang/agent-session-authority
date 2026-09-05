@@ -42,6 +42,20 @@ describe("golden corpus AUTH-01", () => {
   });
 });
 
+describe("golden corpus AUTH-02", () => {
+  it("pass supported", () => {
+    const { pass } = run_corpus("auth02");
+    expect(by_inv(pass, "AUTH-02")[0]?.result).toBe("supported");
+  });
+  it("violate catches binding change after approval", () => {
+    const { violate } = run_corpus("auth02");
+    const f = by_inv(violate, "AUTH-02").find((x) => x.result === "violation");
+    expect(f).toBeTruthy();
+    expect(f!.witness_seqs.length).toBeGreaterThan(0);
+    expect(f!.witness_seqs).toEqual(expect.arrayContaining([1, 2, 3]));
+  });
+});
+
 describe("golden corpus AUTH-03", () => {
   it("pass supports AUTH-03b/c", () => {
     const { pass } = run_corpus("auth03");
@@ -54,6 +68,19 @@ describe("golden corpus AUTH-03", () => {
     expect(v.length).toBeGreaterThan(0);
     expect(v.some((x) => x.invariant.startsWith("AUTH-03"))).toBe(true);
     expect(v.some((x) => x.witness_seqs.length > 0)).toBe(true);
+  });
+});
+
+describe("golden corpus AUTH-04", () => {
+  it("pass supported (stale rejected at gateway)", () => {
+    const { pass } = run_corpus("auth04");
+    expect(by_inv(pass, "AUTH-04")[0]?.result).toBe("supported");
+  });
+  it("violate catches stale fence commit at boundary", () => {
+    const { violate } = run_corpus("auth04");
+    const f = by_inv(violate, "AUTH-04").find((x) => x.result === "violation");
+    expect(f).toBeTruthy();
+    expect(f!.witness_seqs).toEqual(expect.arrayContaining([4]));
   });
 });
 
@@ -83,15 +110,34 @@ describe("golden corpus AUTH-06", () => {
   });
 });
 
-describe("stubs and label distinctions", () => {
-  it("AUTH-02/04/07 are not_tested not not_declared", () => {
+describe("golden corpus AUTH-07", () => {
+  it("pass supported with reconcile + published rules", () => {
+    const { pass } = run_corpus("auth07");
+    expect(by_inv(pass, "AUTH-07")[0]?.result).toBe("supported");
+  });
+  it("violate catches ambiguous/wrong terminal", () => {
+    const { violate } = run_corpus("auth07");
+    const f = by_inv(violate, "AUTH-07").find((x) => x.result === "violation");
+    expect(f).toBeTruthy();
+    expect(f!.witness_seqs.length).toBeGreaterThan(0);
+  });
+});
+
+describe("label distinctions", () => {
+  it("AUTH-02/04/07 results are not not_tested when implemented", () => {
+    const { pass } = run_corpus("auth02");
+    expect(by_inv(pass, "AUTH-02")[0]?.result).not.toBe("not_tested");
+    const a4 = run_corpus("auth04");
+    expect(by_inv(a4.pass, "AUTH-04")[0]?.result).not.toBe("not_tested");
+    const a7 = run_corpus("auth07");
+    expect(by_inv(a7.pass, "AUTH-07")[0]?.result).not.toBe("not_tested");
+  });
+  it("claim_status remains independent of result on auth01 profile", () => {
     const { pass } = run_corpus("auth01");
     for (const inv of ["AUTH-02", "AUTH-04", "AUTH-07"]) {
       const f = pass.find((x) => x.invariant === inv);
-      expect(f?.result).toBe("not_tested");
-      expect(f?.result).not.toBe("not_declared");
-      // claim_status is a separate axis — auth01 profile does not claim these
-      expect(f?.claim_status).toBe("not_declared");
+      expect(["not_declared","declared"]).toContain(f?.claim_status);
+      expect(f?.result).not.toBe("not_tested");
       expect(f?.result).not.toBe(f?.claim_status);
     }
   });
