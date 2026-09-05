@@ -27,9 +27,15 @@ export const KNOWN_OPS = [
   "effect.dispatch",
   "effect.receipt",
   "effect.query",
+  "effect.cancel",
+  "effect.reconcile",
   "session.attach",
   "session.detach",
   "control.handoff",
+  "task.cancel",
+  "task.complete",
+  "task.timeout",
+  "task.reconcile",
 ] as const;
 
 export type KnownOpName = (typeof KNOWN_OPS)[number];
