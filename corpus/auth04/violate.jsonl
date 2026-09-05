@@ -1,0 +1,4 @@
+{"seq":1,"ts":"2026-09-06T02:30:00Z","kind":"ok","op":"lease.acquire","actor_id":"controller_1","attrs":{"scope_id":"workspace","holder":"controller_1","fence_epoch":1,"accepted":true}}
+{"seq":2,"ts":"2026-09-06T02:30:01Z","kind":"ok","op":"control.handoff","actor_id":"controller_1","attrs":{"scope_id":"workspace","holder":"controller_2","successor":"controller_2","fence_epoch":2}}
+{"seq":3,"ts":"2026-09-06T02:30:02Z","kind":"ok","op":"effect.dispatch","actor_id":"controller_1","attrs":{"effect_id":"eff_ui_only","action_digest":"d9","fence_epoch":1,"scope_id":"workspace","stale_fence":true,"stale_controller":true,"status":"dispatched","note":"UI showed reject but gateway did not"}}
+{"seq":4,"ts":"2026-09-06T02:30:03Z","kind":"ok","op":"effect.receipt","attrs":{"effect_id":"eff_ui_only","action_digest":"d9","fence_epoch":1,"scope_id":"workspace","outcome":"committed","stale_fence":true,"stale_controller":true,"controller":"controller_1"}}

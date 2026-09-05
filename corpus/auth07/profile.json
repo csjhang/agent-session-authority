@@ -1,0 +1,10 @@
+{
+  "profile_version": "0.2",
+  "target": "synthetic-auth07",
+  "generation_model": "G1",
+  "claimed_invariants": ["AUTH-07"],
+  "terminal_rules": {
+    "cancel_vs_complete": "cancel_wins",
+    "timeout_vs_complete": "reconcile_required"
+  }
+}

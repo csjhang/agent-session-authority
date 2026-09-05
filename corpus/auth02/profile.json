@@ -1,0 +1,7 @@
+{
+  "profile_version": "0.2",
+  "target": "synthetic-auth02",
+  "generation_model": "G1",
+  "claimed_invariants": ["AUTH-02"],
+  "scope_map": [{"action_type": "file.write", "target": "repo/main.ts", "scope_id": "workspace"}]
+}

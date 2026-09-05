@@ -1,0 +1,6 @@
+{"seq":1,"ts":"2026-09-06T02:20:00Z","kind":"ok","op":"lease.acquire","actor_id":"controller_1","attrs":{"scope_id":"workspace","holder":"controller_1","fence_epoch":1,"accepted":true}}
+{"seq":2,"ts":"2026-09-06T02:20:01Z","kind":"ok","op":"control.handoff","actor_id":"controller_1","attrs":{"scope_id":"workspace","holder":"controller_2","successor":"controller_2","fence_epoch":2,"note":"epoch raised"}}
+{"seq":3,"ts":"2026-09-06T02:20:02Z","kind":"ok","op":"effect.dispatch","actor_id":"controller_1","attrs":{"effect_id":"eff_stale","action_digest":"d1","fence_epoch":1,"scope_id":"workspace","stale_fence":true,"status":"dispatched","note":"old controller resent"}}
+{"seq":4,"ts":"2026-09-06T02:20:03Z","kind":"ok","op":"effect.receipt","attrs":{"effect_id":"eff_stale","action_digest":"d1","fence_epoch":1,"scope_id":"workspace","outcome":"rejected","stale_fence":true,"note":"gateway rejects stale fence"}}
+{"seq":5,"ts":"2026-09-06T02:20:04Z","kind":"ok","op":"effect.dispatch","actor_id":"controller_2","attrs":{"effect_id":"eff_live","action_digest":"d2","fence_epoch":2,"scope_id":"workspace","status":"dispatched"}}
+{"seq":6,"ts":"2026-09-06T02:20:05Z","kind":"ok","op":"effect.receipt","attrs":{"effect_id":"eff_live","action_digest":"d2","fence_epoch":2,"scope_id":"workspace","outcome":"committed","controller":"controller_2"}}

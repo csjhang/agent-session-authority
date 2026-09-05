@@ -1,0 +1,3 @@
+{"seq":1,"ts":"2026-09-06T02:40:00Z","kind":"invoke","op":"task.cancel","attrs":{"task_id":"t1","effect_id":"e1","terminal":"cancelled"}}
+{"seq":2,"ts":"2026-09-06T02:40:01Z","kind":"ok","op":"effect.receipt","attrs":{"effect_id":"e1","task_id":"t1","outcome":"committed","terminal":"completed","note":"complete raced with cancel"}}
+{"seq":3,"ts":"2026-09-06T02:40:02Z","kind":"ok","op":"task.reconcile","attrs":{"task_id":"t1","effect_id":"e1","resolved_terminal":"cancelled","note":"published rule cancel_wins applied"}}
