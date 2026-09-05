@@ -1,19 +1,28 @@
 {
   "name": "agent-session-authority",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
-  "description": "Session Authority Fault Probe",
+  "description": "Session Authority Fault Probe (Week 3)",
   "license": "Apache-2.0",
   "packageManager": "pnpm@9.15.0",
-  "engines": {"node": ">=20"},
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "test": "pnpm --filter @asa/core test",
+    "test": "pnpm --filter @asa/core test && pnpm --filter @asa/sink test && pnpm --filter @asa/adapter-acp test && pnpm --filter @asa/adapter-ahp test && pnpm --filter @asa/adapter-ably test && pnpm --filter @asa/adapter-acp-mux test",
     "test:core": "pnpm --filter @asa/core test",
     "test:sink": "pnpm --filter @asa/sink test",
     "test:acp": "pnpm --filter @asa/adapter-acp test",
+    "test:ahp": "pnpm --filter @asa/adapter-ahp test",
+    "test:ably": "pnpm --filter @asa/adapter-ably test",
+    "test:acp-mux": "pnpm --filter @asa/adapter-acp-mux test",
     "asa": "pnpm --filter @asa/core exec tsx src/cli.ts",
     "check": "pnpm --filter @asa/core exec tsx src/cli.ts check",
     "sink": "pnpm --filter @asa/sink exec tsx src/cli.ts",
+    "fixture:ahp": "pnpm --filter @asa/adapter-ahp fixture",
+    "fixture:ably": "pnpm --filter @asa/adapter-ably fixture",
+    "fixture:acp-mux": "pnpm --filter @asa/adapter-acp-mux fixture",
+    "fixture:acp": "pnpm --filter @asa/adapter-acp fixture",
     "adapter:acp:fixture": "pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode fixture"
   },
   "devDependencies": {
