@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/csjhang/agent-session-authority/spec/authority-assessment.schema.json",
+  "title": "AuthorityAssessment",
+  "type": "object",
+  "properties": {
+    "target": { "type": "string" },
+    "profile_version": { "type": "string" },
+    "claims_file": { "type": ["string", "null"] },
+    "claim_sources": { "type": "array", "items": { "type": "string" } },
+    "test_basis": { "type": "string", "enum": ["vendor_claim", "research_profile", "synthetic_fixture"] },
+    "notes": { "type": "string" }
+  },
+  "additionalProperties": true
+}

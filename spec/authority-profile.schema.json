@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/csjhang/agent-session-authority/spec/authority-profile.schema.json",
+  "title": "AuthorityProfile",
+  "type": "object",
+  "properties": {
+    "profile_version": { "type": "string" },
+    "target": { "type": "string" },
+    "generation_model": { "type": "string", "enum": ["G0", "G1", "G2"] },
+    "claimed_invariants": { "type": "array", "items": { "type": "string" } },
+    "scope_decision": { "type": "object", "additionalProperties": { "type": "string" } },
+    "scope_map": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["action_type", "target", "scope_id"],
+        "properties": {
+          "action_type": { "type": "string" },
+          "target": { "type": "string" },
+          "scope_id": { "type": "string" }
+        }
+      }
+    },
+    "known_bypasses": { "type": "array", "items": { "type": "string" } },
+    "coverage_boundary": { "type": "string" },
+    "notes": { "type": "string" }
+  },
+  "additionalProperties": true
+}
