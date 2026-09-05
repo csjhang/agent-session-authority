@@ -1,0 +1,47 @@
+dogwood dogwood 1.0.0
+commit c6237c88099b3f492ecc5fcee42df06a19224b97
+
+### TW / baseline
+CMD: dogwood replay time-window.dogwood --policy-schema schema.cedarschema --trace baseline-sellshares.log
+@0 (time point 0): DENY
+@100 (time point 1): ALLOW  [rules: 0]
+@5000 (time point 2): DENY
+
+### TW / restart-in-process (history continuous)
+CMD: dogwood replay time-window.dogwood --policy-schema schema.cedarschema --trace restart-in-process.log
+@0 (time point 0): DENY
+@200 (time point 1): DENY
+@300 (time point 2): ALLOW  [rules: 0]
+
+### TW / post-restart-only (fresh engine / lost history)
+CMD: dogwood replay time-window.dogwood --policy-schema schema.cedarschema --trace post-restart-only.log
+@300 (time point 0): DENY
+
+### TW / approval-after-restart
+CMD: dogwood replay time-window.dogwood --policy-schema schema.cedarschema --trace approval-after-restart.log
+@0 (time point 0): DENY
+@50 (time point 1): DENY
+@100 (time point 2): ALLOW  [rules: 0]
+
+### GB / baseline
+CMD: dogwood replay generation-bound.dogwood --policy-schema schema.cedarschema --trace baseline-sellshares.log
+@0 (time point 0): DENY
+@100 (time point 1): ALLOW  [rules: 0]
+@5000 (time point 2): DENY
+
+### GB / restart-in-process (should DENY sell if generation bound works)
+CMD: dogwood replay generation-bound.dogwood --policy-schema schema.cedarschema --trace restart-in-process.log
+@0 (time point 0): DENY
+@200 (time point 1): DENY
+@300 (time point 2): DENY
+
+### GB / post-restart-only
+CMD: dogwood replay generation-bound.dogwood --policy-schema schema.cedarschema --trace post-restart-only.log
+@300 (time point 0): DENY
+
+### GB / approval-after-restart (should ALLOW)
+CMD: dogwood replay generation-bound.dogwood --policy-schema schema.cedarschema --trace approval-after-restart.log
+@0 (time point 0): DENY
+@50 (time point 1): DENY
+@100 (time point 2): ALLOW  [rules: 0]
+

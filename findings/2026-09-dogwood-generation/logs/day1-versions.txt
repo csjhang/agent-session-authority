@@ -1,0 +1,5 @@
+dogwood 1.0.0
+rustc 1.90.0 (1159e78c4 2025-09-14)
+cargo 1.90.0 (840b83a10 2025-07-30)
+OS: Linux cursor 6.12.94+ #1 SMP PREEMPT_DYNAMIC Sat Sep  5 04:29:10 UTC 2026 x86_64 GNU/Linux
+dogwood commit: c6237c88099b3f492ecc5fcee42df06a19224b97

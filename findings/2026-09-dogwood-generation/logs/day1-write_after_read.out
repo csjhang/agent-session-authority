@@ -1,0 +1,10 @@
+### CMD: dogwood validate write_after_read
+OK: validation passed with no errors or warnings.
+### CMD: dogwood replay write_after_read
+@0 (time point 0): DENY
+@100 (time point 1): ALLOW  [rules: 0]
+@5000 (time point 2): DENY
+### expected.out:
+@0 (time point 0): DENY
+@100 (time point 1): ALLOW  [rules: 0]
+@5000 (time point 2): DENY
