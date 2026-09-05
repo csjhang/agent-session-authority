@@ -1,0 +1,31 @@
+# Week-3 third-party repro: mock effect sink (lean; no Temporal/relay).
+# Usage:
+#   docker compose -f docker/compose.yaml up
+#   curl http://localhost:8787/health
+# Fixture adapters (on host with Node >=20 / pnpm):
+#   pnpm install && pnpm test
+#   pnpm --filter @asa/adapter-ahp fixture
+#   pnpm --filter @asa/adapter-ably fixture
+#   pnpm --filter @asa/adapter-acp-mux fixture
+#   pnpm --filter @asa/adapter-acp fixture
+# asa check:
+#   pnpm asa -- check corpus/auth01/pass.jsonl --profile corpus/auth01/profile.json
+# Ably LIVE later: set ABLY_API_KEY (optional; Week 3 fixtures do not require it).
+services:
+  sink:
+    image: node:22-bookworm-slim
+    working_dir: /repo
+    volumes:
+      - ..:/repo
+    ports:
+      - "8787:8787"
+    environment:
+      ASA_SINK_PORT: "8787"
+      ASA_SINK_HOST: "0.0.0.0"
+    command: ["bash", "-lc", "corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --filter @asa/sink... && pnpm --filter @asa/sink start"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch(\"http://127.0.0.1:8787/health\").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
