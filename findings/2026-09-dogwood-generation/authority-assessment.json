@@ -1,0 +1,28 @@
+{
+  "target": "dogwood",
+  "profile_version": "0.2",
+  "claims_file": null,
+  "claim_sources": [
+    "https://github.com/dogwood-policy/dogwood",
+    "https://dogwood-policy.github.io/dogwood/index.html",
+    "https://github.com/dogwood-policy/dogwood/blob/c6237c88099b3f492ecc5fcee42df06a19224b97/README.md",
+    "https://github.com/dogwood-policy/dogwood/blob/c6237c88099b3f492ecc5fcee42df06a19224b97/dogwood-docs/guide/03-event-schema.md",
+    "https://github.com/dogwood-policy/dogwood/blob/c6237c88099b3f492ecc5fcee42df06a19224b97/dogwood-docs/guide/04-temporal-expressions.md",
+    "https://github.com/dogwood-policy/dogwood/blob/c6237c88099b3f492ecc5fcee42df06a19224b97/dogwood-docs/examples/write_after_read/",
+    "findings/2026-09-dogwood-generation/logs/day1-write_after_read.out",
+    "findings/2026-09-dogwood-generation/logs/day2-replays.out"
+  ],
+  "test_basis": "synthetic_fixture",
+  "notes": "Stub assessment after Week-1 Day1–2. Official write_after_read baseline = research_profile/docs; restart/generation contrast = synthetic_fixture. Time-window-only policy does not claim generation bound; generation-bound.dogwood shows MFOTL+custom RuntimeRestart action can express it when restart events are in the trace. InMemoryTemporalEngine loses history across process restart (documented). Do not claim AUTH-01 bug from time-window ALLOW-after-restart alone.",
+  "dogwood_commit": "c6237c88099b3f492ecc5fcee42df06a19224b97",
+  "capabilities_stub": {
+    "AUTH-01_generation_bound": {
+      "label": "inconclusive",
+      "detail": "Depends on policy+event modeling. time-window.dogwood: not_declared for generation. generation-bound.dogwood + restart events: supported under synthetic_fixture. Durable temporal store across crash: not_tested (reference InMemory loses history)."
+    },
+    "time_window_approval": {
+      "label": "supported",
+      "detail": "write_after_read / time-window.dogwood formerly within 1h ApproveSale — measured DENY/ALLOW as expected."
+    }
+  }
+}

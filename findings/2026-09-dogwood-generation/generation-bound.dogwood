@@ -1,0 +1,22 @@
+// generation-bound.dogwood — attempt to bound approval by RuntimeRestart generation.
+// Intended meaning: SellShares allowed only if an ApproveSale::response for the
+// same stock occurred within 1h AND no RuntimeRestart has happened since that
+// approval (MFOTL open-session idiom: !Restart since Approval).
+@id("sell_after_approval_generation_bound")
+permit (
+    principal,
+    action == Drupe::Action::"SellShares",
+    resource
+)
+when temporal {
+    formerly within 1h Drupe::Action::"ApproveSale"::response{
+        input.stock: context.input.stock
+    }
+    && (
+        ! Drupe::Action::"RuntimeRestart"::request{ }
+        since within 1h
+        Drupe::Action::"ApproveSale"::response{
+            input.stock: context.input.stock
+        }
+    )
+};

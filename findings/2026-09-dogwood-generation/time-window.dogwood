@@ -1,0 +1,14 @@
+// time-window.dogwood — Day-2 baseline from official write_after_read / SellShares
+// Permit SellShares only if same-stock ApproveSale::response within 1h.
+// No generation / restart awareness.
+@id("sell_after_approval_time_window")
+permit (
+    principal,
+    action == Drupe::Action::"SellShares",
+    resource
+)
+when temporal {
+    formerly within 1h Drupe::Action::"ApproveSale"::response{
+        input.stock: context.input.stock
+    }
+};
