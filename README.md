@@ -54,7 +54,12 @@ packages/core         Offline checker + CLI (zero target SDK deps)
 packages/sink         Effect sink stub (week-2 expands)
 packages/adapters/*   Target adapter stubs
 corpus/               Handwritten pass/violate JSONL
+findings/             Target measurements (CLI/fixtures; no core SDK deps)
 ```
+
+## Findings
+
+- Dogwood Week-1 Day 1–2 (time-window vs generation-bound): [`findings/2026-09-dogwood-generation/`](findings/2026-09-dogwood-generation/) — policies, traces, raw `dogwood replay` logs, `writeup.md`, `authority-assessment.json`. Official 1h SellShares←ApproveSale matches docs; time-window ALLOW across in-process `RuntimeRestart` is **expected** (not an AUTH-01 bug claim); `generation-bound.dogwood` DENYs after restart via MFOTL `since`. Reference `InMemoryTemporalEngine` loses history across process restart (documented).
 
 ## License
 
