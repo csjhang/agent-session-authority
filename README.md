@@ -2,23 +2,13 @@
 
 Session Authority Fault Probe — measure cross-runtime session authority invariants (AUTH-01..08). CLI: `asa`.
 
-## Problem
+This repo is a Fault Probe, not a normative conformance standard. Results are capability vectors with explicit fixture limits.
 
-Across people, devices, runtimes, and restarts: **who may act now, who approved what, which action is still valid, and which effect actually happened.**
+## Status
 
-This repo is a **Fault Probe** (not yet a Conformance Kit). It measures coverage with capability vectors. It does **not** claim a normative industry standard.
-
-## Week-2 status
-
-| Slice | Status | Notes |
-| --- | --- | --- |
-| Mock effect sink | **Done** | `packages/sink` HTTP + ledger, fault inject, snapshot/restore |
-| AUTH-02 / 04 / 07 | **Done** | Checkers + pass/violate corpora + golden tests |
-| First adapter | **Done** | `packages/adapters/acp` → `@agentclientprotocol/claude-agent-acp@0.75.1` |
-| First capability vector | **Done** | `targets/claude-agent-acp/` (FIXTURE) |
-| Writeup | **Done** | `findings/2026-09-week2/` |
-
-Week-1 (Dogwood traces, history/asa check, AUTH-01/03/05/06) remains complete.
+- Week 1: history JSONL, `asa check`, AUTH checkers and corpora.
+- Week 2: mock sink, AUTH-02/04/07, ACP fixture adapter.
+- Week 3: AHP / VS Code Agent Host, Ably AI Transport, acp-mux fixtures; Docker compose; comparison table.
 
 ## Quick start
 
@@ -28,57 +18,35 @@ pnpm test
 pnpm asa -- check corpus/auth02/pass.jsonl --profile corpus/auth02/profile.json
 ```
 
-### Mock effect sink
+## Week 3 fixture adapters
 
 ```bash
-pnpm --filter @asa/sink exec tsx src/cli.ts 8787
-# POST http://127.0.0.1:8787/accept  {"effectId":"e1","actionDigest":"d1"}
-# GET  /ledger  /health  /observations  /snapshot
-# POST /fault   {"mode":"timeout"|"resend"|"lost_reply"|"delay","delayMs":?}
+pnpm fixture:ahp
+pnpm fixture:ably
+pnpm fixture:acp-mux
+pnpm fixture:acp
 ```
 
-### ACP adapter (FIXTURE vs LIVE)
+Ably live is optional later and requires `ABLY_API_KEY`; fixtures do not. AHP live attach documents `AHP_WS_URL` when a VS Code Agent Host is present. No secrets are committed. `packages/core` stays SDK-free.
+
+## Docker third-party repro
 
 ```bash
-# FIXTURE — local mock peer, no cloud key
-pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode fixture
-
-# LIVE — requires user-provided Anthropic API key in env; never commit secrets
-pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode live
+docker compose -f docker/compose.yaml up
+curl http://localhost:8787/health
 ```
 
-Pinned package (docs): `@agentclientprotocol/claude-agent-acp@0.75.1` (cards formerly said claude-code-acp / `@zed-industries/claude-agent-acp`).
+The compose file is a lean mock-sink repro: no Temporal and no relay. See `docker/README.md`.
 
-`packages/core` stays **SDK-free**.
+## Week 3 findings
 
-## Authority vocabulary
-
-`ControlLease`, `RuntimeGeneration`, `ActionBinding`, `ActionDigest`, `ApprovalDecision`, `FenceToken` / `FenceEpoch`, `EffectId`, `EffectReceipt`
+- `findings/2026-09-week3/writeup.md`
+- `findings/2026-09-week3/results-table.md`
+- `targets/vscode-agent-host/`, `targets/ably/`, `targets/acp-mux/`
 
 ## Result labels
 
-| Label | Meaning |
-| --- | --- |
-| `supported` | Evidence supports the invariant under the stated claim |
-| `not_declared` | Target does not claim the invariant |
-| `violation` | Counterexample with witness seqs |
-| `inconclusive` | Evidence insufficient to judge |
-| `underspecified` | Claim too vague to falsify |
-| `not_tested` | Checker not implemented / not run (**≠** claim_status=not_declared) |
-
-## Layout
-
-```text
-spec/                      Profile, schemas, glossary, history format
-packages/core              Offline checker + CLI (zero target SDK deps)
-packages/sink              Mock effect sink (HTTP + ledger)
-packages/adapters/acp      claude-agent-acp adapter (FIXTURE + LIVE gate)
-packages/adapters/*        Other target stubs (AHP/Ably/Dogwood)
-corpus/                    Handwritten pass/violate JSONL
-targets/claude-agent-acp/  Assessment + capability vector
-findings/                  Day/week notes
-docs/                      Short checklists
-```
+`supported`, `not_declared`, `violation`, `inconclusive`, `underspecified`, and `not_tested` are separate labels; `not_tested` is not `not_declared`.
 
 ## License
 
