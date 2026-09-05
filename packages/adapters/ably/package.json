@@ -1,9 +1,1 @@
-{
-  "name": "@asa/adapter-ably",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "license": "Apache-2.0",
-  "exports": { ".": "./src/index.ts" },
-  "scripts": { "build": "echo adapter-stub" }
-}
+{"name":"@asa/adapter-ably","version":"0.3.0","private":true,"type":"module","license":"Apache-2.0","description":"Ably AI Transport adapter (fixture preferred; optional live if ABLY_API_KEY)","exports":{".":"./src/index.ts"},"scripts":{"build":"echo adapter-ably-ok","test":"vitest run --config vitest.config.ts","fixture":"tsx src/cli.ts --mode fixture"},"engines":{"node":">=20"},"devDependencies":{"@types/node":"^22.10.1","tsx":"^4.19.2","typescript":"^5.7.2","vitest":"^2.1.8"}}

@@ -1,16 +1,8 @@
-/** Week-1 stub adapter for ably. No live target SDK dependency. */
-export interface AdapterStub {
-  readonly target: "ably";
-  readonly status: "stub";
-  collect_history(): never;
-}
-
-export function create_adapter(): AdapterStub {
-  return {
-    target: "ably",
-    status: "stub",
-    collect_history() {
-      throw new Error("ably adapter stub: not implemented in week 1");
-    },
-  };
-}
+import { MockAblyPeer, type AblyPeerEvent } from "./mock_peer.js";
+import { ably_events_to_history, history_to_jsonl, type HistoryEventLite } from "./history_from_ably.js";
+export type AdapterMode="fixture"|"live";
+export interface AblyAdapterResult { mode:AdapterMode; target:"ably"; events:AblyPeerEvent[]; history:HistoryEventLite[]; history_jsonl:string; notes:string[]; }
+export interface AblyAdapterOptions { mode?:AdapterMode; env?:NodeJS.ProcessEnv; }
+function key_present(e:NodeJS.ProcessEnv):boolean{return Boolean(e.ABLY_API_KEY&&e.ABLY_API_KEY.length>0);}
+export async function collect_history(opts:AblyAdapterOptions={}):Promise<AblyAdapterResult>{const mode=opts.mode??"fixture",notes:string[]=[],env=opts.env??process.env;if(mode==="live"){notes.push("LIVE mode: requires ABLY_API_KEY (never commit). Cloud-only — no self-host/air-gap.");if(!key_present(env)){notes.push("ABLY_API_KEY missing; refusing live path. Week 3 succeeds with fixture.");throw new Error("LIVE Ably requires ABLY_API_KEY in the environment");}notes.push("ABLY_API_KEY present; live SDK wire capture not implemented in Week 3 — use fixture for vectors.");throw new Error("LIVE Ably wire capture not implemented; fixture mode produces Week-3 vectors");}notes.push("FIXTURE mode: MockAblyPeer (no Ably key, no Ably SDK in core).");notes.push("Constraint: Ably AI Transport is pure cloud — no air-gap / self-host path.");const p=new MockAblyPeer(),events=p.run_fixture_scenario(),history=ably_events_to_history(events);return{mode:"fixture",target:"ably",events,history,history_jsonl:history_to_jsonl(history),notes};}
+export {MockAblyPeer} from "./mock_peer.js"; export type {AblyPeerEvent} from "./mock_peer.js"; export {ably_events_to_history,history_to_jsonl} from "./history_from_ably.js"; export type {HistoryEventLite} from "./history_from_ably.js";

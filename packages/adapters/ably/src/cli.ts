@@ -1,0 +1,3 @@
+#!/usr/bin/env node
+import fs from "node:fs"; import path from "node:path"; import { fileURLToPath } from "node:url"; import { collect_history,type AdapterMode } from "./index.js";
+const args=process.argv.slice(2);let mode:AdapterMode="fixture";const i=args.indexOf("--mode");if(i>=0&&args[i+1])mode=args[i+1]==="live"?"live":"fixture";const r=await collect_history({mode});const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../../../..");const out=path.join(root,"targets/ably/results");fs.mkdirSync(out,{recursive:true});const hp=path.join(out,`history-${r.mode}.jsonl`);fs.writeFileSync(hp,r.history_jsonl);console.log(JSON.stringify({mode:r.mode,history_path:hp,notes:r.notes,events:r.events.length},null,2));
