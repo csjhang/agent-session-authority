@@ -1,0 +1,24 @@
+{
+  "target": "claude-agent-acp",
+  "package_name": "@agentclientprotocol/claude-agent-acp",
+  "package_version_pinned": "0.75.1",
+  "profile_version": "0.2",
+  "claims_file": null,
+  "test_basis": "synthetic_fixture",
+  "mode": "FIXTURE",
+  "live_requires": "ANTHROPIC_API_KEY in user environment (never committed)",
+  "claim_sources": [
+    "https://www.npmjs.com/package/@agentclientprotocol/claude-agent-acp",
+    "https://github.com/agentclientprotocol/claude-agent-acp",
+    "https://agentclientprotocol.com/",
+    "https://registry.npmjs.org/@agentclientprotocol/claude-agent-acp/latest"
+  ],
+  "notes": "Week-2 first adapter. FIXTURE uses local MockAcpPeer. LIVE spawn path exists but needs user-provided API key. No vendor authority-profile.json; research/public-doc claims only. Core remains SDK-free.",
+  "observed_capabilities": {
+    "session_updates": "reconstructed_from_fixture",
+    "permission_requests": "mapped_to_approval_request_grant",
+    "generation_fencing": "not_observed_in_public_docs",
+    "action_digest": "adapter_synthesized_for_probe",
+    "effect_receipt": "not_provided_by_acp_agent_alone"
+  }
+}

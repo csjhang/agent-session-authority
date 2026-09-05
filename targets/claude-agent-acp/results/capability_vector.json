@@ -1,0 +1,38 @@
+{
+  "target": "claude-agent-acp",
+  "profile_version": "0.2",
+  "test_basis": "synthetic_fixture",
+  "mode": "FIXTURE",
+  "package_name": "@agentclientprotocol/claude-agent-acp",
+  "package_version_pinned": "0.75.1",
+  "capability_vector": {
+    "AUTH-01": "not_tested",
+    "AUTH-01a": "not_declared",
+    "AUTH-01b": "not_tested",
+    "AUTH-01c": "not_declared",
+    "AUTH-02": "inconclusive",
+    "AUTH-03": "not_declared",
+    "AUTH-04": "not_declared",
+    "AUTH-05": "inconclusive",
+    "AUTH-06": "not_declared",
+    "AUTH-07": "not_declared",
+    "AUTH-08": "not_declared"
+  },
+  "claim_status_vector": {
+    "AUTH-01": "not_declared",
+    "AUTH-02": "not_declared",
+    "AUTH-03": "not_declared",
+    "AUTH-04": "not_declared",
+    "AUTH-05": "not_declared",
+    "AUTH-06": "not_declared",
+    "AUTH-07": "not_declared",
+    "AUTH-08": "not_declared"
+  },
+  "explanation": {
+    "AUTH-02": "Fixture maps ACP permission allow/deny to approval.grant/deny with synthesized action_digest; public docs describe permission extension but not canonical ActionBinding+generation binding. Measured fixture only.",
+    "AUTH-05": "Permission responses are client-driven; fixture cannot show ControlLease vs Approver separation as first-class ACP objects.",
+    "AUTH-04": "No fence token / fence epoch in public ACP agent surface observed in claim_sources.",
+    "AUTH-06": "ACP agent alone does not emit EffectReceipt; boundary is outside this adapter."
+  },
+  "history_artifact": "targets/claude-agent-acp/results/history-fixture.jsonl"
+}
