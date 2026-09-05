@@ -1,0 +1,4 @@
+{"seq":1,"kind":"ok","op":"effect.dispatch","attrs":{"effect_id":"e1","status":"dispatched"}}
+{"seq":2,"kind":"ok","op":"effect.receipt","attrs":{"effect_id":"e1","outcome":"committed"}}
+{"seq":3,"kind":"fail","op":"effect.dispatch","attrs":{"effect_id":"e2","status":"failed","note":"fail means guaranteed no effect"}}
+{"seq":4,"kind":"info","op":"effect.dispatch","attrs":{"effect_id":"e3","status":"unknown","note":"info is uncertain not success"}}

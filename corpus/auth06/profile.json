@@ -1,0 +1,6 @@
+{
+  "profile_version": "0.2",
+  "target": "synthetic-auth06",
+  "generation_model": "G0",
+  "claimed_invariants": ["AUTH-06"]
+}

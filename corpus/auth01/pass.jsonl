@@ -1,0 +1,8 @@
+{"seq":1,"ts":"2026-09-05T10:00:00Z","kind":"observe","op":"generation.observe","attrs":{"runtime_generation":1,"issuer_id":"lease_plane","runtime_id":"runtime_a"}}
+{"seq":2,"ts":"2026-09-05T10:00:01Z","kind":"ok","op":"lease.acquire","actor_id":"controller_1","attrs":{"scope_id":"workspace","holder":"controller_1","fence_epoch":1,"accepted":true}}
+{"seq":3,"ts":"2026-09-05T10:00:02Z","kind":"ok","op":"action.bind","actor_id":"controller_1","attrs":{"action_type":"file.write","target":"repo/main.ts","scope_id":"workspace","action_digest":"digest_a","runtime_generation":1}}
+{"seq":4,"ts":"2026-09-05T10:00:03Z","kind":"ok","op":"approval.grant","actor_id":"approver_1","attrs":{"approver":"approver_1","action_digest":"digest_a","decision":"grant"}}
+{"seq":5,"ts":"2026-09-05T10:00:04Z","kind":"ok","op":"effect.dispatch","actor_id":"controller_1","attrs":{"effect_id":"eff_1","action_digest":"digest_a","status":"dispatched"}}
+{"seq":6,"ts":"2026-09-05T10:00:05Z","kind":"ok","op":"effect.receipt","attrs":{"effect_id":"eff_1","action_digest":"digest_a","runtime_generation":1,"fence_epoch":1,"scope_id":"workspace","outcome":"committed","controller":"controller_1"}}
+{"seq":7,"ts":"2026-09-05T10:00:06Z","kind":"fault","fault":"runtime.restart","note":"clean restart"}
+{"seq":8,"ts":"2026-09-05T10:00:07Z","kind":"observe","op":"generation.observe","attrs":{"runtime_generation":2,"issuer_id":"lease_plane","runtime_id":"runtime_a"}}

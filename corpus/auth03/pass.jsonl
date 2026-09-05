@@ -1,0 +1,4 @@
+{"seq":1,"kind":"ok","op":"lease.acquire","actor_id":"c1","attrs":{"scope_id":"workspace","holder":"c1","fence_epoch":1,"accepted":true}}
+{"seq":2,"kind":"ok","op":"action.bind","actor_id":"c1","attrs":{"action_type":"file.write","target":"repo/a.ts","scope_id":"workspace","action_digest":"d1"}}
+{"seq":3,"kind":"ok","op":"effect.dispatch","actor_id":"c1","attrs":{"effect_id":"e1","action_digest":"d1","status":"dispatched"}}
+{"seq":4,"kind":"ok","op":"effect.receipt","attrs":{"effect_id":"e1","outcome":"committed","scope_id":"workspace","controller":"c1"}}

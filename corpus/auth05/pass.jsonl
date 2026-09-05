@@ -1,0 +1,4 @@
+{"seq":1,"kind":"ok","op":"lease.acquire","actor_id":"controller_1","attrs":{"scope_id":"workspace","holder":"controller_1","fence_epoch":1,"accepted":true}}
+{"seq":2,"kind":"ok","op":"approval.grant","actor_id":"approver_1","attrs":{"approver":"approver_1","action_digest":"d1","decision":"grant"}}
+{"seq":3,"kind":"ok","op":"effect.dispatch","actor_id":"controller_1","attrs":{"effect_id":"e1","action_digest":"d1","status":"dispatched"}}
+{"seq":4,"kind":"ok","op":"effect.receipt","attrs":{"effect_id":"e1","outcome":"committed","scope_id":"workspace","controller":"controller_1"}}

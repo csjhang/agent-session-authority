@@ -1,0 +1,8 @@
+{
+  "profile_version": "0.2",
+  "target": "synthetic-auth03",
+  "generation_model": "G0",
+  "claimed_invariants": ["AUTH-03", "AUTH-03a", "AUTH-03b", "AUTH-03c"],
+  "scope_map": [{"action_type": "file.write", "target": "repo/a.ts", "scope_id": "workspace"}],
+  "scope_decision": {"file.write|repo/a.ts": "workspace"}
+}

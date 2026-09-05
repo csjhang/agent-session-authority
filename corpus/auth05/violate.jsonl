@@ -1,0 +1,3 @@
+{"seq":1,"kind":"ok","op":"approval.grant","actor_id":"approver_1","attrs":{"approver":"approver_1","action_digest":"d1","decision":"grant","auto_from_control":true}}
+{"seq":2,"kind":"ok","op":"lease.acquire","actor_id":"approver_1","attrs":{"scope_id":"workspace","holder":"approver_1","fence_epoch":1,"accepted":true,"granted_because_approver":true}}
+{"seq":3,"kind":"ok","op":"effect.dispatch","actor_id":"approver_1","attrs":{"effect_id":"e1","role":"approver","used_approval_as_control":true,"status":"dispatched"}}
