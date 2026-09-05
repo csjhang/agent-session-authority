@@ -4,11 +4,23 @@
   "title": "AuthorityProfile",
   "type": "object",
   "properties": {
-    "profile_version": { "type": "string" },
-    "target": { "type": "string" },
-    "generation_model": { "type": "string", "enum": ["G0", "G1", "G2"] },
-    "claimed_invariants": { "type": "array", "items": { "type": "string" } },
-    "scope_decision": { "type": "object", "additionalProperties": { "type": "string" } },
+    "profile_version": { "type": "string", "description": "Profile schema / vocabulary version (Week-1: \"0.2\")." },
+    "target": { "type": "string", "description": "Named target under assessment (synthetic or real)." },
+    "generation_model": {
+      "type": "string",
+      "enum": ["G0", "G1", "G2"],
+      "description": "Runtime generation model claimed by the target."
+    },
+    "claimed_invariants": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Invariant IDs the target declares (e.g. AUTH-01, AUTH-03b). Drives claim_status; independent of checker result."
+    },
+    "scope_decision": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Map of \"action_type|target\" → scope_id."
+    },
     "scope_map": {
       "type": "array",
       "items": {
@@ -18,11 +30,20 @@
           "action_type": { "type": "string" },
           "target": { "type": "string" },
           "scope_id": { "type": "string" }
-        }
-      }
+        },
+        "additionalProperties": false
+      },
+      "description": "Structured scope rows; alternative to scope_decision."
     },
-    "known_bypasses": { "type": "array", "items": { "type": "string" } },
-    "coverage_boundary": { "type": "string" },
+    "known_bypasses": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Documented bypasses / out-of-band paths."
+    },
+    "coverage_boundary": {
+      "type": "string",
+      "description": "What the profile does and does not cover."
+    },
     "notes": { "type": "string" }
   },
   "additionalProperties": true

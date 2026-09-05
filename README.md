@@ -8,6 +8,14 @@ Across people, devices, runtimes, and restarts: **who may act now, who approved 
 
 This repo is a **Fault Probe** (not yet a Conformance Kit). It measures coverage with capability vectors. It does **not** claim a normative industry standard.
 
+## Week-1 status
+
+| Slice | Status | Notes |
+| --- | --- | --- |
+| Day 1-2 Dogwood | **Done** | Stub adapters + effect sink stub |
+| Day 3-4 history / asa check | **Done** | JSONL schema + seq monotonicity + CLI; see findings/2026-09-day3-4/ |
+| Day 5-7 checkers | **Present early** | AUTH-01/03/05/06 + corpus; AUTH-02/04/07 stubs not_tested |
+
 ## Week-1 scope
 
 - History JSONL format + offline checker (`asa check`)
@@ -44,7 +52,7 @@ Capability vectors only (no A0–A3 grade):
 | `violation` | Counterexample with witness seqs |
 | `inconclusive` | Evidence insufficient to judge |
 | `underspecified` | Claim too vague to falsify |
-| `not_tested` | Checker not implemented / not run (≠ `not_declared`) |
+| `not_tested` | Checker not implemented / not run (**≠** claim_status=not_declared) |
 
 ## Layout
 
@@ -54,12 +62,9 @@ packages/core         Offline checker + CLI (zero target SDK deps)
 packages/sink         Effect sink stub (week-2 expands)
 packages/adapters/*   Target adapter stubs
 corpus/               Handwritten pass/violate JSONL
-findings/             Target measurements (CLI/fixtures; no core SDK deps)
+findings/             Day completion notes
+docs/                 Short checklists
 ```
-
-## Findings
-
-- Dogwood Week-1 Day 1–2 (time-window vs generation-bound): [`findings/2026-09-dogwood-generation/`](findings/2026-09-dogwood-generation/) — policies, traces, raw `dogwood replay` logs, `writeup.md`, `authority-assessment.json`. Official 1h SellShares←ApproveSale matches docs; time-window ALLOW across in-process `RuntimeRestart` is **expected** (not an AUTH-01 bug claim); `generation-bound.dogwood` DENYs after restart via MFOTL `since`. Reference `InMemoryTemporalEngine` loses history across process restart (documented).
 
 ## License
 

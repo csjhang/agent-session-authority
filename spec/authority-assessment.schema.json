@@ -4,11 +4,22 @@
   "title": "AuthorityAssessment",
   "type": "object",
   "properties": {
-    "target": { "type": "string" },
-    "profile_version": { "type": "string" },
-    "claims_file": { "type": ["string", "null"] },
-    "claim_sources": { "type": "array", "items": { "type": "string" } },
-    "test_basis": { "type": "string", "enum": ["vendor_claim", "research_profile", "synthetic_fixture"] },
+    "target": { "type": "string", "description": "Assessment subject; copied into report.target." },
+    "profile_version": { "type": "string", "description": "Profile version this assessment was run against." },
+    "claims_file": {
+      "type": ["string", "null"],
+      "description": "Optional path to a claims document; null when using inline profile only."
+    },
+    "claim_sources": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Provenance URLs or citations for vendor / research claims."
+    },
+    "test_basis": {
+      "type": "string",
+      "enum": ["vendor_claim", "research_profile", "synthetic_fixture"],
+      "description": "Evidence basis for findings (propagated to each CheckFinding)."
+    },
     "notes": { "type": "string" }
   },
   "additionalProperties": true
