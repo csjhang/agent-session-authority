@@ -1,0 +1,30 @@
+{
+  "target": "vscode-agent-host",
+  "protocol": "AHP",
+  "profile_version": "0.2",
+  "claims_file": null,
+  "test_basis": "synthetic_fixture",
+  "mode": "FIXTURE",
+  "live_requires": "AHP_WS_URL or running VS Code Agent Host (optional; not required for Week 3)",
+  "claim_sources": [
+    "https://code.visualstudio.com/blogs/2026/08/26/agent-host-architecture",
+    "https://microsoft.github.io/agent-host-protocol/",
+    "https://microsoft.github.io/agent-host-protocol/guide/what-is-ahp.html",
+    "https://github.com/microsoft/vscode-docs/blob/main/docs/agents/concepts/agent-host.md",
+    "https://www.npmjs.com/package/@microsoft/agent-host-protocol"
+  ],
+  "notes": "Week-3 AHP fixture. Models multi-client subscribe, serverSeq envelopes, in-process first-wins tool confirmation, weak turn ownership, and host-process-death gap. Cannot prove: cross-restart RuntimeGeneration/fencing, Approver!=Controller SoD, EffectReceipt, lease expiry. Digests/fence_epoch are adapter-synthesized. Core remains SDK-free.",
+  "observed_capabilities": {
+    "multi_client_sync": "reconstructed_from_fixture",
+    "tool_confirmation_first_wins": "mapped_to_approval_grant",
+    "turn_ownership": "weak_mutex_observe_only",
+    "host_restart_generation": "not_defined_in_public_docs",
+    "action_digest": "adapter_synthesized_for_probe",
+    "effect_receipt": "not_provided_by_ahp_alone"
+  },
+  "fixture_limitations": [
+    "No live VS Code Agent Host attached",
+    "Host restart generation fencing not expressible as supported",
+    "In-process first-wins is not portable ActionBinding+generation"
+  ]
+}

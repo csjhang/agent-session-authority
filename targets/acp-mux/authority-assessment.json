@@ -1,0 +1,12 @@
+{
+  "target": "acp-mux",
+  "family": "ACP",
+  "profile_version": "0.2",
+  "claims_file": null,
+  "test_basis": "synthetic_fixture",
+  "mode": "FIXTURE",
+  "claim_sources": ["https://github.com/agentclientprotocol/agent-client-protocol/pull/533", "https://github.com/lsaether/acp-mux", "https://github.com/ElleNajt/acp-multiplex", "https://agentclientprotocol.com/"],
+  "notes": "Week-3 acp-mux fixture (ACP-family second target). Models RFD #533 observation attach + pending permission re-issue + first-wins resolve broadcast. Explicit non-claims: no fencing, lease, digest, generation, or revocation in acp-mux.",
+  "observed_capabilities": {"observation_attach":"reconstructed_from_fixture", "pending_permission_reissue":"mapped_to_approval_request_observe", "first_wins_permission":"mapped_to_approval_grant", "fencing":"absent", "lease":"absent", "action_digest_native":"absent", "runtime_generation_native":"absent"},
+  "fixture_limitations": ["No live mux process", "Authority primitives beyond observation attach are out of scope for acp-mux"]
+}

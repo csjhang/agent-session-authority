@@ -1,0 +1,12 @@
+{
+  "target": "ably",
+  "profile_version": "0.2",
+  "test_basis": "synthetic_fixture",
+  "mode": "FIXTURE",
+  "capability_vector": {"AUTH-01":"not_tested","AUTH-01a":"not_declared","AUTH-01b":"not_declared","AUTH-01c":"not_declared","AUTH-02":"inconclusive","AUTH-03":"not_declared","AUTH-04":"not_declared","AUTH-05":"inconclusive","AUTH-06":"not_declared","AUTH-07":"not_declared","AUTH-08":"not_declared"},
+  "claim_status_vector": {"AUTH-01":"not_declared","AUTH-02":"not_declared","AUTH-03":"not_declared","AUTH-04":"not_declared","AUTH-05":"not_declared","AUTH-06":"not_declared","AUTH-07":"not_declared","AUTH-08":"not_declared"},
+  "explanation": {"AUTH-02":"Fixture maps toolCallId HITL allow/deny to approval ops with synthesized digest; docs bind toolCallId/first-response-wins, not portable ActionDigest+generation.","AUTH-01b":"Resume = new invocation; old approval validity across invocation undefined — not_declared for generation-bound restart.","AUTH-05":"Multi-device approval possible; fixture cannot prove ControlLease vs Approver separation as first-class objects (inconclusive).","AUTH-04":"No fence token in Ably AI Transport public surface.","AUTH-06":"Transport does not emit EffectReceipt."},
+  "history_artifact": "targets/ably/results/history-fixture.jsonl",
+  "constraints": ["cloud_only", "no_air_gap"],
+  "fixture_limitations": ["synthetic_fixture only", "live path optional later with ABLY_API_KEY"]
+}

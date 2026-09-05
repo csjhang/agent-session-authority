@@ -1,0 +1,14 @@
+{
+  "target": "ably",
+  "product": "Ably AI Transport",
+  "profile_version": "0.2",
+  "claims_file": null,
+  "test_basis": "synthetic_fixture",
+  "mode": "FIXTURE",
+  "live_requires": "ABLY_API_KEY in user environment (never commit); Week 3 does not fail if missing",
+  "constraints": ["cloud_only", "no_self_host", "no_air_gap"],
+  "claim_sources": ["https://ably.com/ai-transport", "https://ably.com/docs/ai-transport/features/human-in-the-loop", "https://ably.com/docs/ai-transport/api/javascript/core/agent-session", "https://github.com/ably/ably-ai-transport-js"],
+  "notes": "Week-3 Ably fixture. Models durable HITL tool-approval, multi-device first-response-wins, reconnect survival, and resume=new invocation gap. Cannot prove digest+generation portable enforcement or air-gap. Pure cloud — document no self-host.",
+  "observed_capabilities": {"durable_hitl_approval":"reconstructed_from_fixture", "first_response_wins":"mapped_to_approval_grant", "reconnect_pending_survival":"observe", "resume_new_invocation":"fault_observe", "action_digest":"adapter_synthesized_for_probe", "self_host":"not_available"},
+  "fixture_limitations": ["No ABLY_API_KEY required for Week 3", "Live SDK wire capture not implemented", "Cloud-only constraint from research cards"]
+}

@@ -1,0 +1,40 @@
+{
+  "target": "vscode-agent-host",
+  "protocol": "AHP",
+  "profile_version": "0.2",
+  "test_basis": "synthetic_fixture",
+  "mode": "FIXTURE",
+  "capability_vector": {
+    "AUTH-01": "not_tested",
+    "AUTH-01a": "not_declared",
+    "AUTH-01b": "not_declared",
+    "AUTH-01c": "not_declared",
+    "AUTH-02": "inconclusive",
+    "AUTH-03": "underspecified",
+    "AUTH-04": "not_declared",
+    "AUTH-05": "not_declared",
+    "AUTH-06": "not_declared",
+    "AUTH-07": "not_declared",
+    "AUTH-08": "not_declared"
+  },
+  "claim_status_vector": {
+    "AUTH-01": "not_declared",
+    "AUTH-02": "not_declared",
+    "AUTH-03": "not_declared",
+    "AUTH-04": "not_declared",
+    "AUTH-05": "not_declared",
+    "AUTH-06": "not_declared",
+    "AUTH-07": "not_declared",
+    "AUTH-08": "not_declared"
+  },
+  "explanation": {
+    "AUTH-02": "Fixture maps in-process first-wins tool confirmation to approval.grant with synthesized action_digest; public AHP docs do not define canonical ActionBinding+generation.",
+    "AUTH-03": "Turn ownership is a weak mutex in public docs — underspecified vs ControlLease expiry/fencing.",
+    "AUTH-01b": "Host process death is modeled as fault; cross-restart generation bump is not defined in public AHP — not_declared.",
+    "AUTH-04": "No FenceToken/FenceEpoch in public AHP surface.",
+    "AUTH-05": "No Approver!=Controller SoD as first-class AHP objects.",
+    "AUTH-06": "AHP alone does not emit EffectReceipt."
+  },
+  "history_artifact": "targets/vscode-agent-host/results/history-fixture.jsonl",
+  "fixture_limitations": ["synthetic_fixture only", "no live Agent Host"]
+}
