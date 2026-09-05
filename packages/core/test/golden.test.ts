@@ -90,6 +90,9 @@ describe("stubs and label distinctions", () => {
       const f = pass.find((x) => x.invariant === inv);
       expect(f?.result).toBe("not_tested");
       expect(f?.result).not.toBe("not_declared");
+      // claim_status is a separate axis — auth01 profile does not claim these
+      expect(f?.claim_status).toBe("not_declared");
+      expect(f?.result).not.toBe(f?.claim_status);
     }
   });
 });
