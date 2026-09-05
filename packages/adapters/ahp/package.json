@@ -1,9 +1,12 @@
 {
   "name": "@asa/adapter-ahp",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
+  "description": "AHP / VS Code Agent Host adapter (fixture mock peer + optional live stub)",
   "exports": { ".": "./src/index.ts" },
-  "scripts": { "build": "echo adapter-stub" }
+  "scripts": { "build": "echo adapter-ahp-ok", "test": "vitest run --config vitest.config.ts", "fixture": "tsx src/cli.ts --mode fixture" },
+  "engines": { "node": ">=20" },
+  "devDependencies": { "@types/node": "^22.10.1", "tsx": "^4.19.2", "typescript": "^5.7.2", "vitest": "^2.1.8" }
 }

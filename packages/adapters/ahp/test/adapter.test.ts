@@ -1,0 +1,8 @@
+import { describe, expect, it } from "vitest";
+import { collect_history, MockAhpPeer, ahp_events_to_history } from "../src/index.js";
+describe("@asa/adapter-ahp fixture", () => {
+  it("mock peer emits multi-client + first-wins confirmation + host death", () => { const events = new MockAhpPeer({ sessionId: "s-test" }).run_fixture_scenario(); expect(events.filter((e) => e.type === "client_subscribe").length).toBe(2); expect(events.some((e) => e.type === "tool_confirmation_request")).toBe(true); expect(events.some((e) => e.type === "tool_confirmation_response" && "ignored" in e && e.ignored)).toBe(true); expect(events.some((e) => e.type === "host_process_death")).toBe(true); expect(events.at(-1)?.type).toBe("session_closed"); });
+  it("converts AHP events to history JSONL", async () => { const result = await collect_history({ mode: "fixture" }); expect(result.mode).toBe("fixture"); expect(result.target).toBe("vscode-agent-host"); expect(result.history.some((e) => e.op === "approval.grant")).toBe(true); expect(result.history.some((e) => e.op === "runtime.restart")).toBe(true); expect(result.history_jsonl.split("\n").filter(Boolean).length).toBe(result.history.length); });
+  it("LIVE without AHP_WS_URL fails closed", async () => { await expect(collect_history({ mode: "live", env: {} })).rejects.toThrow(/AHP_WS_URL/); });
+  it("digests are deterministic", () => { const a = ahp_events_to_history(new MockAhpPeer().run_fixture_scenario()); const b = ahp_events_to_history(new MockAhpPeer().run_fixture_scenario()); expect(a.find((e) => e.op === "action.bind")?.attrs?.action_digest).toBe(b.find((e) => e.op === "action.bind")?.attrs?.action_digest); });
+});
