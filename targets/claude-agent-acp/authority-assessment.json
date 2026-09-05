@@ -13,12 +13,19 @@
     "https://agentclientprotocol.com/",
     "https://registry.npmjs.org/@agentclientprotocol/claude-agent-acp/latest"
   ],
-  "notes": "Week-2 first adapter. FIXTURE uses local MockAcpPeer. LIVE spawn path exists but needs user-provided API key. No vendor authority-profile.json; research/public-doc claims only. Core remains SDK-free.",
+  "notes": "Week-2 first adapter. FIXTURE (kept): local MockAcpPeer; artifacts history-fixture.jsonl + capability_vector.json. LIVE (2026-09-06 attempt): blocked — ANTHROPIC_API_KEY missing in executor process env; no spawn, no history-live.jsonl, no capability_vector-live.json. LIVE path still gated on user-provided API key (never commit). No vendor authority-profile.json; research/public-doc claims only. Core remains SDK-free.",
   "observed_capabilities": {
     "session_updates": "reconstructed_from_fixture",
     "permission_requests": "mapped_to_approval_request_grant",
     "generation_fencing": "not_observed_in_public_docs",
     "action_digest": "adapter_synthesized_for_probe",
     "effect_receipt": "not_provided_by_acp_agent_alone"
+  },
+  "live_last_attempt": {
+    "when": "2026-09-06T02:05+08:00",
+    "result": "blocked_missing_ANTHROPIC_API_KEY",
+    "history_live": null,
+    "capability_vector_live": null,
+    "fixture_artifacts_preserved": true
   }
 }

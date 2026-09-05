@@ -1,0 +1,10 @@
+{
+  "attempt": "live",
+  "when": "2026-09-06T02:05+08:00",
+  "api_key_status": "missing",
+  "package_install": "skipped",
+  "spawn": "not_attempted",
+  "asa_check": "not_run",
+  "reason": "key missing in process env",
+  "secrets_committed": false
+}

@@ -39,3 +39,33 @@ ACP assessment uses `test_basis: synthetic_fixture` plus public `claim_sources`.
 - core vitest: 28 passed
 - sink vitest: 5 passed
 - adapter-acp vitest: 4 passed
+
+## Live ACP measurement attempt (2026-09-06 ~02:05 Asia/Taipei)
+
+### Versions / intent
+
+- Target package: `@agentclientprotocol/claude-agent-acp@0.75.1` (peer/dev optional)
+- Adapter: `@asa/adapter-acp@0.2.0`
+- Planned command (no secrets): from `packages/adapters/acp`, `pnpm exec tsx src/cli.ts --mode live`
+- Planned outputs: `targets/claude-agent-acp/results/history-live.jsonl`, `capability_vector-live.json`
+- Keep prior FIXTURE artifacts untouched
+
+### Key presence check
+
+- Confirmed via shell: `ANTHROPIC_API_KEY=missing` (unset; length 0)
+- No `.env` / key files in the workspace (by design; secrets must not be committed)
+- Adapter gate in `collect_history`: LIVE refuses to spawn without the key
+
+### Outcome
+
+- **LIVE collect did not run.** Stopped at step 1 (key missing).
+- Did not install `@agentclientprotocol/claude-agent-acp@0.75.1` (no point without auth).
+- Did not write `history-live.jsonl` or `capability_vector-live.json` (no events to check).
+- FIXTURE artifacts retained: `history-fixture.jsonl`, `capability_vector.json`.
+- Diagnostics: `targets/claude-agent-acp/results/live-status.json`
+- `authority-assessment.json` notes updated: LIVE (blocked) vs FIXTURE (prior).
+
+### Limitations / next step for user
+
+- Brief spawn/observe path was never exercised; no protocol handshake observations.
+- **User action needed:** inject `ANTHROPIC_API_KEY` into the agent process environment (not the repo), then re-run the live collect steps.
