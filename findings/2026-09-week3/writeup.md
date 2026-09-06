@@ -1,17 +1,19 @@
-# Week 3 writeup — AHP, Ably, acp-mux + compose
+# Stage 3 writeup — AHP, Ably, acp-mux + compose
 
-**When:** 2026-09-06 ~02:30 Asia/Taipei (UTC+8)
+(Folder path remains `findings/2026-09-week3/` for history.)
+
+**When:** 2026-09-06 ~02:30 Asia/Taipei (UTC+8); live note refreshed later same day
 
 ## Delivered
 
 1. **`packages/adapters/ahp`** — VS Code Agent Host / AHP fixture mock peer
    - Multi-client subscribe, serverSeq envelopes, in-process first-wins tool confirmation, weak turn ownership, host-process-death gap
-   - CLI `--mode fixture`; live stub documents `AHP_WS_URL` attach (not required for Week 3)
+   - CLI `--mode fixture`; live stub documents `AHP_WS_URL` attach (not required for Stage 3 fixtures)
    - Targets: `targets/vscode-agent-host/`
 
 2. **`packages/adapters/ably`** — Ably AI Transport fixture (preferred)
    - Durable HITL suspend/approval, first-response-wins, reconnect survival, resume=new-invocation gap
-   - Optional live path gated on `ABLY_API_KEY`; missing key does **not** fail Week 3
+   - Optional live path gated on `ABLY_API_KEY`; missing key does **not** fail Stage 3 fixtures
    - Documents **cloud-only / no air-gap / no self-host**
    - Targets: `targets/ably/`
 
@@ -22,7 +24,19 @@
 
 4. **`docker/compose.yaml`** — lean third-party repro (sink only; no Temporal/relay)
 
-5. Results table below + capability vectors under each `targets/*/results/`
+5. Results table + capability vectors under each `targets/*/results/`
+
+## Live ACP (capped) — same calendar day
+
+Against `@agentclientprotocol/claude-agent-acp@0.75.1` a capped live run scored `live_capped_ok`:
+
+- Write approval grant (history seq **27–29**, `fence_epoch: 1`)
+- RuntimeRestart gen1→gen2 + `session/load` with prior Write/approval path still replayable (no generation-bound fence)
+- AUTH-04 partial (post-restart write timeout; `session/cancel` method-not-found)
+
+Published: [`LIVE_CAPPED.md`](../../targets/claude-agent-acp/results/LIVE_CAPPED.md) + [`history-live-witnesses.jsonl`](../../targets/claude-agent-acp/results/history-live-witnesses.jsonl). Outbound: [claude-agent-acp#1094](https://github.com/agentclientprotocol/claude-agent-acp/issues/1094).
+
+See `results-table.md` for the LIVE capped row vs fixture rows.
 
 ## Hard rules kept
 
@@ -34,11 +48,11 @@
 
 ## Fixture honesty
 
-All three new vectors are `test_basis: synthetic_fixture`. Labels use `not_declared` / `inconclusive` / `underspecified` / `not_tested` — never an unfair pass league table.
+AHP / Ably / acp-mux vectors are `test_basis: synthetic_fixture`. Labels use `not_declared` / `inconclusive` / `underspecified` / `not_tested` — never an unfair pass league table. Live beyond ACP capped (Ably / AHP / acp-mux wire) was **not** in Stage 3 fixture scope.
 
-## Ably live later
+## Ably / AHP / acp-mux live later
 
-User may inject `ABLY_API_KEY` into the agent process env and extend the live stub; Week 3 ships fixture-only wire capture.
+Optional live stubs remain gated on env (`ABLY_API_KEY`, `AHP_WS_URL`, …). Expanding live coverage waits on maintainer signal from #1094 (Align: don’t expand the probe until then).
 
 ## Docker
 
