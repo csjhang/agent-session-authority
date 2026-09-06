@@ -59,9 +59,9 @@ Build order: history → checker → mock sink → adapters.
 
 ## Status
 
-- **Week 1:** history JSONL, `asa check`, AUTH checkers and corpora; Dogwood generation notes under `findings/`
-- **Week 2:** mock sink, AUTH-02/04/07, ACP fixture adapter
-- **Week 3:** AHP / VS Code Agent Host, Ably, acp-mux fixtures; Docker compose; comparison table
+- **Stage 1:** history JSONL, `asa check`, AUTH checkers and corpora; Dogwood generation notes under `findings/`
+- **Stage 2:** mock sink, AUTH-02/04/07, ACP fixture adapter
+- **Stage 3:** AHP / VS Code Agent Host, Ably, acp-mux fixtures; Docker compose; comparison table
 - **Live (capped):** ACP initialize + session/new + permission + restart/`session/load` witnesses (above)
 
 ## Docker mock-sink repro
