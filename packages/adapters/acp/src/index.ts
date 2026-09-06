@@ -120,8 +120,12 @@ export function build_session_load(
   };
 }
 
-export function build_session_resume(id = 8, session_id = "live-session"): Record<string, unknown> {
-  return { jsonrpc: "2.0", id, method: "session/resume", params: { sessionId: session_id } };
+export function build_session_resume(
+  id = 8,
+  session_id = "live-session",
+  cwd = process.cwd(),
+): Record<string, unknown> {
+  return { jsonrpc: "2.0", id, method: "session/resume", params: { sessionId: session_id, cwd, mcpServers: [] } };
 }
 
 /** Build the ACP response for an allow/deny permission option selection. */
@@ -486,7 +490,7 @@ async function run_capped_live(opts: AcpAdapterOptions, notes: string[]): Promis
       notes.push(`session/load ${restored ? "ok" : "failed"}`);
       events.push({ type: "session_update", sessionId: session_id, update: { kind: "session_load", response: loaded } });
     } else if (capability(result2, "resume")) {
-      const resumed = await init2.rpc.request(build_session_resume(7, session_id), timeout_ms);
+      const resumed = await init2.rpc.request(build_session_resume(7, session_id, cwd), timeout_ms);
       restored = "result" in resumed;
       notes.push(`session/resume ${restored ? "ok" : "failed"}`);
       events.push({ type: "session_update", sessionId: session_id, update: { kind: "session_resume", response: resumed } });
