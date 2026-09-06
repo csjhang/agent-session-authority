@@ -1,7 +1,36 @@
 import { describe, expect, it } from "vitest";
-import { collect_history, MockAcpPeer, acp_events_to_history } from "../src/index.js";
+import {
+  collect_history,
+  MockAcpPeer,
+  acp_events_to_history,
+  build_initialize_v1,
+  build_session_new,
+  build_session_prompt,
+  build_session_cancel,
+  build_session_close,
+  build_session_load,
+  build_session_resume,
+  build_permission_selected,
+  pick_allow_option_id,
+} from "../src/index.js";
 
 describe("@asa/adapter-acp fixture", () => {
+  it("builds ACP v1 session and permission messages", () => {
+    expect(build_initialize_v1(1).method).toBe("initialize");
+    expect(build_session_new(2, "/tmp/asa")).toMatchObject({ id: 2, method: "session/new", params: { cwd: "/tmp/asa", mcpServers: [] } });
+    expect(build_session_prompt(3, "s1", "OK")).toMatchObject({ id: 3, method: "session/prompt", params: { sessionId: "s1", prompt: [{ type: "text", text: "OK" }] } });
+    expect(build_session_cancel(4, "s1").method).toBe("session/cancel");
+    expect(build_session_close(5, "s1", "done").params).toMatchObject({ sessionId: "s1", reason: "done" });
+    expect(build_session_load(6, "s1", "/tmp/asa").method).toBe("session/load");
+    expect(build_session_resume(7, "s1").method).toBe("session/resume");
+    expect(build_permission_selected(8, "allow_once")).toMatchObject({ id: 8, result: { outcome: { outcome: "selected", optionId: "allow_once" } } });
+  });
+
+  it("prefers allow_once and never selects deny", () => {
+    expect(pick_allow_option_id([{ optionId: "allow_always" }, { optionId: "allow_once" }, { optionId: "deny" }])).toBe("allow_once");
+    expect(pick_allow_option_id([{ optionId: "deny" }, { optionId: "cancel" }])).toBeUndefined();
+  });
+
   it("mock peer emits permission + session events", () => {
     const peer = new MockAcpPeer({ sessionId: "s-test" });
     const events = peer.run_fixture_scenario();
