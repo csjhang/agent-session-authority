@@ -6,3 +6,7 @@ coverage/
 .env
 .env.*
 pnpm-debug.log*
+
+# Local live ACP verbose streams (publish slim witnesses only)
+targets/claude-agent-acp/results/history-live.jsonl
+targets/**/asa-capped-probe.txt
