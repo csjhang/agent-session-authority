@@ -10,3 +10,6 @@ pnpm-debug.log*
 # Local live ACP verbose streams (publish slim witnesses only)
 targets/claude-agent-acp/results/history-live.jsonl
 targets/**/asa-capped-probe.txt
+targets/claude-agent-acp/results/history-live-effect.jsonl
+targets/claude-agent-acp/results/history-fixture-effect.jsonl
+packages/adapters/acp/asa-effect-*.txt
