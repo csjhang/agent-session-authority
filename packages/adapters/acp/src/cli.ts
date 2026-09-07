@@ -10,13 +10,18 @@ let scenario: AdapterScenario = "initialize";
 const mode_idx = args.indexOf("--mode");
 if (mode_idx >= 0 && args[mode_idx + 1]) mode = args[mode_idx + 1] === "live" ? "live" : "fixture";
 const scenario_idx = args.indexOf("--scenario");
-if (scenario_idx >= 0 && args[scenario_idx + 1]) scenario = args[scenario_idx + 1] === "capped" ? "capped" : "initialize";
+if (scenario_idx >= 0 && args[scenario_idx + 1]) scenario = args[scenario_idx + 1] === "capped" ? "capped" : args[scenario_idx + 1] === "effect" ? "effect" : "initialize";
 
 const result = await collect_history({ mode, scenario });
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo_root = path.resolve(here, "../../../..");
 const out_dir = path.join(repo_root, "targets/claude-agent-acp/results");
 fs.mkdirSync(out_dir, { recursive: true });
-const hist_path = path.join(out_dir, `history-${mode === "live" && scenario === "capped" ? "live" : result.mode}.jsonl`);
+const hist_name = scenario === "effect"
+  ? "history-" + result.mode + "-effect.jsonl"
+  : mode === "live" && scenario === "capped"
+    ? "history-live.jsonl"
+    : "history-" + result.mode + ".jsonl";
+const hist_path = path.join(out_dir, hist_name);
 fs.writeFileSync(hist_path, result.history_jsonl);
 console.log(JSON.stringify({ mode: result.mode, scenario, history_path: hist_path, notes: result.notes, events: result.events.length }, null, 2));

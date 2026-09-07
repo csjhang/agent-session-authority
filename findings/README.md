@@ -21,7 +21,7 @@ Biweekly maintainer-status trace on #1094 is owned outside this repo (Align). Do
 | Stage (README) | Folder | Notes |
 | --- | --- | --- |
 | Stage 1 (Dogwood generation) | [`2026-09-dogwood-generation/`](2026-09-dogwood-generation/) | [`writeup.md`](2026-09-dogwood-generation/writeup.md), traces, Cedar/Dogwood notes |
-| Stage 1 (history + `asa check`) | [`2026-09-day3-4/`](2026-09-day3-4/README.md) | [`README.md`](2026-09-day3-4/README.md) |
+| Stage 1 (history + `asa check`) | [`2026-09-day3-4/`](2026-09-day3-4/) | [`README.md`](2026-09-day3-4/README.md) |
 | Stage 2 | [`2026-09-week2/`](2026-09-week2/) | [`writeup.md`](2026-09-week2/writeup.md) — mock sink, AUTH-02/04/07, ACP fixture |
 | Stage 3 | [`2026-09-week3/`](2026-09-week3/) | [`writeup.md`](2026-09-week3/writeup.md), [`results-table.md`](2026-09-week3/results-table.md) — AHP / Ably / acp-mux fixtures + compose; live ACP capped note |
 
