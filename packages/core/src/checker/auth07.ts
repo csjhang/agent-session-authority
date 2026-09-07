@@ -37,6 +37,8 @@ function classify(ev_op: string | undefined, a: Record<string, unknown>, fault?:
 export const check_auth07: Checker = (ctx) => {
   const inv = "AUTH-07";
   const cs = claim_for(ctx, inv);
+  const guard = observation_guard(ctx, inv, ctx.events.some((e) => e.op === "task.cancel" || e.op === "task.complete" || e.op === "task.timeout" || e.op === "effect.receipt"), ctx.events.some((e) => e.op === "task.reconcile" || e.op === "effect.reconcile" || e.attrs?.terminal != null));
+  if (guard) return guard;
 
   const profile_rules = (ctx.profile?.terminal_rules ?? {}) as Record<string, string>;
   const has_published_rules = Object.keys(profile_rules).length > 0;
@@ -205,7 +207,7 @@ export const check_auth07: Checker = (ctx) => {
   return [
     finding(
       inv,
-      cs === "not_declared" ? "declared" : cs,
+      cs,
       "supported",
       has_published_rules
         ? "Terminal races resolved via published rules and/or reconciliation."

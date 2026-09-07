@@ -1,5 +1,5 @@
 import type { Checker } from "./index.js";
-import { attrs, basis, claim_for, finding, num, str } from "./index.js";
+import { attrs, basis, claim_for, finding, num, str, observation_guard } from "./index.js";
 
 const BINDING_KEYS = [
   "target",
@@ -53,6 +53,8 @@ function changed_fields(approved: BindingSnap, current: BindingSnap): string[] {
 export const check_auth02: Checker = (ctx) => {
   const inv = "AUTH-02";
   const cs = claim_for(ctx, inv);
+  const guard = observation_guard(ctx, inv, ctx.events.some((e) => e.op === "action.bind" || e.op === "action.propose") && ctx.events.some((e) => e.op === "approval.grant"), ctx.events.some((e) => e.op === "effect.dispatch" || e.op === "effect.receipt"));
+  if (guard) return guard;
 
   /** digest -> first binding snapshot that defined it */
   const bindings = new Map<string, BindingSnap>();
@@ -169,7 +171,7 @@ export const check_auth02: Checker = (ctx) => {
   return [
     finding(
       inv,
-      cs === "not_declared" ? "declared" : cs,
+      cs,
       "supported",
       "No action-bound approval reuse after binding-field change observed.",
       [],

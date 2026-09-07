@@ -1,5 +1,5 @@
 import type { Checker } from "./index.js";
-import { attrs, basis, claim_for, finding, num, str } from "./index.js";
+import { attrs, basis, claim_for, finding, num, str, observation_guard } from "./index.js";
 
 /** AUTH-01a — declare generation model G0/G1/G2 */
 export const check_auth01a: Checker = (ctx) => {
@@ -12,13 +12,15 @@ export const check_auth01a: Checker = (ctx) => {
   if (model !== "G0" && model !== "G1" && model !== "G2") {
     return [finding(inv, "underspecified", "underspecified", `generation_model ${String(model)} is not G0/G1/G2.`, [], basis(ctx))];
   }
-  return [finding(inv, cs === "not_declared" ? "declared" : cs, "supported", `Declared generation_model=${model}.`, [], basis(ctx))];
+  return [finding(inv, cs, "supported", `Declared generation_model=${model}.`, [], basis(ctx))];
 };
 
 /** AUTH-01b — monotonic RuntimeGeneration across restart/crash/restore */
 export const check_auth01b: Checker = (ctx) => {
   const inv = "AUTH-01b";
   const cs = claim_for(ctx, inv);
+  const guard = observation_guard(ctx, inv, ctx.events.some((e) => e.op === "generation.observe"), ctx.events.some((e) => e.op === "generation.observe"));
+  if (guard) return guard;
   const events = ctx.events;
   let last_gen: number | undefined;
   let last_gen_seq: number | undefined;
@@ -92,16 +94,18 @@ export const check_auth01b: Checker = (ctx) => {
   if (cs === "not_declared" && basis(ctx) !== "synthetic_fixture") {
     return [finding(inv, cs, "not_declared", "Invariant not declared by target profile.", [], basis(ctx))];
   }
-  return [finding(inv, cs === "not_declared" ? "declared" : cs, "supported", "No generation monotonicity violation observed.", [], basis(ctx))];
+  return [finding(inv, cs, "supported", "No generation monotonicity violation observed.", [], basis(ctx))];
 };
 
 /** AUTH-01c — G1+ issuer separation from fenced object */
 export const check_auth01c: Checker = (ctx) => {
   const inv = "AUTH-01c";
   const cs = claim_for(ctx, inv);
+  const guard = observation_guard(ctx, inv, ctx.profile?.generation_model === "G1" || ctx.profile?.generation_model === "G2", ctx.events.some((e) => e.op === "generation.observe"));
+  if (guard) return guard;
   const model = ctx.profile?.generation_model;
   if (model === "G0") {
-    return [finding(inv, cs === "not_declared" ? "declared" : cs, "supported", "G0 self-issued model; issuer separation not required.", [], basis(ctx))];
+    return [finding(inv, cs, "supported", "G0 self-issued model; issuer separation not required.", [], basis(ctx))];
   }
   if (model !== "G1" && model !== "G2") {
     if (!ctx.profile) return [finding(inv, "not_declared", "not_declared", "No profile/generation_model to evaluate issuer separation.", [], basis(ctx))];
@@ -116,7 +120,7 @@ export const check_auth01c: Checker = (ctx) => {
       }
     }
   }
-  return [finding(inv, cs === "not_declared" ? "declared" : cs, "supported", "No issuer==fenced-object collision observed for G1+.", [], basis(ctx))];
+  return [finding(inv, cs, "supported", "No issuer==fenced-object collision observed for G1+.", [], basis(ctx))];
 };
 
 export const check_auth01: Checker = (ctx) => [

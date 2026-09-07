@@ -1,11 +1,13 @@
 import type { Checker } from "./index.js";
-import { attrs, basis, claim_for, finding, num, str } from "./index.js";
+import { attrs, basis, claim_for, finding, num, str, observation_guard } from "./index.js";
 import { resolve_scope_id } from "../declaration.js";
 
 /** AUTH-03a — scope determinism; actors must not self-declare conflicting scope */
 export const check_auth03a: Checker = (ctx) => {
   const inv = "AUTH-03a";
   const cs = claim_for(ctx, inv);
+  const guard = observation_guard(ctx, inv, ctx.profile != null, ctx.events.some((e) => e.op === "action.bind" || e.op === "action.propose"));
+  if (guard) return guard;
   for (const ev of ctx.events) {
     if (ev.op !== "action.bind" && ev.op !== "action.propose") continue;
     const a = attrs(ev);
@@ -34,13 +36,15 @@ export const check_auth03a: Checker = (ctx) => {
     }
     seen.set(key, row.scope_id);
   }
-  return [finding(inv, cs === "not_declared" ? "declared" : cs, "supported", "Scope determinism holds on observed bindings.", [], basis(ctx))];
+  return [finding(inv, cs, "supported", "Scope determinism holds on observed bindings.", [], basis(ctx))];
 };
 
 /** AUTH-03b — single controller per (scope_id, fence_epoch) */
 export const check_auth03b: Checker = (ctx) => {
   const inv = "AUTH-03b";
   const cs = claim_for(ctx, inv);
+  const guard = observation_guard(ctx, inv, ctx.events.some((e) => e.op === "lease.acquire"), ctx.events.some((e) => e.op === "lease.acquire"));
+  if (guard) return guard;
   type Lease = { holder: string; seq: number; active: boolean };
   const leases = new Map<string, Lease[]>();
   const key_of = (scope_id: string, fence_epoch: number) => `${scope_id}|${fence_epoch}`;
@@ -76,13 +80,15 @@ export const check_auth03b: Checker = (ctx) => {
       leases.set(k, list);
     }
   }
-  return [finding(inv, cs === "not_declared" ? "declared" : cs, "supported", "At most one active ControlLease per scope+epoch observed.", [], basis(ctx))];
+  return [finding(inv, cs, "supported", "At most one active ControlLease per scope+epoch observed.", [], basis(ctx))];
 };
 
 /** AUTH-03c — action scope must be covered by holder lease */
 export const check_auth03c: Checker = (ctx) => {
   const inv = "AUTH-03c";
   const cs = claim_for(ctx, inv);
+  const guard = observation_guard(ctx, inv, ctx.events.some((e) => e.op === "lease.acquire"), ctx.events.some((e) => e.op === "effect.receipt"));
+  if (guard) return guard;
   const active = new Map<string, { holder: string; scopes: Set<string>; seq: number }>();
 
   for (const ev of ctx.events) {
@@ -119,7 +125,7 @@ export const check_auth03c: Checker = (ctx) => {
       }
     }
   }
-  return [finding(inv, cs === "not_declared" ? "declared" : cs, "supported", "Committed effects stayed within holder lease scopes.", [], basis(ctx))];
+  return [finding(inv, cs, "supported", "Committed effects stayed within holder lease scopes.", [], basis(ctx))];
 };
 
 export const check_auth03: Checker = (ctx) => [
