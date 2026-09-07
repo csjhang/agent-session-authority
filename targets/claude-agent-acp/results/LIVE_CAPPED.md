@@ -13,4 +13,4 @@
 
 ## Observation
 
-Restart + `session/load` can replay a prior Write/approval with no generation-bound fence on that grant.
+Restart + `session/load` replayed prior session history (A). The replayed Write uses the same `toolCallId`, so it is not a new execution. A post-restart new Write was pending and then timed out; (B) new-runtime authorization and (C) a new effect are not demonstrated. `generation`/`fence_epoch` are adapter-filled, not proof of native fencing. `live_capped_ok` is collection status, not a successful stale-approval defect reproduction. Insufficient evidence is not “ACP is safe”.
