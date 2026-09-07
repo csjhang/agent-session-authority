@@ -5,6 +5,8 @@ import { attrs, basis, claim_for, finding, str } from "./index.js";
 export const check_auth06: Checker = (ctx) => {
   const inv = "AUTH-06";
   const cs = claim_for(ctx, inv);
+  const guard = observation_guard(ctx, inv, ctx.events.some((e) => e.op === "effect.dispatch" || e.op === "effect.query"), ctx.events.some((e) => e.op === "effect.receipt"));
+  if (guard) return guard;
   const receipts = new Set<string>();
 
   for (const ev of ctx.events) {
@@ -41,6 +43,6 @@ export const check_auth06: Checker = (ctx) => {
       }
     }
   }
-  return [finding(inv, cs === "not_declared" ? "declared" : cs, "supported",
+  return [finding(inv, cs, "supported",
     "No implicit success without EffectReceipt; fail!=info respected.", [], basis(ctx))];
 };

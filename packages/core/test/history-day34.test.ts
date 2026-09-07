@@ -8,6 +8,12 @@ import {
 import { default_assessment } from "../src/assessment.js";
 import { run_checkers } from "../src/index.js";
 import { build_report } from "../src/report.js";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { load_history_file } from "../src/history.js";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const repo_root = path.resolve(here, "../../..");
 
 const valid_jsonl = [
   '{"seq":1,"kind":"observe","op":"generation.observe","attrs":{"runtime_generation":1}}',
@@ -131,5 +137,18 @@ describe("Day 3-4 report: claim_status vs result", () => {
       expect(f!.result).not.toBe("not_tested");
       expect(f!.claim_status).toBe("declared");
     }
+  });
+});
+
+describe("published ACP witness", () => {
+  it("is line-parseable and accepted by the public history reader", () => {
+    const events = load_history_file(
+      path.join(repo_root, "targets/claude-agent-acp/results/history-live-witnesses.jsonl"),
+      { warn_unknown_vocab: false },
+    );
+    expect(events.length).toBeGreaterThan(0);
+    expect(events.map((event) => event.seq)).toEqual(
+      [...events].map((event) => event.seq).sort((a, b) => a - b),
+    );
   });
 });

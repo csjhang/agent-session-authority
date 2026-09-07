@@ -1,5 +1,5 @@
 import type { Checker } from "./index.js";
-import { attrs, basis, claim_for, finding, num, str } from "./index.js";
+import { attrs, basis, claim_for, finding, num, str, observation_guard } from "./index.js";
 
 /**
  * AUTH-04 — fencing at effect boundary.
@@ -9,6 +9,8 @@ import { attrs, basis, claim_for, finding, num, str } from "./index.js";
 export const check_auth04: Checker = (ctx) => {
   const inv = "AUTH-04";
   const cs = claim_for(ctx, inv);
+  const guard = observation_guard(ctx, inv, ctx.events.some((e) => e.op === "lease.acquire" || e.op === "control.handoff"), ctx.events.some((e) => e.op === "effect.receipt" || e.op === "effect.dispatch"));
+  if (guard) return guard;
 
   /** scope_id -> latest valid fence_epoch */
   const live_fence = new Map<string, { epoch: number; seq: number; holder?: string }>();
@@ -127,7 +129,7 @@ export const check_auth04: Checker = (ctx) => {
   return [
     finding(
       inv,
-      cs === "not_declared" ? "declared" : cs,
+      cs,
       "supported",
       "No stale fence/controller commit at effect boundary observed.",
       [],

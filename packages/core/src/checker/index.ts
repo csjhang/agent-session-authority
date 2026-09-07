@@ -40,7 +40,7 @@ export function finding(
   witness_seqs: number[] = [],
   test_basis: TestBasis = "synthetic_fixture",
 ): CheckFinding {
-  // not_declared is a result label distinct from not_tested
+  // claim_status is an independent axis; do not manufacture declarations.
   let final_result = result;
   if (result === "not_tested") {
     final_result = "not_tested";
@@ -60,6 +60,14 @@ export function finding(
     reproducible: true,
     test_basis,
   };
+}
+
+/** Return not_tested for empty history and inconclusive for incomplete evidence. */
+export function observation_guard(ctx: CheckerContext, invariant: string, prerequisites: boolean, sufficient_observations: boolean): CheckFinding[] | undefined {
+  const cs = claim_for(ctx, invariant);
+  if (ctx.events.length === 0) return [finding(invariant, cs, "not_tested", "Scenario did not run: history is empty.", [], basis(ctx))];
+  if (!prerequisites || !sufficient_observations) return [finding(invariant, cs, "inconclusive", !prerequisites ? "Required prerequisite observations are absent." : "Not enough observations for a positive conclusion.", [], basis(ctx))];
+  return undefined;
 }
 
 export function attrs(ev: HistoryEvent): Record<string, unknown> {

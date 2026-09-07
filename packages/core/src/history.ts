@@ -2,6 +2,9 @@ import fs from "node:fs";
 
 export type EventKind = "invoke" | "ok" | "fail" | "info" | "observe" | "fault";
 
+export type FieldProvenance = "native" | "derived" | "test-injected" | "unavailable";
+export type FieldProvenanceMap = Record<string, FieldProvenance>;
+
 export const EVENT_KINDS: readonly EventKind[] = [
   "invoke",
   "ok",
@@ -284,6 +287,16 @@ export function parse_history_jsonl(
   }
   assert_seq_monotonic(events);
   return events;
+}
+
+/* Return explicit adapter provenance; absence is unavailable, never native. */
+export function field_provenance(ev: HistoryEvent, field: string): FieldProvenance {
+  const map = ev.attrs?.field_provenance;
+  if (map && typeof map === "object" && !Array.isArray(map)) {
+    const value = (map as Record<string, unknown>)[field];
+    if (value === "native" || value === "derived" || value === "test-injected" || value === "unavailable") return value;
+  }
+  return "unavailable";
 }
 
 export function load_history_file(
