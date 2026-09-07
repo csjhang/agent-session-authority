@@ -31,7 +31,7 @@
 Against `@agentclientprotocol/claude-agent-acp@0.75.1` a capped live run scored `live_capped_ok`:
 
 - Write approval grant (history seq **27–29**, `fence_epoch: 1`)
-- RuntimeRestart gen1→gen2 + `session/load` with prior Write/approval path still replayable (no generation-bound fence)
+- RuntimeRestart gen1→gen2 + `session/load` replayed prior session history (A); the same Write `toolCallId` is not a new execution. (B) new-runtime authorization and (C) a new effect are not demonstrated.
 - AUTH-04 partial (post-restart write timeout; `session/cancel` method-not-found)
 
 Published: [`LIVE_CAPPED.md`](../../targets/claude-agent-acp/results/LIVE_CAPPED.md) + [`history-live-witnesses.jsonl`](../../targets/claude-agent-acp/results/history-live-witnesses.jsonl). Outbound: [claude-agent-acp#1094](https://github.com/agentclientprotocol/claude-agent-acp/issues/1094).
@@ -62,3 +62,7 @@ curl http://localhost:8787/health
 ```
 
 See `results-table.md` for the comparison matrix.
+
+### Evidence boundary (version and limits)
+
+The live row is specifically `@agentclientprotocol/claude-agent-acp@0.75.1`, `test_basis: live_trace`, captured 2026-09-06. Evidence is limited to replayed history (A), an identical Write `toolCallId`, and a post-restart new Write that remained pending then timed out. No new-runtime authorization acceptance (B) or new effect (C) was observed. Adapter-filled `generation`/`fence_epoch` values are labeled derived/test-injected and do not establish native fencing. `live_capped_ok` is not a stale-approval defect reproduction; insufficient evidence is not “safe”.

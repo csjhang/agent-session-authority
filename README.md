@@ -6,13 +6,15 @@ This is a **Fault Probe** with reproducible witnesses, not a normative conforman
 
 CLI: `asa` · License: Apache-2.0 · `packages/core` stays free of target SDKs.
 
-## Live ACP witness (restart / stale grant)
+## Live ACP witness (restart / history replay)
 
 Against `@agentclientprotocol/claude-agent-acp@0.75.1` we recorded a capped live run (`live_capped_ok`):
 
 - Grant a Write approval (`fence_epoch: 1`, history seq **27–29**)
 - RuntimeRestart (gen1 → gen2) + `session/load`
-- Prior Write/approval path remains replayable — **no generation-bound fence** on that grant
+- Prior session history replayed; the same Write `toolCallId` is not a new execution. Whether a prior approval authorizes a new runtime effect is **not demonstrated**.
+- A post-restart new Write became pending and then timed out; no new effect receipt was observed.
+- `generation` and `fence_epoch` are adapter-filled fields, not proof of native fencing (or its absence). `live_capped_ok` is not a successful stale-approval defect reproduction.
 
 Published artifacts:
 
