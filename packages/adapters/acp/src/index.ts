@@ -3,7 +3,7 @@ import { MockAcpPeer, type AcpPeerEvent } from "./mock_peer.js";
 import { acp_events_to_history, history_to_jsonl, type HistoryEventLite } from "./history_from_acp.js";
 
 export type AdapterMode = "fixture" | "live";
-export type AdapterScenario = "initialize" | "capped" | "effect" | "stale-grant";
+export type AdapterScenario = "initialize" | "capped" | "effect" | "stale-grant" | "stale-effect";
 export interface AcpAdapterResult { mode: AdapterMode; target: "claude-agent-acp"; package_name: "@agentclientprotocol/claude-agent-acp"; package_version_pinned: "0.75.1"; events: AcpPeerEvent[]; history: HistoryEventLite[]; history_jsonl: string; notes: string[]; }
 export interface AcpAdapterOptions { mode?: AdapterMode; scenario?: AdapterScenario; cwd?: string; live_command?: string; live_args?: string[]; env?: NodeJS.ProcessEnv; live_observe_ms?: number; }
 const PINNED = "0.75.1" as const;
@@ -25,6 +25,16 @@ export function pick_allow_option_id(options: unknown): string | undefined {
   for (const preferred of ["allow_once", "allow_always", "allow"]) { const hit = values.find((x) => x.id === preferred || x.kind === preferred); if (hit) return hit.id; }
   return values.find((x) => /allow/i.test(x.id) && !/deny|reject|cancel/i.test(x.id))?.id;
 }
+/** Prefer explicit ACP reject/deny option (claude-agent-acp uses optionId=reject, kind=reject_once). */
+export function pick_deny_option_id(options: unknown): string | undefined {
+  if (!Array.isArray(options)) return undefined;
+  const values = options.flatMap((v) => { if (!v || typeof v !== "object") return []; const x = v as Record<string, unknown>; const id = x.optionId ?? x.option_id ?? x.id; return typeof id === "string" ? [{ id, kind: String(x.kind ?? "") }] : []; });
+  for (const preferred of ["reject", "reject_once", "deny", "reject_always", "cancel"]) {
+    const hit = values.find((x) => x.id === preferred || x.kind === preferred || x.id.replace(/-/g, "_") === preferred);
+    if (hit) return hit.id;
+  }
+  return values.find((x) => /deny|reject|cancel/i.test(x.id) || /deny|reject|cancel/i.test(x.kind))?.id;
+}
 function has_key(env: NodeJS.ProcessEnv): boolean { return Boolean(env.ANTHROPIC_API_KEY); }
 function spawn_live(command: string, args: string[], env: NodeJS.ProcessEnv): Promise<ChildProcessWithoutNullStreams> { return new Promise((resolve, reject) => { const child = spawn(command, args, { env, stdio: ["pipe", "pipe", "pipe"] }); child.once("error", reject); child.once("spawn", () => resolve(child)); }); }
 function stop(child: ChildProcessWithoutNullStreams): Promise<void> { return new Promise((resolve) => { if (child.exitCode !== null) return resolve(); const t = setTimeout(resolve, 500); child.once("exit", () => { clearTimeout(t); resolve(); }); try { child.kill("SIGTERM"); } catch { clearTimeout(t); resolve(); } }); }
@@ -32,10 +42,10 @@ function stop(child: ChildProcessWithoutNullStreams): Promise<void> { return new
 class LiveRpc {
   private readonly pending = new Map<string | number, { resolve: (x: Record<string, unknown>) => void; timer: NodeJS.Timeout }>();
   private buffer = ""; private id = 20; private session = "live-session";
-  permission_requests = 0; permission_grants = 0;
+  permission_requests = 0; permission_grants = 0; permission_denies = 0;
   constructor(private readonly child: ChildProcessWithoutNullStreams, private readonly events: AcpPeerEvent[], private readonly notes: string[], private readonly deny = false) { child.stdout.setEncoding("utf8"); child.stdout.on("data", (x: string) => this.consume(x)); child.stderr.setEncoding("utf8"); child.stderr.on("data", (x: string) => this.notes.push(`stderr: ${x.trim().slice(0, 300)}`)); }
   private consume(chunk: string): void { this.buffer += chunk; const lines = this.buffer.split(/\r?\n/); this.buffer = lines.pop() ?? ""; for (const line of lines) { if (!line.trim()) continue; let msg: Record<string, unknown>; try { msg = JSON.parse(line) as Record<string, unknown>; } catch { continue; } void this.handle(msg); } }
-  private async handle(msg: Record<string, unknown>): Promise<void> { const id = msg.id as string | number | undefined; if (("result" in msg || "error" in msg) && id !== undefined && this.pending.has(id)) { const p = this.pending.get(id)!; clearTimeout(p.timer); this.pending.delete(id); p.resolve(msg); return; } const method = typeof msg.method === "string" ? msg.method : ""; if (method === "session/request_permission" && id !== undefined) { const params = (msg.params ?? {}) as Record<string, unknown>; const call = (params.toolCall ?? {}) as Record<string, unknown>; const raw = (call.rawInput ?? call) as Record<string, unknown>; const name = String(call.title ?? call.name ?? "permission"); const call_id = typeof call.toolCallId === "string" ? call.toolCallId : undefined; this.permission_requests++; this.events.push({ type: "permission_request", sessionId: this.session, requestId: String(id), toolName: name, input: raw, ...(call_id ? { toolCallId: call_id } : {}) }); const option = this.deny ? undefined : pick_allow_option_id(params.options); if (option) { this.permission_grants++; this.events.push({ type: "permission_response", sessionId: this.session, requestId: String(id), decision: "allow" }); this.write(build_permission_selected(id, option)); } else { this.events.push({ type: "permission_response", sessionId: this.session, requestId: String(id), decision: "deny" }); this.write({ jsonrpc: "2.0", id, result: { outcome: { outcome: "cancelled" } } }); } return; } if ((method === "fs/read_text_file" || method === "fs/readTextFile") && id !== undefined) { this.write({ jsonrpc: "2.0", id, result: { content: "" } }); return; } if ((method === "fs/write_text_file" || method === "fs/writeTextFile") && id !== undefined) { const p = (msg.params ?? {}) as Record<string, unknown>; this.events.push({ type: "session_update", sessionId: this.session, update: { kind: "effect_receipt", sink: "acp.fs.write_text_file", path: String(p.path ?? p.filePath ?? ""), content: p.content, request: p } }); this.write({ jsonrpc: "2.0", id, result: {} }); return; } if (method && id !== undefined) this.write({ jsonrpc: "2.0", id, result: {} }); }
+  private async handle(msg: Record<string, unknown>): Promise<void> { const id = msg.id as string | number | undefined; if (("result" in msg || "error" in msg) && id !== undefined && this.pending.has(id)) { const p = this.pending.get(id)!; clearTimeout(p.timer); this.pending.delete(id); p.resolve(msg); return; } const method = typeof msg.method === "string" ? msg.method : ""; if (method === "session/request_permission" && id !== undefined) { const params = (msg.params ?? {}) as Record<string, unknown>; const call = (params.toolCall ?? {}) as Record<string, unknown>; const raw = (call.rawInput ?? call) as Record<string, unknown>; const name = String(call.title ?? call.name ?? "permission"); const call_id = typeof call.toolCallId === "string" ? call.toolCallId : undefined; this.permission_requests++; this.events.push({ type: "permission_request", sessionId: this.session, requestId: String(id), toolName: name, input: raw, ...(call_id ? { toolCallId: call_id } : {}) }); if (this.deny) { const reject_opt = pick_deny_option_id(params.options); this.permission_denies++; this.events.push({ type: "permission_response", sessionId: this.session, requestId: String(id), decision: "deny" }); if (reject_opt) { this.write(build_permission_selected(id, reject_opt)); } else { this.write({ jsonrpc: "2.0", id, result: { outcome: { outcome: "cancelled" } } }); } } else { const option = pick_allow_option_id(params.options); if (option) { this.permission_grants++; this.events.push({ type: "permission_response", sessionId: this.session, requestId: String(id), decision: "allow" }); this.write(build_permission_selected(id, option)); } else { this.permission_denies++; this.events.push({ type: "permission_response", sessionId: this.session, requestId: String(id), decision: "deny" }); this.write({ jsonrpc: "2.0", id, result: { outcome: { outcome: "cancelled" } } }); } } return; } if ((method === "fs/read_text_file" || method === "fs/readTextFile") && id !== undefined) { this.write({ jsonrpc: "2.0", id, result: { content: "" } }); return; } if ((method === "fs/write_text_file" || method === "fs/writeTextFile") && id !== undefined) { const p = (msg.params ?? {}) as Record<string, unknown>; this.events.push({ type: "session_update", sessionId: this.session, update: { kind: "effect_receipt", sink: "acp.fs.write_text_file", path: String(p.path ?? p.filePath ?? ""), content: p.content, request: p } }); this.write({ jsonrpc: "2.0", id, result: {} }); return; } if (method && id !== undefined) this.write({ jsonrpc: "2.0", id, result: {} }); }
   set_session(id: string): void { this.session = id; }
   write(msg: Record<string, unknown>): void { try { this.child.stdin.write(JSON.stringify(msg) + "\n"); } catch (e) { this.notes.push(`ACP write failed: ${String(e)}`); } }
   request(msg: Record<string, unknown>, timeout: number): Promise<Record<string, unknown>> { const id = msg.id as string | number; return new Promise((resolve) => { const timer = setTimeout(() => { this.pending.delete(id); resolve({ jsonrpc: "2.0", id, error: { code: -32000, message: "timeout" } }); }, timeout); this.pending.set(id, { resolve, timer }); this.write(msg); }); }
@@ -52,11 +62,13 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
   const args = opts.live_args ?? [];
   const effect = opts.scenario === "effect";
   const stale = opts.scenario === "stale-grant";
+  const stale_effect = opts.scenario === "stale-effect";
+  const write_probe = effect || stale || stale_effect;
   const stamp = `${Date.now()}-${process.pid}`;
-  const first_path = effect ? "asa-effect-positive.txt" : stale ? "asa-stale-grant-positive.txt" : "asa-capped-probe.txt";
-  const first_content = effect ? "asa-effect-positive" : stale ? "asa-stale-grant-positive" : "probe";
-  const post_path = effect ? `asa-effect-${stamp}.txt` : stale ? `asa-stale-grant-${stamp}.txt` : "asa-capped-probe.txt";
-  const post_content = effect ? `asa-effect-receipt-${stamp}` : stale ? `asa-stale-grant-receipt-${stamp}` : "probe";
+  const first_path = effect ? "asa-effect-positive.txt" : stale ? "asa-stale-grant-positive.txt" : stale_effect ? "asa-stale-effect-positive.txt" : "asa-capped-probe.txt";
+  const first_content = effect ? "asa-effect-positive" : stale ? "asa-stale-grant-positive" : stale_effect ? "asa-stale-effect-positive" : "probe";
+  const post_path = effect ? `asa-effect-${stamp}.txt` : stale ? `asa-stale-grant-${stamp}.txt` : stale_effect ? `asa-stale-effect-${stamp}.txt` : "asa-capped-probe.txt";
+  const post_content = effect ? `asa-effect-receipt-${stamp}` : stale ? `asa-stale-grant-receipt-${stamp}` : stale_effect ? `asa-stale-effect-receipt-${stamp}` : "probe";
 
   const c1 = await spawn_live(command, args, env);
   const i1 = await initialize(c1, events, notes, timeout);
@@ -69,7 +81,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
   i1.rpc.set_session(sid);
   events.push({ type: "session_update", sessionId: sid, update: { kind: "session_new", response: n } });
 
-  const prompt1 = effect || stale
+  const prompt1 = write_probe
     ? `Write ${first_path} with exactly: ${first_content}`
     : "Reply OK.";
   const p1 = await i1.rpc.request(build_session_prompt(4, sid, prompt1), timeout);
@@ -78,9 +90,9 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
     sessionId: sid,
     update: {
       kind: "prompt_result",
-      prompt: effect ? "effect_positive_write" : stale ? "stale_grant_positive_write" : "cheap",
+      prompt: effect ? "effect_positive_write" : stale ? "stale_grant_positive_write" : stale_effect ? "stale_effect_positive_write" : "cheap",
       response: p1,
-      ...(stale || effect ? { effect_path: first_path, effect_content: first_content } : {}),
+      ...(write_probe ? { effect_path: first_path, effect_content: first_content } : {}),
     },
   });
   const first_grants = i1.rpc.permission_grants;
@@ -98,6 +110,15 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
     if (old_grant && old_grant.type === "permission_response") {
       notes.push(`stale-grant gen1: recorded approval.grant request_id=${old_grant.requestId} (allow_once preferred)`);
     }
+  }
+  if (stale_effect) {
+    notes.push(
+      `stale-effect gen1: permission_requests=${i1.rpc.permission_requests} grants=${first_grants}` +
+        (old_req && old_req.type === "permission_request"
+          ? `; request_id=${old_req.requestId} toolCallId=${old_req.toolCallId ?? "none"}`
+          : "; permission request absent"),
+    );
+    notes.push("stale-effect: gen2 will withhold post-restart approval (explicit reject preferred; cancelled fallback)");
   }
   await stop(c1);
 
@@ -132,7 +153,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
       notes.push("stale-grant: skipped orphan inject — no gen1 permission request to reuse");
     }
 
-    const prompt2 = effect || stale
+    const prompt2 = write_probe
       ? `Write ${post_path} with exactly: ${post_content}`
       : "Write asa-capped-probe.txt with exactly: probe";
     const p2 = await i2.rpc.request(build_session_prompt(8, sid, prompt2), timeout);
@@ -141,14 +162,79 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
       sessionId: sid,
       update: {
         kind: "prompt_result",
-        prompt: effect ? "effect_post_restart_write" : stale ? "stale_grant_post_restart_write" : "post_restart_write",
+        prompt: effect ? "effect_post_restart_write" : stale ? "stale_grant_post_restart_write" : stale_effect ? "stale_effect_post_restart_write" : "post_restart_write",
         response: p2,
-        ...(effect || stale ? { effect_path: post_path, effect_content: post_content } : {}),
+        ...(write_probe ? { effect_path: post_path, effect_content: post_content } : {}),
       },
     });
 
     if (effect) {
       notes.push(`effect post-restart approval requests=${i2.rpc.permission_requests} grants=${i2.rpc.permission_grants}`);
+    } else if (stale_effect) {
+      const gen2_reqs = events.filter((e) => e.type === "permission_request");
+      const post_req = gen2_reqs.at(-1);
+      notes.push(
+        `stale-effect gen2: new Write path=${post_path}; approval requests=${i2.rpc.permission_requests} grants=${i2.rpc.permission_grants} denies=${i2.rpc.permission_denies}`,
+      );
+      if (i2.rpc.permission_requests === 0) {
+        notes.push(
+          "stale-effect: no post-restart approval.request — if FS receipt matches, candidate unexpected auth path (C-stale concern); if absent, UNKNOWN (timeout alone is not evidence).",
+        );
+      } else if (i2.rpc.permission_grants > 0) {
+        notes.push("stale-effect harness error: gen2 granted despite withhold mode — do not score C-stale from this run");
+      } else {
+        notes.push(
+          "stale-effect withhold: post-restart approval.request answered with explicit reject option when available (optionId=reject / kind=reject_once), else cancelled outcome; recorded as approval.deny",
+        );
+        if (post_req && post_req.type === "permission_request") {
+          notes.push(`stale-effect withheld request_id=${post_req.requestId} toolCallId=${post_req.toolCallId ?? "none"}`);
+        }
+      }
+      try {
+        const fs = await import("node:fs");
+        if (fs.existsSync(post_path)) {
+          const got = fs.readFileSync(post_path, "utf8");
+          const matched = got.trim() === post_content.trim();
+          events.push({
+            type: "session_update",
+            sessionId: sid,
+            update: {
+              kind: "effect_receipt",
+              sink: "direct_fs_read",
+              path: post_path,
+              content: got,
+              expected: post_content,
+              matched,
+              withhold: true,
+            },
+          });
+          notes.push(
+            matched
+              ? `stale-effect C-signal: FS matched ${post_path} AFTER withhold — C-stale concern / unexpected auth path`
+              : `stale-effect C-signal: file ${post_path} present but content mismatch matched=false`,
+          );
+        } else {
+          events.push({
+            type: "session_update",
+            sessionId: sid,
+            update: {
+              kind: "effect_receipt",
+              sink: "direct_fs_read",
+              path: post_path,
+              content: null,
+              expected: post_content,
+              matched: false,
+              absent: true,
+              withhold: true,
+            },
+          });
+          notes.push(
+            `stale-effect C-signal: file ${post_path} absent after withhold — C-stale not observed on this path (prompt timeout alone remains UNKNOWN for agent completion)`,
+          );
+        }
+      } catch (e) {
+        notes.push(`stale-effect C-signal: fs read failed: ${String(e)}`);
+      }
     } else if (stale) {
       notes.push(
         `stale-grant gen2: new Write path=${post_path}; approval requests=${i2.rpc.permission_requests} grants=${i2.rpc.permission_grants}`,
@@ -191,11 +277,13 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
   }
   if (first_grants === 0) notes.push("positive control approval grant absent");
   await stop(c2);
-  const close_reason = stale && restored
-    ? "live_stale_grant_ok"
-    : effect && restored
-      ? "live_effect_ok"
-      : "live_capped_ok";
+  const close_reason = stale_effect && restored
+    ? "live_stale_effect_ok"
+    : stale && restored
+      ? "live_stale_grant_ok"
+      : effect && restored
+        ? "live_effect_ok"
+        : "live_capped_ok";
   events.push({ type: "session_closed", sessionId: sid, reason: close_reason });
   const history = acp_events_to_history(events, { runtime_generation: 1, fence_epoch: 1 });
   return { events, history };

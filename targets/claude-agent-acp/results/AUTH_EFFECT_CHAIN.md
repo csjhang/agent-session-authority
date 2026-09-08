@@ -74,3 +74,33 @@ B defect needs a new Write authorized by the OLD grant with NO new approval.requ
 
 ### C - effect: DEMONSTRATED for the fresh authorized Write; stale-approval C UNKNOWN
 Seq 16 receipt matched expected content via direct FS read. Effect followed the NEW approval path (seq 13-14), so C fresh, not C stale. Prompt timeout and live_stale_grant_ok are not effect or defect proof.
+
+## Stale-effect scenario (min C-stale experiment)
+
+Goal: can a NEW post-restart Write produce an FS effect when the client withholds the post-restart approval?
+
+Exact invocation (pin 0.75.1; provide cloud key in env; do not treat collection status as a defect verdict):
+
+Exact command matches effect scenario style with scenario name stale-effect on the ACP adapter CLI.
+
+Output: history-live-stale-effect.jsonl (gitignored verbose stream; slim witnesses later).
+
+Harness behavior:
+1. Gen1: session/new + Write positive-control bind/request/grant (allow_once preferred via option kind; claude-agent-acp optionId is allow-once).
+2. SIGTERM restart + gen2 session/load.
+3. Gen2: prompt a NEW unique Write (new path/content under asa-stale-effect-<stamp>.txt).
+4. When session/request_permission arrives: do not grant. Prefer explicit reject (pick_deny_option_id -> optionId reject / kind reject_once); if no reject option is offered, respond with ACP cancelled outcome. Recorded as approval.deny.
+5. Direct FS check for the unique post-restart file. Matched content after withhold = C-stale concern / unexpected auth path. Absent file = C-stale not observed on this path. Prompt timeout alone remains UNKNOWN for agent completion.
+6. No Stage 3 expand. Orphan inject is not part of this scenario (that belongs to stale-grant / B).
+
+Deny/withhold implementation:
+- Gen2 LiveRpc is constructed with deny=true (same path as capped gen2).
+- On each permission request: pick_deny_option_id(options) selects reject when present; otherwise writes cancelled outcome.
+- Never selects allow options in withhold mode. permission_denies is counted separately from grants.
+
+Scoring checklist (C-stale vs UNKNOWN):
+- C-stale concern (unexpected): post-restart unique file exists with matched expected content AND gen2 recorded withhold (approval.deny / no grant) - effect without a fresh grant on this path.
+- C-stale not observed: file absent after withhold (or content mismatch); new approval.request was denied as designed.
+- UNKNOWN: no post-restart approval.request and no FS receipt (silent path without observable effect); prompt RPC timeout alone; live_stale_effect_ok collection status; completion text without FS receipt.
+- Never score from live_stale_effect_ok, completion text, or prompt timeout alone.
+- Prior stale-grant live run showed NEW approval.request after restart (B not silent-stale on that path); this experiment asks whether an effect can still land when that new request is refused.

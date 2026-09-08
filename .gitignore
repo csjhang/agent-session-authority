@@ -15,3 +15,6 @@ targets/claude-agent-acp/results/history-fixture-effect.jsonl
 packages/adapters/acp/asa-effect-*.txt
 targets/claude-agent-acp/results/history-live-stale-grant.jsonl
 packages/adapters/acp/asa-stale-grant-*.txt
+targets/claude-agent-acp/results/history-live-stale-effect.jsonl
+packages/adapters/acp/asa-stale-effect-*.txt
+targets/claude-agent-acp/results/history-fixture-stale-effect.jsonl
