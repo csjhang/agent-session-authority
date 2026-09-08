@@ -126,10 +126,10 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
         },
       });
       notes.push(
-        "stale-grant: ACP cannot inject an old approval/digest as a standalone client grant \u2014 session/request_permission is server-initiated. Orphan response with gen1 request_id was sent only to document the wire limit; it is not evidence of acceptance.",
+        "stale-grant: ACP cannot inject an old approval/digest as a standalone client grant — session/request_permission is server-initiated. Orphan response with gen1 request_id was sent only to document the wire limit; it is not evidence of acceptance.",
       );
     } else if (stale) {
-      notes.push("stale-grant: skipped orphan inject \u2014 no gen1 permission request to reuse");
+      notes.push("stale-grant: skipped orphan inject — no gen1 permission request to reuse");
     }
 
     const prompt2 = effect || stale
@@ -155,11 +155,11 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
       );
       if (i2.rpc.permission_requests === 0) {
         notes.push(
-          "stale-grant B-signal: no new approval.request observed for post-restart Write \u2014 candidate stale authorization only if an independent effect receipt lands without a fresh grant; do not score from timeout/completion text alone.",
+          "stale-grant B-signal: no new approval.request observed for post-restart Write — candidate stale authorization only if an independent effect receipt lands without a fresh grant; do not score from timeout/completion text alone.",
         );
       } else {
         notes.push(
-          "stale-grant B-signal: new approval.request observed after restart \u2014 old allow_once grant did not silently authorize the new toolCallId; B for inject-style reuse remains UNKNOWN (API cannot submit old digest).",
+          "stale-grant B-signal: new approval.request observed after restart — old allow_once grant did not silently authorize the new toolCallId; B for inject-style reuse remains UNKNOWN (API cannot submit old digest).",
         );
       }
       try {
@@ -180,7 +180,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
           });
           notes.push(`stale-grant C-signal: direct fs read ${post_path} matched=${got.trim() === post_content.trim()}`);
         } else {
-          notes.push(`stale-grant C-signal: file ${post_path} absent after prompt \u2014 effect UNKNOWN (timeout alone is not evidence)`);
+          notes.push(`stale-grant C-signal: file ${post_path} absent after prompt — effect UNKNOWN (timeout alone is not evidence)`);
         }
       } catch (e) {
         notes.push(`stale-grant C-signal: fs read failed: ${String(e)}`);
