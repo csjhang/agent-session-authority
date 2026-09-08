@@ -12,6 +12,7 @@ import {
   build_session_resume,
   build_permission_selected,
   pick_allow_option_id,
+  pick_deny_option_id,
 } from "../src/index.js";
 
 describe("@asa/adapter-acp fixture", () => {
@@ -29,6 +30,14 @@ describe("@asa/adapter-acp fixture", () => {
   it("prefers allow_once and never selects deny", () => {
     expect(pick_allow_option_id([{ optionId: "allow_always" }, { optionId: "allow_once" }, { optionId: "deny" }])).toBe("allow_once");
     expect(pick_allow_option_id([{ optionId: "deny" }, { optionId: "cancel" }])).toBeUndefined();
+  });
+
+  it("prefers explicit reject option for withhold", () => {
+    expect(pick_deny_option_id([
+      { optionId: "allow-once", kind: "allow_once" },
+      { optionId: "reject", kind: "reject_once" },
+    ])).toBe("reject");
+    expect(pick_deny_option_id([{ optionId: "allow-once", kind: "allow_once" }])).toBeUndefined();
   });
 
   it("mock peer emits permission + session events", () => {
@@ -66,5 +75,12 @@ describe("@asa/adapter-acp fixture", () => {
     const result = await collect_history({ mode: "fixture", scenario: "stale-grant" });
     expect(result.mode).toBe("fixture");
     expect(result.history.some((e) => e.op === "approval.grant")).toBe(true);
+  });
+
+  it("accepts stale-effect scenario in fixture mode without live peer", async () => {
+    const result = await collect_history({ mode: "fixture", scenario: "stale-effect" });
+    expect(result.mode).toBe("fixture");
+    expect(result.package_version_pinned).toBe("0.75.1");
+    expect(result.history.length).toBeGreaterThan(3);
   });
 });
