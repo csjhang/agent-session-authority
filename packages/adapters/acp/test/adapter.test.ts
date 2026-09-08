@@ -61,4 +61,10 @@ describe("@asa/adapter-acp fixture", () => {
     const dig_b = b.find((e) => e.op === "action.bind")?.attrs?.action_digest;
     expect(dig_a).toBe(dig_b);
   });
+
+  it("accepts stale-grant scenario in fixture mode without live peer", async () => {
+    const result = await collect_history({ mode: "fixture", scenario: "stale-grant" });
+    expect(result.mode).toBe("fixture");
+    expect(result.history.some((e) => e.op === "approval.grant")).toBe(true);
+  });
 });
