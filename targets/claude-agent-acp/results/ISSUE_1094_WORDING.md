@@ -2,13 +2,17 @@
 
 ## Proposed update
 
-The live claude-agent-acp 0.75.1 effect-boundary run now demonstrates A: after restart, session load replays the prior Write at seq 31, 37, 45-49. The replay keeps the same toolCallId, so it is history replay, not a new execution.
-The old generation-1 grant is seq 23. We did not observe that grant authorizing a new-generation request, so B remains untested and unknown.
+Live claude-agent-acp **0.75.1** now includes a dedicated stale-grant min-B probe (`--scenario stale-grant`) in addition to the earlier effect-boundary run.
 
-The run demonstrates a separate fresh post-restart Write with a new toolCallId and a new approval request and grant at seq 58-63, followed by a controlled filesystem receipt matching requested path and content: native tool response seq 65, completion seq 66, and direct file read.
-That is C for an explicitly authorized new action, not C for stale approval reuse. Prompt timeouts at seq 30 and 67 are unknown on their own and were not used as effect evidence.
+**Effect-boundary run (prior):** A demonstrated via post-restart history replay of the prior Write (same `toolCallId`). B remained untested there because the new post-restart Write took a fresh approval. C demonstrated for that fresh authorized Write via controlled filesystem receipt — not for stale approval reuse. `live_effect_ok` / timeouts are collection status / unknown only.
 
-live_capped_ok and live_effect_ok are collection statuses, not proof of a defect or safety. The evidence supports history replay plus a fresh authorized effect, but is insufficient to conclude stale-approval vulnerability or safety.
-The next minimal experiment must carry an old approval across restart and test it against a new request with an independent effect receipt.
+**Stale-grant live run (2026-09-08):** Gen1 Write was bound/requested/granted (seq 5–7). After restart and `session_load` (seq 9–10), an orphan permission response using the gen1 `request_id` was injected (seq 11); it is **not** paired with a gen2 pending request and is **not** acceptance evidence (ACP permission responses are server-request initiated). The harness then issued a **new** post-restart Write with a new `toolCallId` and path. A **new** `approval.request` appeared (seq 13) before grant (seq 14). Independent effect receipt matched via direct FS read (seq 16) despite a post-restart prompt RPC timeout (`-32000`).
+
+**Scoring for Claire:**
+- **B:** NOT DEMONSTRATED / UNKNOWN as a stale-grant defect. Observing a new permission request after restart means the old grant did **not** silently authorize the new tool call on this path — evidence **against** silent stale authorization here, **not** proof of a generation-bound fence product-wide.
+- **C:** Fresh C demonstrated (effect followed the new approval path). Stale-approval C remains UNKNOWN; do not treat the receipt as C-stale.
+- `live_stale_grant_ok` is collection status only.
+
+Slim witnesses: `history-live-stale-grant-witnesses.jsonl` (verbose history stays gitignored). Pin remains 0.75.1.
 
 This is a draft only; do not post automatically.
