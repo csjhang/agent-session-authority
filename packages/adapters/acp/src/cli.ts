@@ -10,7 +10,10 @@ let scenario: AdapterScenario = "initialize";
 const mode_idx = args.indexOf("--mode");
 if (mode_idx >= 0 && args[mode_idx + 1]) mode = args[mode_idx + 1] === "live" ? "live" : "fixture";
 const scenario_idx = args.indexOf("--scenario");
-if (scenario_idx >= 0 && args[scenario_idx + 1]) scenario = args[scenario_idx + 1] === "capped" ? "capped" : args[scenario_idx + 1] === "effect" ? "effect" : "initialize";
+if (scenario_idx >= 0 && args[scenario_idx + 1]) {
+  const raw = args[scenario_idx + 1];
+  scenario = raw === "capped" ? "capped" : raw === "effect" ? "effect" : raw === "stale-grant" ? "stale-grant" : "initialize";
+}
 
 const result = await collect_history({ mode, scenario });
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -19,6 +22,8 @@ const out_dir = path.join(repo_root, "targets/claude-agent-acp/results");
 fs.mkdirSync(out_dir, { recursive: true });
 const hist_name = scenario === "effect"
   ? "history-" + result.mode + "-effect.jsonl"
+  : scenario === "stale-grant"
+    ? "history-" + result.mode + "-stale-grant.jsonl"
   : mode === "live" && scenario === "capped"
     ? "history-live.jsonl"
     : "history-" + result.mode + ".jsonl";
