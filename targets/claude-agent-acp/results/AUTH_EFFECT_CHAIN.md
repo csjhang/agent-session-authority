@@ -34,3 +34,23 @@ The live_effect_ok detach at seq 69 is collection status only, not defect proof.
 ## Next minimal experiment
 To score stale B/C rather than the fresh positive control, preserve the generation-1 approval request without executing it, restart, then submit that exact old request and digest to generation 2 and capture native authorization state plus an independently named effect receipt.
 Do not count same-toolCallId replay, completion text, live_capped_ok, live_effect_ok, or a timeout as new execution or effect evidence.
+
+## Stale-grant scenario (min B experiment)
+
+Exact invocation (do not treat collection status as a defect verdict):
+
+Exact command matches effect scenario style with scenario name stale-grant on the ACP adapter CLI (same pin 0.75.1; provide cloud key in env).
+Output: `history-live-stale-grant.jsonl` (gitignored verbose stream; slim witnesses later).
+
+Harness behavior:
+1. Gen1 session/new + Write positive-control bind/request/grant (allow_once preferred).
+2. SIGTERM restart + gen2 session/load.
+3. Orphan inject probe: client sends a permission response using the gen1 request_id. ACP session/request_permission is server-initiated; there is no client API to submit an old approval digest into a new runtime without a matching pending request. The orphan write documents that limit and is not acceptance evidence.
+4. Gen2 issues a new Write (new path/content, new toolCallId) and records whether a new approval.request appears versus silent authorization.
+5. Independent effect receipt via unique filename + direct filesystem read when present. Timeout alone = UNKNOWN.
+
+Scoring checklist (B / C):
+- B demonstrated (defect): post-restart new Write authorized by the old grant without a new approval.request, corroborated by native auth state — not by same-toolCallId replay.
+- B UNKNOWN: new approval.request after restart (old allow_once did not transfer), or old digest could not be injected (API limit), or only replay/timeout evidence.
+- C for stale path: only an independently named effect receipt tied to authorization that reused the old grant. Fresh post-restart grant + receipt is C for a new authorization, not stale-approval C.
+- Never score from live_stale_grant_ok, completion text, or prompt timeout alone.
