@@ -32,10 +32,52 @@ export function acp_events_to_history(events: readonly AcpPeerEvent[], opts: { r
     if (ev.type === "session_update") next({ kind: "observe", op: "session.attach", session_id: ev.sessionId, attrs: { update_kind: String(ev.update.kind ?? "update"), raw_update: ev.update }, note: "acp session_update" });
     else if (ev.type === "permission_request") {
       const action_digest = digest_of(ev.toolName, ev.input);
-      next({ kind: "ok", op: "action.bind", session_id: ev.sessionId, actor_id: "agent", attrs: { action_type: `tool.${ev.toolName}`, target: String(ev.input.path ?? ev.toolName), args: ev.input, tool_call_id: ev.toolCallId, action_digest, runtime_generation, policy_version: "acp-permission-ext", nonce: ev.requestId } });
-      next({ kind: "invoke", op: "approval.request", session_id: ev.sessionId, actor_id: "agent", attrs: { tool_call_id: ev.toolCallId, action_digest, request_id: ev.requestId, tool_name: ev.toolName } });
-    } else if (ev.type === "permission_response") next({ kind: "ok", op: ev.decision === "allow" ? "approval.grant" : "approval.deny", session_id: ev.sessionId, actor_id: "approver_client", attrs: { approver: "approver_client", decision: ev.decision === "allow" ? "grant" : "deny", request_id: ev.requestId, fence_epoch } });
-    else if (ev.type === "session_closed") next({ kind: "ok", op: "session.detach", session_id: ev.sessionId, attrs: { reason: ev.reason ?? "closed" } });
+      next({
+        kind: "ok",
+        op: "action.bind",
+        session_id: ev.sessionId,
+        actor_id: "agent",
+        attrs: {
+          action_type: `tool.${ev.toolName}`,
+          target: String(ev.input.path ?? ev.toolName),
+          args: ev.input,
+          tool_call_id: ev.toolCallId,
+          action_digest,
+          runtime_generation,
+          policy_version: "acp-permission-ext",
+          nonce: ev.requestId,
+          ...(ev.options !== undefined ? { offered_options: ev.options } : {}),
+        },
+      });
+      next({
+        kind: "invoke",
+        op: "approval.request",
+        session_id: ev.sessionId,
+        actor_id: "agent",
+        attrs: {
+          tool_call_id: ev.toolCallId,
+          action_digest,
+          request_id: ev.requestId,
+          tool_name: ev.toolName,
+          ...(ev.options !== undefined ? { offered_options: ev.options } : {}),
+        },
+      });
+    } else if (ev.type === "permission_response") {
+      next({
+        kind: "ok",
+        op: ev.decision === "allow" ? "approval.grant" : "approval.deny",
+        session_id: ev.sessionId,
+        actor_id: "approver_client",
+        attrs: {
+          approver: "approver_client",
+          decision: ev.decision === "allow" ? "grant" : "deny",
+          request_id: ev.requestId,
+          fence_epoch,
+          ...(ev.optionId !== undefined ? { option_id: ev.optionId } : {}),
+          ...(ev.optionKind !== undefined ? { option_kind: ev.optionKind } : {}),
+        },
+      });
+    } else if (ev.type === "session_closed") next({ kind: "ok", op: "session.detach", session_id: ev.sessionId, attrs: { reason: ev.reason ?? "closed" } });
   }
   return out;
 }

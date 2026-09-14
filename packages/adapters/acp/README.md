@@ -18,3 +18,5 @@ The capped run writes `targets/claude-agent-acp/results/history-live.jsonl`, per
 For the min-B stale-grant probe (old grant across restart vs new Write), use scenario name stale-grant on the live ACP adapter CLI. Output is history-live-stale-grant.jsonl under targets/claude-agent-acp/results/.
 
 For the min-C stale-effect probe (withhold post-restart approval; FS receipt check), use `--scenario stale-effect`. Output is `history-live-stale-effect.jsonl` under `targets/claude-agent-acp/results/`.
+
+For the min allow_always-across-generation probe, use `--scenario always-grant`. Output is `history-live-always-grant.jsonl` under `targets/claude-agent-acp/results/`.

@@ -12,7 +12,13 @@ if (mode_idx >= 0 && args[mode_idx + 1]) mode = args[mode_idx + 1] === "live" ? 
 const scenario_idx = args.indexOf("--scenario");
 if (scenario_idx >= 0 && args[scenario_idx + 1]) {
   const raw = args[scenario_idx + 1];
-  scenario = raw === "capped" ? "capped" : raw === "effect" ? "effect" : raw === "stale-grant" ? "stale-grant" : raw === "stale-effect" ? "stale-effect" : "initialize";
+  scenario =
+    raw === "capped" ? "capped"
+    : raw === "effect" ? "effect"
+    : raw === "stale-grant" ? "stale-grant"
+    : raw === "stale-effect" ? "stale-effect"
+    : raw === "always-grant" ? "always-grant"
+    : "initialize";
 }
 
 const result = await collect_history({ mode, scenario });
@@ -26,6 +32,8 @@ const hist_name = scenario === "effect"
     ? "history-" + result.mode + "-stale-grant.jsonl"
   : scenario === "stale-effect"
     ? "history-" + result.mode + "-stale-effect.jsonl"
+  : scenario === "always-grant"
+    ? "history-" + result.mode + "-always-grant.jsonl"
   : mode === "live" && scenario === "capped"
     ? "history-live.jsonl"
     : "history-" + result.mode + ".jsonl";
