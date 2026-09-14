@@ -44,7 +44,7 @@ Live claude-agent-acp **0.75.1** now has three related probes: effect-boundary, 
 | C fresh authorized effect | DEMONSTRATED (prior runs) |
 | C-stale effect after withhold/deny | NOT OBSERVED (UNKNOWN); earned pause on this path |
 
-Slim witnesses: `history-live-effect-witnesses.jsonl`, `history-live-stale-grant-witnesses.jsonl`, `history-live-stale-effect-witnesses.jsonl`, `history-live-always-grant-witnesses.jsonl`.
+Slim witnesses: `history-live-effect-witnesses.jsonl`, `history-live-stale-grant-witnesses.jsonl`, `history-live-stale-effect-witnesses.jsonl`, `history-live-always-grant-witnesses.jsonl`, `history-live-reject-always-witnesses.jsonl`.
 
 This is a draft only; do not post automatically to #1094.
 
@@ -75,3 +75,8 @@ Hardened live score: option availability demonstrated; **re-ask demonstrated**; 
 | Defect claim | NOT CLAIMED |
 
 This is a draft only; do not post automatically to #1094.
+
+
+## Reject-always live addendum (draft for Claire; do not post)
+
+Live reject-always on 0.75.1 (2026-09-14): **`reject_always` option ABSENT / INCONCLUSIVE** (gen1 offered allow_once / allow_always / reject_once only; harness strict-cancel, no reject_once fallback). Silent durable-reject across generation **NOT SCORED**. Align-only with always-grant A/B/C framing — do not claim defect. Slim witness: `history-live-reject-always-witnesses.jsonl`. Do not post automatically to #1094.
