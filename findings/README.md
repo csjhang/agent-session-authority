@@ -14,7 +14,7 @@ Short map of published notes for the Session Authority Fault Probe. Folder names
 | Stage 3 comparison table | [`2026-09-week3/results-table.md`](2026-09-week3/results-table.md) |
 | Outbound issue | [claude-agent-acp#1094](https://github.com/agentclientprotocol/claude-agent-acp/issues/1094) |
 
-Biweekly maintainer-status trace on #1094 is owned outside this repo (Align). Do not expand live probe coverage until that signal returns.
+Biweekly maintainer-status trace on #1094 is owned outside this repo (Align). Align has paused further generation re-ask runs on this pin; the next probe posture is an option-offer survey (which permission kinds are actually offered vs listed in the ACP kind enum), not more silent-across-generation coverage until that survey lands.
 
 ## By stage / folder
 

@@ -188,7 +188,7 @@ Use adapter CLI with --mode live --scenario reject-always (same pin).
 Output: history-live-reject-always.jsonl
 
 Harness behavior:
-1. Gen1 session/new + Write asa-reject-always-positive.txt. Select reject_always via pick_reject_always_option. If absent: FAIL inconclusive; do NOT fall back to reject_once.
+1. Gen1 session/new + Write asa-reject-always-positive.txt. Select reject_always via pick_reject_always_option. If absent: stop and record **NOT OFFERED** (definite; not inconclusive); do NOT fall back to reject_once.
 2. Record optionId/kind on approval.deny path.
 3. SIGTERM restart + gen2 session/load.
 4. Gen2 NEW Write with default allow pick. Observe NEW approval.request vs silent reject-across-generation.
@@ -199,16 +199,17 @@ Scoring checklist:
 - NEW approval.request on gen2: reject_always did not silently cover new toolCallId.
 - ZERO approval.request + FS absent: candidate durable reject across generation.
 - ZERO approval.request + FS matched: unexpected effect without fresh grant.
-- Option absent in gen1: inconclusive (strict; no reject_once fallback).
+- Option absent in gen1: **NOT OFFERED** (definite observation; not inconclusive). Option absence is data, not a failed test. Do not fall back to reject_once.
 - Never score from live_reject_always_ok, completion text, or prompt timeout alone.
 
 Live score (2026-09-14, pin 0.75.1; 86-line verbose history gitignored; slim `history-live-reject-always-witnesses.jsonl`):
 
 | Claim | Status |
 | --- | --- |
-| Option availability (`reject_always`) | **ABSENT / INCONCLUSIVE** |
-| Silent durable-reject across generation | **NOT SCORED** (option never selected) |
-| Gen2 re-ask + FS after fresh allow | incidental (not evidence for reject_always) |
-| Defect | **NOT CLAIMED** |
+| Option availability (reject_always) | **NOT OFFERED** (definite observation, not inconclusive) |
+| Durable-deny symmetry with allow_always | **ABSENT** — same Write offered allow_always (allow-with-updates), did not offer reject_always |
+| Silent durable-reject across generation | NOT SCORED (option never present; cannot measure) |
+| Spec status | **UNDERSPECIFIED** — ACP lists reject_always as a kind but does not require which kinds must be offered |
+| Defect | NOT CLAIMED |
 
-Gen1 approval.request seq 13 offered only allow-once / allow-with-updates (`allow_always`) / reject (`reject_once`) — no reject_always. Harness denied with `option_id=None` (strict; no reject_once fallback). Asymmetry note only: same Write offered allow_always but not reject_always. Full write-up: `AUTH_REJECT_ALWAYS_LIVE.md`.
+Gen1 approval.request seq 13 offered only allow-once / allow-with-updates (`allow_always`) / reject (`reject_once`) — no reject_always. Harness denied with `option_id=None` (strict; no reject_once fallback). Option absence is data, not a failed test: durable-deny symmetry with allow_always is ABSENT on this path; silent durable-reject cannot be measured. Full write-up: `AUTH_REJECT_ALWAYS_LIVE.md`.
