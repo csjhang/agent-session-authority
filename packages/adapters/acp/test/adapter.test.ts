@@ -14,6 +14,8 @@ import {
   pick_allow_option_id,
   pick_allow_always_option_id,
   pick_allow_always_option,
+  pick_reject_always_option_id,
+  pick_reject_always_option,
   pick_deny_option_id,
 } from "../src/index.js";
 
@@ -55,6 +57,30 @@ describe("@asa/adapter-acp fixture", () => {
       ]),
     ).toBeUndefined();
     expect(pick_allow_always_option_id([{ optionId: "allow-once", kind: "allow_once" }])).toBeUndefined();
+  });
+
+
+  it("prefers reject_always strictly and never falls back to reject_once", () => {
+    expect(
+      pick_reject_always_option_id([
+        { optionId: "allow-once", kind: "allow_once" },
+        { optionId: "reject", kind: "reject_once" },
+        { optionId: "reject-always", kind: "reject_always" },
+      ]),
+    ).toBe("reject-always");
+    expect(
+      pick_reject_always_option([
+        { optionId: "reject_always", kind: "reject_always" },
+        { optionId: "reject", kind: "reject_once" },
+      ]),
+    ).toEqual({ id: "reject_always", kind: "reject_always" });
+    expect(
+      pick_reject_always_option_id([
+        { optionId: "allow-once", kind: "allow_once" },
+        { optionId: "reject", kind: "reject_once" },
+      ]),
+    ).toBeUndefined();
+    expect(pick_reject_always_option_id([{ optionId: "reject", kind: "reject_once" }])).toBeUndefined();
   });
 
   it("prefers explicit reject option for withhold", () => {
@@ -127,5 +153,13 @@ describe("@asa/adapter-acp fixture", () => {
     expect(result.notes.some((n) => /always-grant/i.test(n))).toBe(true);
     const grant = result.history.find((e) => e.op === "approval.grant");
     expect(grant?.attrs?.option_id).toBeDefined();
+  });
+
+  it("accepts reject-always scenario in fixture mode without live peer", async () => {
+    const result = await collect_history({ mode: "fixture", scenario: "reject-always" });
+    expect(result.mode).toBe("fixture");
+    expect(result.package_version_pinned).toBe("0.75.1");
+    expect(result.history.length).toBeGreaterThan(3);
+    expect(result.notes.some((n) => /reject-always/i.test(n))).toBe(true);
   });
 });

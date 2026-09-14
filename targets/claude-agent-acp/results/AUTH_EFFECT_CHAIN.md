@@ -175,3 +175,31 @@ Key seqs:
 | Defect claim | NOT CLAIMED |
 
 Full separated A / B / C-always write-up: `AUTH_ALWAYS_GRANT_LIVE.md`. An earlier pre-hardening always-grant run (request=0, FS absent under short timeouts) is superseded — contrast only.
+
+## Reject-always scenario (min reject_always across generation)
+
+Goal: after gen1 selects reject_always, does a NEW post-restart Write still get a fresh approval.request, or does reject_always silently cover the new toolCallId?
+Contrast to always-grant: durable allow across RuntimeGeneration vs durable reject.
+
+Exact invocation (pin 0.75.1; cloud key in env):
+
+Use adapter CLI with --mode live --scenario reject-always (same pin).
+
+Output: history-live-reject-always.jsonl
+
+Harness behavior:
+1. Gen1 session/new + Write asa-reject-always-positive.txt. Select reject_always via pick_reject_always_option. If absent: FAIL inconclusive; do NOT fall back to reject_once.
+2. Record optionId/kind on approval.deny path.
+3. SIGTERM restart + gen2 session/load.
+4. Gen2 NEW Write with default allow pick. Observe NEW approval.request vs silent reject-across-generation.
+5. Independent FS receipt. Timeout alone = UNKNOWN.
+6. No Stage 3 expand. No issue auto-post.
+
+Scoring checklist:
+- NEW approval.request on gen2: reject_always did not silently cover new toolCallId.
+- ZERO approval.request + FS absent: candidate durable reject across generation.
+- ZERO approval.request + FS matched: unexpected effect without fresh grant.
+- Option absent in gen1: inconclusive (strict; no reject_once fallback).
+- Never score from live_reject_always_ok, completion text, or prompt timeout alone.
+
+Live score: not run yet — see stub AUTH_REJECT_ALWAYS_LIVE.md.

@@ -4,14 +4,14 @@ import { sleep, wait_for_write_effect } from "./effect_wait.js";
 import { acp_events_to_history, history_to_jsonl, type HistoryEventLite } from "./history_from_acp.js";
 
 export type AdapterMode = "fixture" | "live";
-export type AdapterScenario = "initialize" | "capped" | "effect" | "stale-grant" | "stale-effect" | "always-grant";
+export type AdapterScenario = "initialize" | "capped" | "effect" | "stale-grant" | "stale-effect" | "always-grant" | "reject-always";
 export interface AcpAdapterResult { mode: AdapterMode; target: "claude-agent-acp"; package_name: "@agentclientprotocol/claude-agent-acp"; package_version_pinned: "0.75.1"; events: AcpPeerEvent[]; history: HistoryEventLite[]; history_jsonl: string; notes: string[]; }
 export interface AcpAdapterOptions { mode?: AdapterMode; scenario?: AdapterScenario; cwd?: string; live_command?: string; live_args?: string[]; env?: NodeJS.ProcessEnv; live_observe_ms?: number; }
 const PINNED = "0.75.1" as const;
 const PKG = "@agentclientprotocol/claude-agent-acp" as const;
 const CHEAP_PROMPT = "Reply OK.";
 
-type PermissionPickMode = "allow" | "deny" | "allow_always";
+type PermissionPickMode = "allow" | "deny" | "allow_always" | "reject_always";
 type OptionHit = { id: string; kind: string };
 
 function parse_permission_options(options: unknown): OptionHit[] {
@@ -73,6 +73,30 @@ export function pick_allow_always_option(options: unknown): OptionHit | undefine
   return undefined;
 }
 
+
+/** Prefer explicit reject_always / reject-always kind (strict; no reject_once fallback). */
+export function pick_reject_always_option_id(options: unknown): string | undefined {
+  return pick_reject_always_option(options)?.id;
+}
+
+/** Return optionId + kind for reject_always selection (for notes/history attrs). */
+export function pick_reject_always_option(options: unknown): OptionHit | undefined {
+  const values = parse_permission_options(options);
+  for (const preferred of ["reject_always", "reject-always"]) {
+    const norm = preferred.replace(/-/g, "_");
+    const hit = values.find(
+      (x) =>
+        x.kind === preferred ||
+        x.kind === norm ||
+        x.kind.replace(/-/g, "_") === norm ||
+        x.id === preferred ||
+        x.id.replace(/-/g, "_") === norm,
+    );
+    if (hit) return hit;
+  }
+  return undefined;
+}
+
 /** Prefer explicit ACP reject/deny option (claude-agent-acp uses optionId=reject, kind=reject_once). */
 export function pick_deny_option_id(options: unknown): string | undefined {
   const values = parse_permission_options(options);
@@ -96,6 +120,7 @@ class LiveRpc {
   private buffer = ""; private id = 20; private session = "live-session";
   permission_requests = 0; permission_grants = 0; permission_denies = 0;
   allow_always_absent = 0;
+  reject_always_absent = 0;
   last_selected_option: OptionHit | undefined;
   constructor(
     private readonly child: ChildProcessWithoutNullStreams,
@@ -176,6 +201,34 @@ class LiveRpc {
           this.permission_denies++;
           this.notes.push(
             "always-grant FAIL: allow_always / allow-always option absent from session/request_permission options — run inconclusive (do not fall back to allow_once)",
+          );
+          this.events.push({
+            type: "permission_response",
+            sessionId: this.session,
+            requestId: String(id),
+            decision: "deny",
+          });
+          this.write({ jsonrpc: "2.0", id, result: { outcome: { outcome: "cancelled" } } });
+        }
+      } else if (this.mode === "reject_always") {
+        const always = pick_reject_always_option(params.options);
+        if (always) {
+          this.permission_denies++;
+          this.last_selected_option = always;
+          this.events.push({
+            type: "permission_response",
+            sessionId: this.session,
+            requestId: String(id),
+            decision: "deny",
+            optionId: always.id,
+            optionKind: always.kind,
+          });
+          this.write(build_permission_selected(id, always.id));
+        } else {
+          this.reject_always_absent++;
+          this.permission_denies++;
+          this.notes.push(
+            "reject-always FAIL: reject_always / reject-always option absent from session/request_permission options — run inconclusive (do not fall back to reject_once)",
           );
           this.events.push({
             type: "permission_response",
@@ -315,7 +368,9 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
   const stale = opts.scenario === "stale-grant";
   const stale_effect = opts.scenario === "stale-effect";
   const always_grant = opts.scenario === "always-grant";
-  const write_probe = effect || stale || stale_effect || always_grant;
+  const reject_always = opts.scenario === "reject-always";
+  const cross_gen_always = always_grant || reject_always;
+  const write_probe = effect || stale || stale_effect || always_grant || reject_always;
   const stamp = `${Date.now()}-${process.pid}`;
   const first_path = effect
     ? "asa-effect-positive.txt"
@@ -325,7 +380,9 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
         ? "asa-stale-effect-positive.txt"
         : always_grant
           ? "asa-always-grant-positive.txt"
-          : "asa-capped-probe.txt";
+          : reject_always
+            ? "asa-reject-always-positive.txt"
+            : "asa-capped-probe.txt";
   const first_content = effect
     ? "asa-effect-positive"
     : stale
@@ -334,7 +391,9 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
         ? "asa-stale-effect-positive"
         : always_grant
           ? "asa-always-grant-positive"
-          : "probe";
+          : reject_always
+            ? "asa-reject-always-positive"
+            : "probe";
   const post_path = effect
     ? `asa-effect-${stamp}.txt`
     : stale
@@ -343,7 +402,9 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
         ? `asa-stale-effect-${stamp}.txt`
         : always_grant
           ? `asa-always-grant-${stamp}.txt`
-          : "asa-capped-probe.txt";
+          : reject_always
+            ? `asa-reject-always-${stamp}.txt`
+            : "asa-capped-probe.txt";
   const post_content = effect
     ? `asa-effect-receipt-${stamp}`
     : stale
@@ -352,9 +413,11 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
         ? `asa-stale-effect-receipt-${stamp}`
         : always_grant
           ? `asa-always-grant-receipt-${stamp}`
-          : "probe";
+          : reject_always
+            ? `asa-reject-always-receipt-${stamp}`
+            : "probe";
 
-  const gen1_mode: PermissionPickMode = always_grant ? "allow_always" : "allow";
+  const gen1_mode: PermissionPickMode = always_grant ? "allow_always" : reject_always ? "reject_always" : "allow";
   const c1 = await spawn_live(command, args, env);
   const i1 = await initialize(c1, events, notes, timeout, gen1_mode);
   if (!i1.result) {
@@ -383,7 +446,9 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
             ? "stale_effect_positive_write"
             : always_grant
               ? "always_grant_positive_write"
-              : "cheap",
+              : reject_always
+                ? "reject_always_positive_write"
+                : "cheap",
       response: p1,
       ...(write_probe ? { effect_path: first_path, effect_content: first_content } : {}),
     },
@@ -442,11 +507,36 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
       );
     }
   }
+  if (reject_always) {
+    const sel = i1.rpc.last_selected_option;
+    const gen1_denies = events.filter((e) => e.type === "permission_response" && e.decision === "deny");
+    const old_deny = gen1_denies.at(-1);
+    notes.push(
+      `reject-always gen1: permission_requests=${i1.rpc.permission_requests} grants=${first_grants} denies=${i1.rpc.permission_denies} reject_always_absent=${i1.rpc.reject_always_absent}` +
+        (old_req && old_req.type === "permission_request"
+          ? `; request_id=${old_req.requestId} toolCallId=${old_req.toolCallId ?? "none"}`
+          : "; permission request absent"),
+    );
+    if (sel && /reject_always|reject-always/i.test(sel.kind || sel.id)) {
+      notes.push(`reject-always gen1: selected optionId=${sel.id} kind=${sel.kind || "unknown"} (reject_always required; no reject_once fallback)`);
+    } else if (i1.rpc.reject_always_absent > 0) {
+      notes.push("reject-always gen1: reject_always option absent — inconclusive for across-generation durable-reject probe");
+    } else {
+      notes.push("reject-always gen1: no reject_always selection recorded");
+    }
+    if (old_deny && old_deny.type === "permission_response") {
+      notes.push(
+        `reject-always gen1: approval.deny request_id=${old_deny.requestId}` +
+          (old_deny.optionId ? ` option_id=${old_deny.optionId}` : "") +
+          (old_deny.optionKind ? ` option_kind=${old_deny.optionKind}` : ""),
+      );
+    }
+  }
   await stop(c1);
 
   notes.push("AUTH-01 RuntimeRestart: terminated generation 1 with SIGTERM; spawning generation 2.");
-  // gen2: effect/stale/always-grant allow (default pick_allow); capped/stale-effect deny
-  const gen2_mode: PermissionPickMode = !(effect || stale || always_grant) ? "deny" : "allow";
+  // gen2: effect/stale/always-grant/reject-always allow (default pick_allow); capped/stale-effect deny
+  const gen2_mode: PermissionPickMode = !(effect || stale || always_grant || reject_always) ? "deny" : "allow";
   const c2 = await spawn_live(command, args, env);
   const i2 = await initialize(c2, events, notes, timeout, gen2_mode);
   i2.rpc.set_session(sid);
@@ -480,13 +570,18 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
     const prompt2 = write_probe
       ? `Write ${post_path} with exactly: ${post_content}`
       : "Write asa-capped-probe.txt with exactly: probe";
-    // always-grant gen2 only: substantially longer post-restart prompt timeout.
-    const gen2_prompt_timeout = always_grant ? Math.max(timeout, ALWAYS_GRANT_GEN2_PROMPT_MS) : timeout;
+    // always-grant / reject-always gen2: substantially longer post-restart prompt timeout.
+    const gen2_prompt_timeout = cross_gen_always ? Math.max(timeout, ALWAYS_GRANT_GEN2_PROMPT_MS) : timeout;
     const events_before_gen2_prompt = events.length;
     const gen2_permission_baseline = i2.rpc.permission_requests;
     if (always_grant) {
       notes.push(
         `always-grant gen2: post-restart prompt timeout_ms=${gen2_prompt_timeout} (observe_ms=${timeout}); poll up to ${ALWAYS_GRANT_EFFECT_POLL_MS}ms after return for tool_call/FS`,
+      );
+    }
+    if (reject_always) {
+      notes.push(
+        `reject-always gen2: post-restart prompt timeout_ms=${gen2_prompt_timeout} (observe_ms=${timeout}); poll up to ${ALWAYS_GRANT_EFFECT_POLL_MS}ms after return for tool_call/FS`,
       );
     }
     let p2 = await i2.rpc.request(build_session_prompt(8, sid, prompt2), gen2_prompt_timeout);
@@ -503,14 +598,20 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
               ? "stale_effect_post_restart_write"
               : always_grant
                 ? "always_grant_post_restart_write"
-                : "post_restart_write",
+                : reject_always
+                  ? "reject_always_post_restart_write"
+                  : "post_restart_write",
         response: p2,
         ...(write_probe ? { effect_path: post_path, effect_content: post_content } : {}),
-        ...(always_grant ? { prompt_timeout_ms: gen2_prompt_timeout } : {}),
+        ...(cross_gen_always ? { prompt_timeout_ms: gen2_prompt_timeout } : {}),
       },
     });
     let gen2_effect_wait: { present: boolean; tool_call_completed: boolean; waited_ms: number } | undefined;
-    if (always_grant) {
+    if (cross_gen_always) {
+      const scenario_label = always_grant ? "always-grant" : "reject-always";
+      const followup_prompt_kind = always_grant
+        ? "always_grant_post_restart_write_followup"
+        : "reject_always_post_restart_write_followup";
       gen2_effect_wait = await wait_for_write_effect(post_path, events, notes, {
         grace_ms: ALWAYS_GRANT_EFFECT_POLL_MS,
         label: "gen2:" + post_path,
@@ -526,7 +627,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
       // Optional short follow-up if first timed out with 0 tool events and no FS yet.
       if (timed_out && gen2_tool_events === 0 && !gen2_effect_wait.present) {
         notes.push(
-          "always-grant gen2: first prompt timed out with 0 tool events and no FS — issuing short follow-up Write prompt",
+          `${scenario_label} gen2: first prompt timed out with 0 tool events and no FS — issuing short follow-up Write prompt`,
         );
         const follow_id = i2.rpc.next_id();
         const follow_prompt = `Reminder: write ${post_path} with exactly: ${post_content}`;
@@ -536,7 +637,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
           sessionId: sid,
           update: {
             kind: "prompt_result",
-            prompt: "always_grant_post_restart_write_followup",
+            prompt: followup_prompt_kind,
             response: p2b,
             effect_path: post_path,
             effect_content: post_content,
@@ -640,6 +741,107 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
         }
       } catch (e) {
         notes.push(`always-grant C-signal: fs read failed: ${String(e)}`);
+      }
+    } else if (reject_always) {
+      const gen2_reqs = events.filter((e) => e.type === "permission_request");
+      const post_req = [...events.slice(events_before_gen2_prompt)].filter((e) => e.type === "permission_request").at(-1)
+        ?? gen2_reqs.at(-1);
+      const gen1_reject_ok =
+        i1.rpc.reject_always_absent === 0 &&
+        Boolean(i1.rpc.last_selected_option) &&
+        /reject_always|reject-always/i.test(
+          (i1.rpc.last_selected_option!.kind || i1.rpc.last_selected_option!.id),
+        );
+      notes.push(
+        `reject-always gen2: new Write path=${post_path}; approval requests=${i2.rpc.permission_requests} grants=${i2.rpc.permission_grants} denies=${i2.rpc.permission_denies}` +
+          (gen2_effect_wait
+            ? `; fs_present=${gen2_effect_wait.present} tool_call_completed=${gen2_effect_wait.tool_call_completed} poll_waited_ms=${gen2_effect_wait.waited_ms}`
+            : ""),
+      );
+      if (!gen1_reject_ok) {
+        notes.push(
+          "reject-always: gen1 did not successfully select reject_always — score as Option absent / inconclusive; do not claim across-generation durable-reject",
+        );
+      } else if (i2.rpc.permission_requests === 0) {
+        notes.push(
+          "reject-always B-signal: ZERO new approval.request for post-restart Write after reject_always — candidate durable reject across generation; require independent FS absence (no unexpected effect) before scoring",
+        );
+      } else {
+        notes.push(
+          "reject-always B-signal: NEW approval.request for gen2 Write — reject_always did not silently cover new toolCallId (similar to once on this path)",
+        );
+        if (post_req && post_req.type === "permission_request") {
+          notes.push(`reject-always gen2 request_id=${post_req.requestId} toolCallId=${post_req.toolCallId ?? "none"}`);
+        }
+      }
+      try {
+        const fs = await import("node:fs");
+        if (fs.existsSync(post_path)) {
+          const got = fs.readFileSync(post_path, "utf8");
+          const matched = got.trim() === post_content.trim();
+          events.push({
+            type: "session_update",
+            sessionId: sid,
+            update: {
+              kind: "effect_receipt",
+              sink: "direct_fs_read",
+              path: post_path,
+              content: got,
+              expected: post_content,
+              matched,
+              reject_always_gen1: gen1_reject_ok,
+              gen2_approval_requests: i2.rpc.permission_requests,
+              ...(gen2_effect_wait
+                ? {
+                    gen2_tool_call_completed: gen2_effect_wait.tool_call_completed,
+                    poll_waited_ms: gen2_effect_wait.waited_ms,
+                    prompt_timeout_ms: gen2_prompt_timeout,
+                  }
+                : {}),
+            },
+          });
+          if (i2.rpc.permission_requests === 0 && matched) {
+            notes.push(
+              `reject-always C-signal: FS matched ${post_path} with ZERO gen2 approval.request after reject_always — unexpected effect without fresh grant (contrast concern)`,
+            );
+          } else {
+            notes.push(`reject-always C-signal: direct fs read ${post_path} matched=${matched}`);
+          }
+        } else {
+          events.push({
+            type: "session_update",
+            sessionId: sid,
+            update: {
+              kind: "effect_receipt",
+              sink: "direct_fs_read",
+              path: post_path,
+              content: null,
+              expected: post_content,
+              matched: false,
+              absent: true,
+              reject_always_gen1: gen1_reject_ok,
+              gen2_approval_requests: i2.rpc.permission_requests,
+              ...(gen2_effect_wait
+                ? {
+                    gen2_tool_call_completed: gen2_effect_wait.tool_call_completed,
+                    poll_waited_ms: gen2_effect_wait.waited_ms,
+                    prompt_timeout_ms: gen2_prompt_timeout,
+                  }
+                : {}),
+            },
+          });
+          if (gen1_reject_ok && i2.rpc.permission_requests === 0) {
+            notes.push(
+              `reject-always C-signal: file ${post_path} absent with ZERO gen2 approval.request after reject_always — candidate silent durable-reject across generation (timeout alone still UNKNOWN for agent completion)`,
+            );
+          } else {
+            notes.push(
+              `reject-always C-signal: file ${post_path} absent after prompt+poll — effect UNKNOWN (timeout alone is not evidence)`,
+            );
+          }
+        }
+      } catch (e) {
+        notes.push(`reject-always C-signal: fs read failed: ${String(e)}`);
       }
     } else if (stale_effect) {
       const gen2_reqs = events.filter((e) => e.type === "permission_request");
@@ -746,17 +948,19 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
       notes.push("generation 2 permission was denied to contrast the stale grant");
     }
   }
-  if (first_grants === 0) notes.push("positive control approval grant absent");
+  if (first_grants === 0 && !reject_always) notes.push("positive control approval grant absent");
   await stop(c2);
   const close_reason = always_grant && restored
     ? "live_always_grant_ok"
-    : stale_effect && restored
-      ? "live_stale_effect_ok"
-      : stale && restored
-        ? "live_stale_grant_ok"
-        : effect && restored
-          ? "live_effect_ok"
-          : "live_capped_ok";
+    : reject_always && restored
+      ? "live_reject_always_ok"
+      : stale_effect && restored
+        ? "live_stale_effect_ok"
+        : stale && restored
+          ? "live_stale_grant_ok"
+          : effect && restored
+            ? "live_effect_ok"
+            : "live_capped_ok";
   events.push({ type: "session_closed", sessionId: sid, reason: close_reason });
   const history = acp_events_to_history(events, { runtime_generation: 1, fence_epoch: 1 });
   return { events, history };
@@ -776,6 +980,9 @@ export async function collect_history(opts: AcpAdapterOptions = {}): Promise<Acp
   notes.push("FIXTURE mode: MockAcpPeer (no cloud key, no ACP SDK in core).");
   if (scenario === "always-grant") {
     notes.push("FIXTURE always-grant: mock peer includes allow-with-updates (kind=allow_always); live run selects it explicitly via pick_allow_always_option");
+  }
+  if (scenario === "reject-always") {
+    notes.push("FIXTURE reject-always: cheap fixture note only — live run requires reject_always / reject-always option via pick_reject_always_option (strict; no reject_once fallback); mock peer may list reject_once without reject_always");
   }
   const events = new MockAcpPeer().run_fixture_scenario();
   const history = acp_events_to_history(events);
