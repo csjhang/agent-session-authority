@@ -13,8 +13,9 @@ Short map of published notes for the Session Authority Fault Probe. Folder names
 | #1094 wording draft | [`targets/claude-agent-acp/results/ISSUE_1094_WORDING.md`](../targets/claude-agent-acp/results/ISSUE_1094_WORDING.md) |
 | Stage 3 comparison table | [`2026-09-week3/results-table.md`](2026-09-week3/results-table.md) |
 | Outbound issue | [claude-agent-acp#1094](https://github.com/agentclientprotocol/claude-agent-acp/issues/1094) |
+| Option-offer survey (Hermes / OpenClaw; Claude ACP contrast) | [`option-offer-survey.md`](option-offer-survey.md) |
 
-Biweekly maintainer-status trace on #1094 is owned outside this repo (Align). Align has paused further generation re-ask runs on this pin; the next probe posture is an option-offer survey (which permission kinds are actually offered vs listed in the ACP kind enum), not more silent-across-generation coverage until that survey lands.
+Biweekly maintainer-status trace on #1094 is owned outside this repo (Align). Align has paused further generation re-ask runs on the Claude ACP pin; the option-offer survey for Hermes / OpenClaw (plus Claude ACP contrast) is in [`option-offer-survey.md`](option-offer-survey.md).
 
 ## By stage / folder
 
