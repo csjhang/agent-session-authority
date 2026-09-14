@@ -6,37 +6,48 @@ This is a **Fault Probe** with reproducible witnesses, not a normative conforman
 
 CLI: `asa` · License: Apache-2.0 · `packages/core` stays free of target SDKs.
 
-## Live ACP witness (restart / history replay)
+## Current status (pin 0.75.1)
 
-Against `@agentclientprotocol/claude-agent-acp@0.75.1` we recorded a capped live run (`live_capped_ok`):
+Live work targets `@agentclientprotocol/claude-agent-acp@0.75.1`. Generation re-ask chasing on this pin is **paused**. Outbound [claude-agent-acp#1094](https://github.com/agentclientprotocol/claude-agent-acp/issues/1094) is **closed** (no reproducible authorization defect; history replay on `session/load` is resume UX, not a stale grant authorizing a new effect).
 
-- Grant a Write approval (`fence_epoch: 1`, history seq **27–29**)
-- RuntimeRestart (gen1 → gen2) + `session/load`
-- Prior session history replayed; the same Write `toolCallId` is not a new execution. Whether a prior approval authorizes a new runtime effect is **not demonstrated**.
-- A post-restart new Write became pending and then timed out; no new effect receipt was observed.
-- `generation` and `fence_epoch` are adapter-filled fields, not proof of native fencing (or its absence). `live_capped_ok` is not a successful stale-approval defect reproduction.
+### Live permission-axis results (Write)
 
-Published artifacts:
+Score from independent filesystem receipts and native approval events — never from prompt timeout alone. Harness `-32000` on `session/prompt` is a **client wait expiry** (`harness_client_timeout`), not a peer defect verdict.
 
-- [`targets/claude-agent-acp/results/LIVE_CAPPED.md`](targets/claude-agent-acp/results/LIVE_CAPPED.md) — short writeup
-- [`targets/claude-agent-acp/results/history-live-witnesses.jsonl`](targets/claude-agent-acp/results/history-live-witnesses.jsonl) — slim witness JSONL
+| Path | Result on this pin |
+| --- | --- |
+| **allow_once** (restart + new Write) | Post-restart Write gets a **new** `session/request_permission`. Withhold that approval → **no** FS effect. |
+| **allow_always** (`allow-with-updates`) | Option offered and selected in gen1. Post-restart Write still gets a **new** approval request — silent always-allow across generation **not observed**. FS effect after a fresh gen2 grant **demonstrated**. |
+| **reject_always** | On Write, options were only `allow-once` / `allow-with-updates` (`allow_always`) / `reject` (`reject_once`). **`reject_always` not offered** → durable-deny across generation **not scored**. Treat as **not offered / underspecified**, not a failed test. |
 
-Verbose full `history-live.jsonl` is **not** published; reproduce locally if you need the raw stream:
+Published reports:
+
+- [`targets/claude-agent-acp/results/AUTH_EFFECT_CHAIN.md`](targets/claude-agent-acp/results/AUTH_EFFECT_CHAIN.md) — auth→effect chain (effect / stale-grant / stale-effect)
+- [`targets/claude-agent-acp/results/AUTH_ALWAYS_GRANT_LIVE.md`](targets/claude-agent-acp/results/AUTH_ALWAYS_GRANT_LIVE.md) — hardened always-grant live
+- [`targets/claude-agent-acp/results/AUTH_REJECT_ALWAYS_LIVE.md`](targets/claude-agent-acp/results/AUTH_REJECT_ALWAYS_LIVE.md) — reject_always not offered
+- [`targets/claude-agent-acp/results/LIVE_CAPPED.md`](targets/claude-agent-acp/results/LIVE_CAPPED.md) — early capped history-replay writeup
+- Slim witnesses under `targets/claude-agent-acp/results/history-live-*-witnesses.jsonl` (verbose full histories are gitignored)
+
+### Next probe posture
+
+1. **Option-offer survey** — which permission kinds are actually offered vs listed in the ACP kind enum (Hermes / OpenClaw / …; cheap first pass). See [`findings/option-offer-survey.md`](findings/option-offer-survey.md).
+2. Minimal **offline effect-receipt format + verifier** (not hosted audit storage).
+3. New public issue for allow/reject option asymmetry only after a quick multi-tool check that `reject_always` is missing beyond Write.
+
+## Reproduce live ACP scenarios
 
 ```bash
 pnpm install
 # pin / PATH: @agentclientprotocol/claude-agent-acp@0.75.1
 export ANTHROPIC_API_KEY=…   # never commit
-pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode live --scenario capped
+
+# scenarios: initialize (default) | capped | effect | stale-grant | stale-effect | always-grant | reject-always
+pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode live --scenario effect
+pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode live --scenario always-grant
+pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode live --scenario reject-always
 ```
 
-Initialize-only live (no AUTH scenarios):
-
-```bash
-pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode live
-```
-
-Outbound: [claude-agent-acp#1094](https://github.com/agentclientprotocol/claude-agent-acp/issues/1094).
+Write-probe prompts wait up to 180s client-side by default (override upward with `live_observe_ms`). See `packages/adapters/acp/README.md`.
 
 ## Quick start (fixtures)
 
@@ -61,13 +72,13 @@ Profile **v0.2** AUTH scenarios (AUTH-01…08) over a shared history JSONL + `as
 
 Build order: history → checker → mock sink → adapters.
 
-## Status
+## Stage map
 
 - **Stage 1:** history JSONL, `asa check`, AUTH checkers and corpora; Dogwood generation notes under `findings/`
 - **Stage 2:** mock sink, AUTH-02/04/07, ACP fixture adapter
 - **Stage 3 (fixtures done):** AHP / VS Code Agent Host, Ably, acp-mux fixtures; Docker compose; comparison table
-- **Live (capped):** ACP initialize + session/new + permission + restart/`session/load` witnesses (above)
-- **Parked:** further live wire (Ably / AHP / acp-mux) and probe expansion until #1094 maintainer signal
+- **Live ACP (this pin):** permission-axis runs above; generation re-ask expansion **paused**
+- **Parked:** further live wire (Ably / AHP / acp-mux) until the option-offer survey and offline-receipt work set the next gate
 
 ## Docker mock-sink repro
 
@@ -82,6 +93,7 @@ Lean mock-sink only — no Temporal, no managed relay. See `docker/README.md`.
 
 Index: [`findings/README.md`](findings/README.md)
 
+- [`findings/option-offer-survey.md`](findings/option-offer-survey.md) — option-offer survey (Hermes / OpenClaw; Claude ACP contrast)
 - [`findings/2026-09-week3/writeup.md`](findings/2026-09-week3/writeup.md)
 - [`findings/2026-09-week3/results-table.md`](findings/2026-09-week3/results-table.md)
 - Targets: `targets/claude-agent-acp/`, `targets/vscode-agent-host/`, `targets/ably/`, `targets/acp-mux/`
