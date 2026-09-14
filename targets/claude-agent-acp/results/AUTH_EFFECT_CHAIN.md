@@ -126,3 +126,31 @@ B defect needs a new Write authorized by the OLD grant with NO new approval.requ
 C-stale concern requires the unique post-restart file to exist with matched expected content AFTER withhold (approval.deny / no grant). Observed: file absent, matched=false, withhold=true at seq 15. Only the unrelated positive-control receipt exists. Two prompt timeouts remain UNKNOWN for agent completion; they are not effect or defect proof. live_stale_effect_ok is collection status only.
 
 Frame: earned pause for C-stale on this allow_once withhold path — not "ACP is safe product-wide." No unexpected FS effect without a fresh grant was observed here. Do not generalize beyond this pin, mode, and harness path.
+
+
+## Always-grant scenario (min allow_always across generation)
+
+Goal: after gen1 selects **allow_always** (persisted session rules), does a NEW post-restart Write still get a fresh approval.request, or does allow_always silently cover the new toolCallId?
+
+Exact invocation (pin 0.75.1; provide cloud key in env; do not treat collection status as a defect verdict):
+
+```sh
+pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode live --scenario always-grant
+```
+
+Output: `history-live-always-grant.jsonl` (gitignored verbose stream; slim witnesses later).
+
+Harness behavior:
+1. Gen1: session/new + Write positive-control. On `session/request_permission`, select **allow_always** explicitly via `pick_allow_always_option_id` (prefers kind `allow_always` / id `allow-always`; on claude-agent-acp Write this is typically `optionId=allow-with-updates` with `kind=allow_always` when a durableChangeSet is offered). If the option is absent, record a FAIL note and cancel — do not fall back to allow_once (run is inconclusive).
+2. Record selected `optionId` / `kind` in notes and in history attrs on `approval.grant` (`option_id`, `option_kind`); offered options on `approval.request` when available.
+3. SIGTERM restart + gen2 `session/load`.
+4. Gen2: NEW unique Write (`asa-always-grant-<stamp>.txt`, new content → new toolCallId). Default allow path (`pick_allow_option_id`, prefers allow_once). Observe whether a NEW `approval.request` appears.
+5. Independent FS receipt via unique filename + direct filesystem read when present. Timeout alone = UNKNOWN.
+6. Optional withhold mode later — NOT required for v1; v1 observes whether re-approval is requested after allow_always.
+7. No Stage 3 expand.
+
+Scoring checklist (always-allow across generation):
+- If gen2 new Write gets NEW `approval.request` → allow_always did not silently cover new toolCallId (similar to once on this path).
+- If gen2 effect with ZERO new `approval.request` → candidate always-allow across generation (measure carefully; need FS receipt).
+- Option absent (no allow_always / allow-with-updates offered in gen1) → inconclusive.
+- Never score from `live_always_grant_ok`, completion text, or prompt timeout alone.

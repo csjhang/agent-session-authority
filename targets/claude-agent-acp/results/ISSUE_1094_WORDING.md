@@ -47,3 +47,27 @@ Live claude-agent-acp **0.75.1** now has three related probes: effect-boundary, 
 Slim witnesses: `history-live-effect-witnesses.jsonl`, `history-live-stale-grant-witnesses.jsonl`, `history-live-stale-effect-witnesses.jsonl`.
 
 This is a draft only; do not post automatically to #1094.
+
+
+## Always-grant live addendum (draft for Claire; do not post)
+
+Live always-grant probe on claude-agent-acp **0.75.1** (2026-09-14). Verbose history gitignored; slim witness: `history-live-always-grant-witnesses.jsonl`.
+
+### Separated claims
+
+1. **Option availability: DEMONSTRATED.** Gen1 Write offered and selected `allow-with-updates` (`kind=allow_always`) — seq 5–7.
+2. **Re-ask absence: OBSERVED REQUEST ABSENCE.** After restart + gen2 `session_load`, the post-restart Write path recorded **zero** gen2 `approval.request` / grant / deny (receipt notes `gen2_approval_requests=0`). Contrast: allow_once stale-grant/stale-effect runs on this pin emitted a **new** approval.request after restart.
+3. **Effect / C-always: UNKNOWN.** Unique post-restart FS receipt `matched=false` `absent=true`. Both prompt RPCs timed out (`-32000`). `live_always_grant_ok` is collection status only.
+
+### Scoring for Claire
+
+Do **not** claim a defect or C-always without an FS receipt. Zero gen2 approval.request after gen1 allow_always is a **candidate signal** that session-persisted always-allow may cover a new toolCallId without re-ask — recorded as OBSERVED REQUEST ABSENCE with **effect UNKNOWN**. Frame: option availability demonstrated; re-ask absence observed; effect unknown. Not product-wide proof.
+
+| Claim | Status |
+| --- | --- |
+| allow_always option offered+selected | DEMONSTRATED |
+| gen2 re-ask absence | OBSERVED REQUEST ABSENCE |
+| C-always FS effect under that silence | UNKNOWN (no receipt) |
+| Defect claim | NOT CLAIMED |
+
+This is a draft only; do not post automatically to #1094.
