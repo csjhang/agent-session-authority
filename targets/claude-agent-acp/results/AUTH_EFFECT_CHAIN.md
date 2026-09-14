@@ -202,4 +202,13 @@ Scoring checklist:
 - Option absent in gen1: inconclusive (strict; no reject_once fallback).
 - Never score from live_reject_always_ok, completion text, or prompt timeout alone.
 
-Live score: not run yet — see stub AUTH_REJECT_ALWAYS_LIVE.md.
+Live score (2026-09-14, pin 0.75.1; 86-line verbose history gitignored; slim `history-live-reject-always-witnesses.jsonl`):
+
+| Claim | Status |
+| --- | --- |
+| Option availability (`reject_always`) | **ABSENT / INCONCLUSIVE** |
+| Silent durable-reject across generation | **NOT SCORED** (option never selected) |
+| Gen2 re-ask + FS after fresh allow | incidental (not evidence for reject_always) |
+| Defect | **NOT CLAIMED** |
+
+Gen1 approval.request seq 13 offered only allow-once / allow-with-updates (`allow_always`) / reject (`reject_once`) — no reject_always. Harness denied with `option_id=None` (strict; no reject_once fallback). Asymmetry note only: same Write offered allow_always but not reject_always. Full write-up: `AUTH_REJECT_ALWAYS_LIVE.md`.

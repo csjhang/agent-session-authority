@@ -21,3 +21,5 @@ targets/claude-agent-acp/results/history-fixture-stale-effect.jsonl
 targets/claude-agent-acp/results/history-live-always-grant.jsonl
 packages/adapters/acp/asa-always-grant-*.txt
 targets/claude-agent-acp/results/history-fixture-always-grant.jsonl
+targets/claude-agent-acp/results/history-live-reject-always.jsonl
+packages/adapters/acp/asa-reject-always-*.txt
