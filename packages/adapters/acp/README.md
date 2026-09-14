@@ -19,4 +19,4 @@ For the min-B stale-grant probe (old grant across restart vs new Write), use sce
 
 For the min-C stale-effect probe (withhold post-restart approval; FS receipt check), use `--scenario stale-effect`. Output is `history-live-stale-effect.jsonl` under `targets/claude-agent-acp/results/`.
 
-For the min allow_always-across-generation probe, use `--scenario always-grant`. Output is `history-live-always-grant.jsonl` under `targets/claude-agent-acp/results/`.
+For the min allow_always-across-generation probe, use `--scenario always-grant`. Output is `history-live-always-grant.jsonl` under `targets/claude-agent-acp/results/`. Write-probe prompts default to a 45s observe timeout and post-prompt FS/tool_call wait (override with live_observe_ms); timeout alone is still not effect proof.
