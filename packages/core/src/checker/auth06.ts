@@ -1,11 +1,14 @@
 import type { Checker } from "./index.js";
-import { attrs, basis, claim_for, finding, str } from "./index.js";
+import { attrs, basis, claim_for, finding, str, observation_guard } from "./index.js";
 
 /** AUTH-06 — no implicit success without trusted EffectReceipt */
 export const check_auth06: Checker = (ctx) => {
   const inv = "AUTH-06";
   const cs = claim_for(ctx, inv);
-  const guard = observation_guard(ctx, inv, ctx.events.some((e) => e.op === "effect.dispatch" || e.op === "effect.query"), ctx.events.some((e) => e.op === "effect.receipt"));
+  // Gate on effect activity only. Requiring effect.receipt here would make the
+  // "implicit success without receipt" violate path unreachable (always inconclusive).
+  const has_effect_activity = ctx.events.some((e) => e.op === "effect.dispatch" || e.op === "effect.query" || e.op === "effect.receipt");
+  const guard = observation_guard(ctx, inv, has_effect_activity, has_effect_activity);
   if (guard) return guard;
   const receipts = new Set<string>();
 

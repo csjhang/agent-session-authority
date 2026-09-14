@@ -9,7 +9,7 @@ Slim witness: history-live-effect-witnesses.jsonl, 8 selected records with origi
 
 ## Parsing and witness status
 Node line-by-line JSON.parse passed for all 69 full-history records and all 8 slim-witness records.
-The core checker loaded the full file before failing on the unrelated ReferenceError observation_guard is not defined in packages/core/src/checker/auth06.ts. That runtime error is not an evidence verdict.
+Earlier: the core checker loaded the full file before failing on the unrelated ReferenceError `observation_guard is not defined` in `packages/core/src/checker/auth06.ts` (missing import after observation_guard was added). That runtime error was not an evidence verdict. **Fixed** on branch `fix/harness-debt-auth06-timeouts` (also wired the same import in `auth07.ts`).
 The slim witness is parseable ASA history and preserves relevant native ACP updates plus adapter history records. No events were invented.
 The peer did not emit an ACP fs/write_text_file method. The effect boundary is a controlled external filesystem receipt corroborated by the native ACP toolResponse update and a direct read of the resulting file.
 
@@ -213,3 +213,23 @@ Live score (2026-09-14, pin 0.75.1; 86-line verbose history gitignored; slim `hi
 | Defect | NOT CLAIMED |
 
 Gen1 approval.request seq 13 offered only allow-once / allow-with-updates (`allow_always`) / reject (`reject_once`) — no reject_always. Harness denied with `option_id=None` (strict; no reject_once fallback). Option absence is data, not a failed test: durable-deny symmetry with allow_always is ABSENT on this path; silent durable-reject cannot be measured. Full write-up: `AUTH_REJECT_ALWAYS_LIVE.md`.
+
+
+## Harness debt: session/prompt `-32000` timeouts (diagnosis + fix)
+
+**Observation (live histories on pin 0.75.1):** write-probe `session/prompt` RPCs frequently record JSON-RPC `-32000` / message `timeout` even when permission + Write already happened and an independent FS receipt matched. Examples: effect-boundary positive/post-restart prompts; stale-grant seq 15; stale-effect seq 8 and 14.
+
+**Root cause (harness-side, not peer defect):**
+1. `LiveRpc.request` arms a client timer; when it fires it resolves a **synthetic** error `{ code: -32000, message: "timeout", data: { harness_client_timeout: true } }` and drops the pending id. This is a wait expiry, not an agent-emitted JSON-RPC error.
+2. ACP `session/prompt` completes only when the agent finishes the turn. Write probes require permission round-trips + tool execution, so they routinely outlive short `live_observe_ms` (default **4000ms** used for initialize / session/new / session/load).
+3. Earlier hardening raised only always-grant / reject-always **gen2** prompt waits to 180s. Effect / stale-grant / stale-effect (and gen1 write prompts) still used the 4s observe timeout — hence systemic `-32000` noise on those paths.
+
+**Scoring rule (unchanged):** never score effect or defect from prompt timeout alone. Direct FS receipts (`effect_receipt` / `wait_for_write_effect`) remain the score path. Timeout ⇒ UNKNOWN for agent completion.
+
+**Minimal harness improvement (this branch):**
+- Floor write-probe `session/prompt` waits (gen1 + gen2, all write scenarios) at `WRITE_PROBE_PROMPT_MS = 180000`, `Math.max(live_observe_ms, floor)`.
+- Keep initialize / session/new / session/load on short `live_observe_ms`.
+- Tag synthetic timeouts with `data.harness_client_timeout: true`.
+- Record `prompt_timeout_ms` on write-probe `prompt_result` events; notes state that FS remains the score path.
+
+**Follow-up (not in this PR):** optional late-result capture if a real prompt result arrives after the client timer (today the pending id is deleted on expiry). No Stage 3 expand; pin stays 0.75.1.

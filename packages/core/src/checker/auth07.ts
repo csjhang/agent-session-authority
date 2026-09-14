@@ -1,5 +1,5 @@
 import type { Checker } from "./index.js";
-import { attrs, basis, claim_for, finding, str } from "./index.js";
+import { attrs, basis, claim_for, finding, str, observation_guard } from "./index.js";
 
 type TerminalKind = "cancel" | "complete" | "timeout" | "restart" | "failed" | "unknown";
 
