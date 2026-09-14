@@ -315,7 +315,8 @@ class LiveRpc {
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
-        resolve({ jsonrpc: "2.0", id, error: { code: -32000, message: "timeout" } });
+        // Synthetic client wait expiry — not a peer JSON-RPC error. Never score effects from this alone.
+        resolve({ jsonrpc: "2.0", id, error: { code: -32000, message: "timeout", data: { harness_client_timeout: true } } });
       }, timeout);
       this.pending.set(id, { resolve, timer });
       this.write(msg);
@@ -358,9 +359,14 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
   const timeout = opts.live_observe_ms ?? 4000;
   /** Default post-prompt FS/tool_call grace for write probes (non–always-grant gen2). */
   const effect_grace_ms = 20_000;
-  /** always-grant gen2 only: long post-restart prompt so C can be scored. */
-  const ALWAYS_GRANT_GEN2_PROMPT_MS = 180_000;
-  /** always-grant gen2 only: bounded wait after prompt returns for tool_call/FS. */
+  /**
+   * Write-probe session/prompt client wait. ACP session/prompt often outlives short
+   * live_observe_ms (default 4s) because permission + tool execution complete first;
+   * the harness synthesizes -32000 when this timer fires. FS receipts remain the score path.
+   * Proven on always-grant live (prompt_timeout_ms=180000). Override floor via live_observe_ms.
+   */
+  const WRITE_PROBE_PROMPT_MS = 180_000;
+  /** always-grant / reject-always gen2: bounded wait after prompt returns for tool_call/FS. */
   const ALWAYS_GRANT_EFFECT_POLL_MS = 30_000;
   const command = opts.live_command ?? "claude-agent-acp";
   const args = opts.live_args ?? [];
@@ -432,7 +438,11 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
   const prompt1 = write_probe
     ? `Write ${first_path} with exactly: ${first_content}`
     : "Reply OK.";
-  const p1 = await i1.rpc.request(build_session_prompt(4, sid, prompt1), timeout);
+  const write_prompt_timeout = write_probe ? Math.max(timeout, WRITE_PROBE_PROMPT_MS) : timeout;
+  if (write_probe) {
+    notes.push(`write-probe gen1: session/prompt timeout_ms=${write_prompt_timeout} (observe_ms=${timeout}); FS receipt remains score path`);
+  }
+  const p1 = await i1.rpc.request(build_session_prompt(4, sid, prompt1), write_prompt_timeout);
   events.push({
     type: "session_update",
     sessionId: sid,
@@ -450,7 +460,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
                 ? "reject_always_positive_write"
                 : "cheap",
       response: p1,
-      ...(write_probe ? { effect_path: first_path, effect_content: first_content } : {}),
+      ...(write_probe ? { effect_path: first_path, effect_content: first_content, prompt_timeout_ms: write_prompt_timeout } : {}),
     },
   });
   if (always_grant || write_probe) {
@@ -570,18 +580,21 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
     const prompt2 = write_probe
       ? `Write ${post_path} with exactly: ${post_content}`
       : "Write asa-capped-probe.txt with exactly: probe";
-    // always-grant / reject-always gen2: substantially longer post-restart prompt timeout.
-    const gen2_prompt_timeout = cross_gen_always ? Math.max(timeout, ALWAYS_GRANT_GEN2_PROMPT_MS) : timeout;
+    // Write probes (incl. always-grant / reject-always): long post-restart prompt wait; FS remains score path.
+    const gen2_prompt_timeout = write_probe ? Math.max(timeout, WRITE_PROBE_PROMPT_MS) : timeout;
     const events_before_gen2_prompt = events.length;
     const gen2_permission_baseline = i2.rpc.permission_requests;
     if (always_grant) {
       notes.push(
         `always-grant gen2: post-restart prompt timeout_ms=${gen2_prompt_timeout} (observe_ms=${timeout}); poll up to ${ALWAYS_GRANT_EFFECT_POLL_MS}ms after return for tool_call/FS`,
       );
-    }
-    if (reject_always) {
+    } else if (reject_always) {
       notes.push(
         `reject-always gen2: post-restart prompt timeout_ms=${gen2_prompt_timeout} (observe_ms=${timeout}); poll up to ${ALWAYS_GRANT_EFFECT_POLL_MS}ms after return for tool_call/FS`,
+      );
+    } else if (write_probe) {
+      notes.push(
+        `write-probe gen2: post-restart prompt timeout_ms=${gen2_prompt_timeout} (observe_ms=${timeout}); poll up to ${effect_grace_ms}ms after return for tool_call/FS; timeout alone is UNKNOWN`,
       );
     }
     let p2 = await i2.rpc.request(build_session_prompt(8, sid, prompt2), gen2_prompt_timeout);
@@ -602,8 +615,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
                   ? "reject_always_post_restart_write"
                   : "post_restart_write",
         response: p2,
-        ...(write_probe ? { effect_path: post_path, effect_content: post_content } : {}),
-        ...(cross_gen_always ? { prompt_timeout_ms: gen2_prompt_timeout } : {}),
+        ...(write_probe ? { effect_path: post_path, effect_content: post_content, prompt_timeout_ms: gen2_prompt_timeout } : {}),
       },
     });
     let gen2_effect_wait: { present: boolean; tool_call_completed: boolean; waited_ms: number } | undefined;

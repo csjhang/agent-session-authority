@@ -36,4 +36,38 @@ describe("reliability judgment premises", () => {
     expect(finding.witness_seqs).toEqual(expect.arrayContaining([1, 2]));
     expect(finding.explanation).toMatch(/approver|ControlLease/);
   });
+
+  it("AUTH-06 completes without inventing receipts (empty / violate / clean dispatch)", () => {
+    const assessment = default_assessment();
+    assessment.test_basis = "research_profile";
+    const empty = run_checkers([], null, assessment).find((x) => x.invariant === "AUTH-06")!;
+    expect(empty.result).toBe("not_tested");
+
+    const violate_events = parse_history_jsonl(
+      [
+        "{\"seq\":1,\"kind\":\"ok\",\"op\":\"effect.dispatch\",\"attrs\":{\"effect_id\":\"e1\",\"status\":\"dispatched\"}}",
+        "{\"seq\":2,\"kind\":\"info\",\"op\":\"effect.dispatch\",\"attrs\":{\"effect_id\":\"e1\",\"status\":\"completed\"}}",
+      ].join("\n"),
+      { warn_unknown_vocab: false },
+    );
+    const violate = run_checkers(violate_events, null, assessment).find((x) => x.invariant === "AUTH-06")!;
+    expect(violate.result).toBe("violation");
+    expect(violate.witness_seqs).toEqual(expect.arrayContaining([2]));
+
+    const clean = parse_history_jsonl(
+      "{\"seq\":1,\"kind\":\"ok\",\"op\":\"effect.dispatch\",\"attrs\":{\"effect_id\":\"e1\",\"status\":\"dispatched\"}}",
+      { warn_unknown_vocab: false },
+    );
+    const clean_finding = run_checkers(clean, null, assessment).find((x) => x.invariant === "AUTH-06")!;
+    // No success claim without receipt — not a violation; do not invent a receipt.
+    expect(clean_finding.result).not.toBe("violation");
+    expect(clean_finding.result).not.toBe("not_tested");
+  });
+
+  it("AUTH-07 observation_guard is wired (no ReferenceError on empty history)", () => {
+    const assessment = default_assessment();
+    assessment.test_basis = "research_profile";
+    const f = run_checkers([], null, assessment).find((x) => x.invariant === "AUTH-07")!;
+    expect(f.result).toBe("not_tested");
+  });
 });

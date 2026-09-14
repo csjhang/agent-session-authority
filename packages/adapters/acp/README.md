@@ -19,6 +19,6 @@ For the min-B stale-grant probe (old grant across restart vs new Write), use sce
 
 For the min-C stale-effect probe (withhold post-restart approval; FS receipt check), use `--scenario stale-effect`. Output is `history-live-stale-effect.jsonl` under `targets/claude-agent-acp/results/`.
 
-For the min allow_always-across-generation probe, use `--scenario always-grant`. Output is `history-live-always-grant.jsonl` under `targets/claude-agent-acp/results/`. Write-probe prompts default to a 45s observe timeout and post-prompt FS/tool_call wait (override with live_observe_ms); timeout alone is still not effect proof.
+For the min allow_always-across-generation probe, use `--scenario always-grant`. Output is `history-live-always-grant.jsonl` under `targets/claude-agent-acp/results/`. Write-probe `session/prompt` waits default to 180s client-side (floor; override upward with `live_observe_ms`), then poll FS/tool_call. Synthetic `-32000` is a harness wait expiry (`harness_client_timeout`), not a peer defect — timeout alone is still not effect proof; FS receipts remain the score path.
 
 For the min reject_always-across-generation contrast (does durable reject persist like allow_always?), use `--scenario reject-always`. Output is `history-live-reject-always.jsonl` under `targets/claude-agent-acp/results/`. Gen1 selects reject_always strictly (no reject_once fallback); gen2 uses default allow to observe re-ask vs silent reject.
