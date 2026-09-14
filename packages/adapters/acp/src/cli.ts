@@ -18,6 +18,7 @@ if (scenario_idx >= 0 && args[scenario_idx + 1]) {
     : raw === "stale-grant" ? "stale-grant"
     : raw === "stale-effect" ? "stale-effect"
     : raw === "always-grant" ? "always-grant"
+    : raw === "reject-always" ? "reject-always"
     : "initialize";
 }
 
@@ -34,6 +35,8 @@ const hist_name = scenario === "effect"
     ? "history-" + result.mode + "-stale-effect.jsonl"
   : scenario === "always-grant"
     ? "history-" + result.mode + "-always-grant.jsonl"
+  : scenario === "reject-always"
+    ? "history-" + result.mode + "-reject-always.jsonl"
   : mode === "live" && scenario === "capped"
     ? "history-live.jsonl"
     : "history-" + result.mode + ".jsonl";
