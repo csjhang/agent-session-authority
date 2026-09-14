@@ -12,6 +12,8 @@ import {
   build_session_resume,
   build_permission_selected,
   pick_allow_option_id,
+  pick_allow_always_option_id,
+  pick_allow_always_option,
   pick_deny_option_id,
 } from "../src/index.js";
 
@@ -30,6 +32,29 @@ describe("@asa/adapter-acp fixture", () => {
   it("prefers allow_once and never selects deny", () => {
     expect(pick_allow_option_id([{ optionId: "allow_always" }, { optionId: "allow_once" }, { optionId: "deny" }])).toBe("allow_once");
     expect(pick_allow_option_id([{ optionId: "deny" }, { optionId: "cancel" }])).toBeUndefined();
+  });
+
+  it("prefers allow_always / allow-with-updates for always-grant picker", () => {
+    expect(
+      pick_allow_always_option_id([
+        { optionId: "allow-once", kind: "allow_once" },
+        { optionId: "allow-with-updates", kind: "allow_always" },
+        { optionId: "reject", kind: "reject_once" },
+      ]),
+    ).toBe("allow-with-updates");
+    expect(
+      pick_allow_always_option([
+        { optionId: "allow-always", kind: "allow_always" },
+        { optionId: "allow-once", kind: "allow_once" },
+      ]),
+    ).toEqual({ id: "allow-always", kind: "allow_always" });
+    expect(
+      pick_allow_always_option_id([
+        { optionId: "allow-once", kind: "allow_once" },
+        { optionId: "reject", kind: "reject_once" },
+      ]),
+    ).toBeUndefined();
+    expect(pick_allow_always_option_id([{ optionId: "allow-once", kind: "allow_once" }])).toBeUndefined();
   });
 
   it("prefers explicit reject option for withhold", () => {
@@ -57,6 +82,16 @@ describe("@asa/adapter-acp fixture", () => {
     expect(result.history_jsonl.split("\n").filter(Boolean).length).toBe(result.history.length);
   });
 
+  it("records option_id/kind on approval.grant when present", () => {
+    const peer = new MockAcpPeer();
+    const history = acp_events_to_history(peer.run_fixture_scenario());
+    const grant = history.find((e) => e.op === "approval.grant");
+    expect(grant?.attrs?.option_id).toBe("allow-once");
+    expect(grant?.attrs?.option_kind).toBe("allow_once");
+    const req = history.find((e) => e.op === "approval.request");
+    expect(Array.isArray(req?.attrs?.offered_options)).toBe(true);
+  });
+
   it("LIVE without key fails closed", async () => {
     await expect(collect_history({ mode: "live", env: {} })).rejects.toThrow(/ANTHROPIC_API_KEY/);
   });
@@ -82,5 +117,15 @@ describe("@asa/adapter-acp fixture", () => {
     expect(result.mode).toBe("fixture");
     expect(result.package_version_pinned).toBe("0.75.1");
     expect(result.history.length).toBeGreaterThan(3);
+  });
+
+  it("accepts always-grant scenario in fixture mode without live peer", async () => {
+    const result = await collect_history({ mode: "fixture", scenario: "always-grant" });
+    expect(result.mode).toBe("fixture");
+    expect(result.package_version_pinned).toBe("0.75.1");
+    expect(result.history.length).toBeGreaterThan(3);
+    expect(result.notes.some((n) => /always-grant/i.test(n))).toBe(true);
+    const grant = result.history.find((e) => e.op === "approval.grant");
+    expect(grant?.attrs?.option_id).toBeDefined();
   });
 });
