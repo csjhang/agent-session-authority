@@ -44,30 +44,34 @@ Live claude-agent-acp **0.75.1** now has three related probes: effect-boundary, 
 | C fresh authorized effect | DEMONSTRATED (prior runs) |
 | C-stale effect after withhold/deny | NOT OBSERVED (UNKNOWN); earned pause on this path |
 
-Slim witnesses: `history-live-effect-witnesses.jsonl`, `history-live-stale-grant-witnesses.jsonl`, `history-live-stale-effect-witnesses.jsonl`.
+Slim witnesses: `history-live-effect-witnesses.jsonl`, `history-live-stale-grant-witnesses.jsonl`, `history-live-stale-effect-witnesses.jsonl`, `history-live-always-grant-witnesses.jsonl`.
 
 This is a draft only; do not post automatically to #1094.
 
 
 ## Always-grant live addendum (draft for Claire; do not post)
 
-Live always-grant probe on claude-agent-acp **0.75.1** (2026-09-14). Verbose history gitignored; slim witness: `history-live-always-grant-witnesses.jsonl`.
+Live always-grant probe on claude-agent-acp **0.75.1** (2026-09-14, **hardened waits**). Verbose history gitignored; slim witness: `history-live-always-grant-witnesses.jsonl` (12 records from 57-line source). Session `8a6f9814-99e5-4185-b181-dcd8a08750df`.
+
+An earlier pre-hardening always-grant run (gen2_approval_requests=0, FS absent under short timeouts) is **superseded** — cite only as contrast.
 
 ### Separated claims
 
-1. **Option availability: DEMONSTRATED.** Gen1 Write offered and selected `allow-with-updates` (`kind=allow_always`) — seq 5–7.
-2. **Re-ask absence: OBSERVED REQUEST ABSENCE.** After restart + gen2 `session_load`, the post-restart Write path recorded **zero** gen2 `approval.request` / grant / deny (receipt notes `gen2_approval_requests=0`). Contrast: allow_once stale-grant/stale-effect runs on this pin emitted a **new** approval.request after restart.
-3. **Effect / C-always: UNKNOWN.** Unique post-restart FS receipt `matched=false` `absent=true`. Both prompt RPCs timed out (`-32000`). `live_always_grant_ok` is collection status only.
+1. **Option availability: DEMONSTRATED.** Gen1 Write offered and selected `allow-with-updates` (`kind=allow_always`) — seq 15–17, toolCallId `toolu_01LcK1EGaQqtwTLvyVPetXgt`.
+2. **Silent always-allow across generation: NOT OBSERVED.** After restart + gen2 `session_load`, the post-restart Write path recorded a **NEW** `approval.request` (seq 39) for `asa-always-grant-1789400531536-873578.txt` / toolCallId `toolu_01F85165sBeRBzWDLoYu7LY2`, then grant seq 40 (`option_id=allow-once`, `option_kind=allow_once` — harness gen2 uses `pick_allow_option_id`). Receipt notes `gen2_approval_requests=1`. **Re-ask demonstrated.**
+3. **FS effect after fresh gen2 grant: DEMONSTRATED.** Effect receipt seq 56: `matched=true`, `allow_always_gen1=true`, `prompt_timeout_ms=180000`. Effect followed the fresh gen2 allow_once grant — not silence under allow_always.
+4. **Defect: NOT CLAIMED.** Do not claim always-allow silently authorizing across generation; re-ask was observed.
 
 ### Scoring for Claire
 
-Do **not** claim a defect or C-always without an FS receipt. Zero gen2 approval.request after gen1 allow_always is a **candidate signal** that session-persisted always-allow may cover a new toolCallId without re-ask — recorded as OBSERVED REQUEST ABSENCE with **effect UNKNOWN**. Frame: option availability demonstrated; re-ask absence observed; effect unknown. Not product-wide proof.
+Hardened live score: option availability demonstrated; **re-ask demonstrated**; FS matched after fresh gen2 allow_once grant; **silent always-allow across generation NOT OBSERVED**. Frame carefully: evidence against silent cross-generation always-allow on this path — **not** product-wide fence proof. Aligns with allow_once stale-grant/stale-effect contrast on the same pin. Repo-first only.
 
 | Claim | Status |
 | --- | --- |
 | allow_always option offered+selected | DEMONSTRATED |
-| gen2 re-ask absence | OBSERVED REQUEST ABSENCE |
-| C-always FS effect under that silence | UNKNOWN (no receipt) |
+| silent always-allow across generation | NOT OBSERVED |
+| gen2 re-ask | DEMONSTRATED |
+| FS effect after fresh gen2 grant | DEMONSTRATED |
 | Defect claim | NOT CLAIMED |
 
 This is a draft only; do not post automatically to #1094.

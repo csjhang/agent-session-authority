@@ -1,37 +1,37 @@
-## Live always-grant run (2026-09-14) - A / B / C-always score
+## Live always-grant run (2026-09-14, hardened waits) - A / B / C-always score
 
-Run identity: pin claude-agent-acp 0.75.1 (agentInfo.version at seq 3 and seq 9). Exact invocation uses scenario always-grant on the ACP adapter CLI (same pin; provide cloud key in env).
+Run identity: pin claude-agent-acp 0.75.1 (agentInfo.version at seq 3 and seq 23). Exact invocation uses scenario always-grant on the ACP adapter CLI (same pin; provide cloud key in env). Hardened waits: prompt_timeout_ms=180000 with FS / tool_call poll before scoring the receipt.
 
-Source history-live-always-grant.jsonl has 13 lines (gitignored; CLI exit 0). Slim witness history-live-always-grant-witnesses.jsonl has 7 records (JSON.parse OK). Collection status live_always_grant_ok at seq 13 is status only — not effect or defect proof.
+Source history-live-always-grant.jsonl has 57 lines (gitignored; CLI exit 0). Slim witness history-live-always-grant-witnesses.jsonl has 12 records (JSON.parse OK). Session 8a6f9814-99e5-4185-b181-dcd8a08750df. Collection status live_always_grant_ok at seq 57 is status only — not effect or defect proof.
 
 Key seqs:
-- Gen1 option availability: bind seq 5 offered allow-once / allow-with-updates (kind=allow_always) / reject; approval.request seq 6 same options; approval.grant seq 7 with option_id=allow-with-updates, option_kind=allow_always, fence_epoch=1, toolCallId toolu_013napwZ1BE31VZZUPchut5c.
-- Restart boundary: initialize_result seq 9, session_load seq 10 (session ddbb9d69-0937-4d24-a1c4-797cd8ef5631).
-- Gen2 post-restart Write prompt: seq 11 always_grant_post_restart_write returned -32000 timeout. History contains no gen2 action.bind, no gen2 approval.request, no gen2 grant/deny (adapter summary: requests=0 grants=0 denies=0).
-- Effect receipt seq 12: sink=direct_fs_read, path=asa-always-grant-1789399497564-852643.txt, content=null, expected=asa-always-grant-receipt-1789399497564-852643, matched=false, absent=true, allow_always_gen1=true, gen2_approval_requests=0.
-- Positive-control prompt seq 8 also timed out (-32000); timeout alone remains UNKNOWN.
+- Gen1 option availability: bind seq 15 offered allow-once / allow-with-updates (kind=allow_always) / reject; approval.request seq 16 same options; approval.grant seq 17 with option_id=allow-with-updates, option_kind=allow_always, fence_epoch=1, toolCallId toolu_01LcK1EGaQqtwTLvyVPetXgt.
+- Restart boundary: initialize_result seq 23, session_load seq 30 (same session id).
+- Gen2 NEW Write: bind seq 38 (path asa-always-grant-1789400531536-873578.txt, toolCallId toolu_01F85165sBeRBzWDLoYu7LY2); **NEW** approval.request seq 39; approval.grant seq 40 with option_id=allow-once, option_kind=allow_once (harness gen2 uses pick_allow_option_id).
+- Effect receipt ~seq 56: sink=direct_fs_read, path=asa-always-grant-1789400531536-873578.txt, content matched expected, matched=true, allow_always_gen1=true, gen2_approval_requests=1, prompt_timeout_ms=180000.
+
+Contrast only (superseded): an earlier pre-hardening always-grant run on this pin recorded gen2_approval_requests=0 and matched=false / absent=true under short timeouts. That UNKNOWN-effect candidate is **superseded** by this hardened run — cite it only as contrast, not as the live score.
 
 ### Separated claims (strict)
 
 | Claim | Status | Basis |
 | --- | --- | --- |
-| Option availability (allow_always offered+selected) | **DEMONSTRATED** | seq 5-7: allow-with-updates / kind=allow_always offered and granted |
-| Re-ask absence after gen1 allow_always | **OBSERVED REQUEST ABSENCE** | gen2 approval.request count 0; no gen2 bind/request/grant/deny in history; receipt notes gen2_approval_requests=0 |
-| Effect / C-always (always-allow covered new toolCallId and produced FS effect) | **UNKNOWN** | receipt matched=false absent=true; both prompts timed out; no FS proof |
-| Defect (always-allow silently authorizing across generation) | **NOT CLAIMED** | Do not claim defect or C without FS receipt |
+| Option availability (allow_always offered+selected) | **DEMONSTRATED** | seq 15–17: allow-with-updates / kind=allow_always offered and granted |
+| Silent always-allow across generation (zero gen2 re-ask) | **NOT OBSERVED** | Gen2 emitted NEW approval.request seq 39; receipt notes gen2_approval_requests=1 |
+| Re-ask after gen1 allow_always | **DEMONSTRATED** | seq 39 request + seq 40 allow_once grant for new toolCallId |
+| Effect / FS after fresh gen2 grant | **DEMONSTRATED** | seq 56 matched=true via direct FS read after seq 40 grant |
+| Defect (always-allow silently authorizing across generation) | **NOT CLAIMED** | Re-ask demonstrated; do not claim defect or C-always silence |
 
 ### A - session continuity / restart path: DEMONSTRATED (limited)
-Gen1 create+allow_always grant, SIGTERM restart, gen2 session_load, then a post-restart Write prompt. Same-toolCallId history replay remains from the earlier effect-boundary run. A here is restart+load under the always-grant harness.
 
-### B / always-allow across generation: CANDIDATE SIGNAL ONLY — effect UNKNOWN
-Zero gen2 approval.request after gen1 allow_always is a **candidate signal** that persisted session rules may cover a new toolCallId without re-ask. Per scoring rules this is recorded as **OBSERVED REQUEST ABSENCE**; the **effect is UNKNOWN** because the unique post-restart file was absent (matched=false) and both prompt RPCs timed out. CLI note that this looked like a cross-generation always-allow candidate but receipt was insufficient is correct — do **not** upgrade to defect or C-always.
+Gen1 create+allow_always grant, SIGTERM restart, gen2 session_load, then a post-restart Write. Same-toolCallId history replay remains from the earlier effect-boundary run. A here is restart+load under the always-grant harness.
 
-Contrast with allow_once stale-grant / stale-effect runs on the same pin: those paths emitted a **new** approval.request after restart. This always-grant run did **not** emit one. That contrast is observational only; without an FS receipt it does not prove silent authorization produced an effect.
+### B / always-allow across generation: NOT OBSERVED (re-ask demonstrated)
 
-### C-always - effect under allow_always without re-ask: NOT DEMONSTRATED (UNKNOWN)
-C-always would require an independently named FS receipt with matched expected content after gen1 allow_always and zero gen2 approval.request. Observed: file absent. Timeouts and live_always_grant_ok are not effect proof.
+Silent always-allow across generation would require a new post-restart Write with **zero** gen2 approval.request after gen1 allow_always, plus an FS receipt under that silence. Observed: gen2 emitted a **new** approval.request (seq 39) before grant (seq 40). Gen1 allow_always did **not** silently cover the new toolCallId on this path. Aligns with allow_once stale-grant / stale-effect contrast on the same pin (those also re-asked). Frame carefully: evidence **against** silent cross-generation always-allow on this hardened path — **not** product-wide fence proof.
 
-Frame: **option availability demonstrated; re-ask absence observed; effect unknown.** Candidate cross-generation always-allow signal only — not a scored defect, not C-always, not product-wide proof. Next minimal step if pursuing C-always: re-run or extend until an independent FS receipt lands (or confirm agent never issued the gen2 Write), without treating timeout as success.
+### C-always - effect under allow_always without re-ask: NOT DEMONSTRATED (NOT OBSERVED)
 
-### Follow-up harness hardening (same branch; does not change this UNKNOWN score)
-Default live write-probe prompt timeout raised to 45s (override via live_observe_ms). After each Write prompt the harness polls for FS presence / recorded tool_call completed for effect_grace_ms before scoring the receipt. session/update tool_call notifications are now recorded. Timeouts and live_always_grant_ok remain non-proof; parent may re-live to pursue C-always with a real receipt.
+C-always (silence + effect) was not observed. What **was** demonstrated: FS effect after a **fresh** gen2 allow_once grant (seq 40 → seq 56 matched=true). That is fresh authorized C, not C-always under silence. live_always_grant_ok and prompt timing are not defect proof.
+
+Frame: **option availability demonstrated; re-ask demonstrated; FS effect after fresh gen2 grant demonstrated; silent always-allow across generation NOT OBSERVED; do not claim defect.** Repo-first scoring only — draft wording for Claire stays in ISSUE_1094_WORDING.md; do not auto-post to GitHub issue #1094.

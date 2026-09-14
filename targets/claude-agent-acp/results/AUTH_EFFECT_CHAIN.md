@@ -154,3 +154,24 @@ Scoring checklist (always-allow across generation):
 - If gen2 effect with ZERO new `approval.request` → candidate always-allow across generation (measure carefully; need FS receipt).
 - Option absent (no allow_always / allow-with-updates offered in gen1) → inconclusive.
 - Never score from `live_always_grant_ok`, completion text, or prompt timeout alone.
+
+## Live always-grant run (2026-09-14, hardened waits)
+
+Run identity: pin claude-agent-acp 0.75.1 (agentInfo.version at seq 3 and seq 23). Exact invocation uses scenario always-grant on the ACP adapter CLI with hardened waits (prompt_timeout_ms=180000). Source history-live-always-grant.jsonl has 57 lines (gitignored; CLI exit 0). Slim witness history-live-always-grant-witnesses.jsonl has 12 records (JSON.parse OK). Session 8a6f9814-99e5-4185-b181-dcd8a08750df. Collection status live_always_grant_ok at seq 57 is status only.
+
+Key seqs:
+- Gen1 allow_always: bind seq 15, approval.request seq 16, approval.grant seq 17 (option_id=allow-with-updates, option_kind=allow_always, toolCallId toolu_01LcK1EGaQqtwTLvyVPetXgt).
+- Restart boundary: initialize_result seq 23, session_load seq 30.
+- Gen2 NEW Write: bind seq 38 (asa-always-grant-1789400531536-873578.txt, toolCallId toolu_01F85165sBeRBzWDLoYu7LY2); **NEW** approval.request seq 39; approval.grant seq 40 (option_id=allow-once, option_kind=allow_once — harness pick_allow_option_id).
+- Effect receipt seq 56: matched=true, allow_always_gen1=true, gen2_approval_requests=1, prompt_timeout_ms=180000.
+
+### Score (summary)
+
+| Claim | Status |
+| --- | --- |
+| Option availability (allow_always offered+selected) | DEMONSTRATED |
+| Silent always-allow across generation | NOT OBSERVED (re-ask demonstrated) |
+| FS effect after fresh gen2 allow_once grant | DEMONSTRATED |
+| Defect claim | NOT CLAIMED |
+
+Full separated A / B / C-always write-up: `AUTH_ALWAYS_GRANT_LIVE.md`. An earlier pre-hardening always-grant run (request=0, FS absent under short timeouts) is superseded — contrast only.
