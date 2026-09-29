@@ -1,8 +1,13 @@
 import type { AhpPeerEvent } from "./mock_peer.js";
-export interface HistoryEventLite { seq: number; ts?: string; kind: "invoke" | "ok" | "fail" | "info" | "observe" | "fault"; op?: string; session_id?: string; actor_id?: string; attrs?: Record<string, unknown>; note?: string; }
+export interface HistoryEventLite { seq: number; ts?: string; ts_unix_nano?: string; kind: "invoke" | "ok" | "fail" | "info" | "observe" | "fault"; op?: string; session_id?: string; actor_id?: string; attrs?: Record<string, unknown>; note?: string; }
 function digest_of(toolName: string, input: Record<string, unknown>): string { const canonical = JSON.stringify({ toolName, input }); let h = 0; for (let i = 0; i < canonical.length; i++) h = (h * 31 + canonical.charCodeAt(i)) >>> 0; return `ahp_${toolName}_${h.toString(16)}`; }
+/** Decimal-string unix nano from Date.now() ms (ms * 1e6; not true ns resolution). */
+function format_unix_nano_decimal(epoch_ms: number = Date.now()): string {
+  return String(BigInt(Math.trunc(epoch_ms)) * 1_000_000n);
+}
+
 export function ahp_events_to_history(events: readonly AhpPeerEvent[]): HistoryEventLite[] {
-  const out: HistoryEventLite[] = []; let seq = 0; const next = (partial: Omit<HistoryEventLite, "seq">): void => { seq += 1; out.push({ seq, ts: new Date().toISOString(), ...partial }); };
+  const out: HistoryEventLite[] = []; let seq = 0; const next = (partial: Omit<HistoryEventLite, "seq">): void => { seq += 1; out.push({ seq, ts: new Date().toISOString(), ts_unix_nano: format_unix_nano_decimal(), ...partial }); };
   next({ kind: "observe", op: "generation.observe", session_id: events[0] && "sessionId" in events[0] ? events[0].sessionId : undefined, attrs: { runtime_generation: 1, issuer_id: "ahp_adapter_fixture", runtime_id: "vscode-agent-host", note: "AHP public surface has no portable RuntimeGeneration; fixture stamps gen=1 for probe only" } });
   next({ kind: "ok", op: "session.attach", session_id: events[0] && "sessionId" in events[0] ? events[0].sessionId : undefined, actor_id: "adapter", attrs: { mode: "fixture", fidelity: "reconstructed", protocol: "AHP" } });
   for (const ev of events) {

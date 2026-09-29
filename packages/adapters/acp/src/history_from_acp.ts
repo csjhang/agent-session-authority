@@ -4,12 +4,19 @@ import type { AcpPeerEvent } from "./mock_peer.js";
 export interface HistoryEventLite {
   seq: number;
   ts?: string;
+  /** Unix nanoseconds as decimal string (not JSON number). */
+  ts_unix_nano?: string;
   kind: "invoke" | "ok" | "fail" | "info" | "observe" | "fault";
   op?: string;
   session_id?: string;
   actor_id?: string;
   attrs?: Record<string, unknown>;
   note?: string;
+}
+
+/** Decimal-string unix nano from Date.now() ms (ms * 1e6; not true ns resolution). */
+function format_unix_nano_decimal(epoch_ms: number = Date.now()): string {
+  return String(BigInt(Math.trunc(epoch_ms)) * 1_000_000n);
 }
 
 function digest_of(toolName: string, input: Record<string, unknown>): string {
@@ -25,7 +32,7 @@ export function acp_events_to_history(events: readonly AcpPeerEvent[], opts: { r
   const fence_epoch = opts.fence_epoch ?? 1;
   const out: HistoryEventLite[] = [];
   let seq = 0;
-  const next = (partial: Omit<HistoryEventLite, "seq">): void => { seq += 1; out.push({ seq, ts: new Date().toISOString(), ...partial }); };
+  const next = (partial: Omit<HistoryEventLite, "seq">): void => { seq += 1; out.push({ seq, ts: new Date().toISOString(), ts_unix_nano: format_unix_nano_decimal(), ...partial }); };
   next({ kind: "observe", op: "generation.observe", session_id: events[0] && "sessionId" in events[0] ? events[0].sessionId : undefined, attrs: { runtime_generation, issuer_id: "acp_adapter_fixture", runtime_id: "claude-agent-acp" } });
   next({ kind: "ok", op: "session.attach", session_id: events[0] && "sessionId" in events[0] ? events[0].sessionId : undefined, actor_id: "adapter", attrs: { mode: "fixture_or_live", fidelity: "reconstructed" } });
   for (const ev of events) {

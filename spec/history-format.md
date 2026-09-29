@@ -26,6 +26,7 @@ Unknown `kind` values are **rejected**.
 | `seq` | number (finite) | **yes** | Strictly increasing across the file; duplicates and regressions are hard errors |
 | `kind` | enum | **yes** | One of: `invoke`, `ok`, `fail`, `info`, `observe`, `fault` |
 | `ts` | string (ISO-8601) | no | Wall-clock hint only; not causal order |
+| `ts_unix_nano` | string (decimal digits) | no | Unix time in nanoseconds as a **decimal string** (not a JSON number). Matches `/^[0-9]+$/`. Any integer in history JSON that may exceed `2^53-1` MUST be a decimal string for the same reason: JS `JSON.parse` rounds large numbers past `Number.MAX_SAFE_INTEGER`, which can make integrity verifiers false-positive tamper. |
 | `op` | string | no | Operation name when applicable |
 | `fault` | string | no | Fault name when `kind=fault` (or annotating a fault injection) |
 | `session_id` | string | no | Session this event belongs to |
@@ -100,17 +101,22 @@ These keys appear under `attrs` and are consumed by checkers / vocabulary types.
 4. `kind` required, must be in the kind enum (unknown kinds → **reject**).
 5. If present: `op` / `fault` must be strings; unknown values → **warn, allow**.
 6. If present: `invoke_seq` finite number; `attrs` object.
-7. After all lines: assert **strict seq monotonicity** (no sort, no dedupe).
+7. If present: `ts_unix_nano` must be a JSON **string** matching `/^[0-9]+$/` (reject JSON number, float, or scientific notation). Same rule for any other integer field that may exceed `2^53-1`.
+8. After all lines: assert **strict seq monotonicity** (no sort, no dedupe).
 
 ## Example line
 
 ```json
-{"seq":1,"ts":"2026-09-05T10:00:00Z","kind":"observe","op":"generation.observe","session_id":"s1","attrs":{"runtime_generation":1,"issuer_id":"lease_plane","runtime_id":"runtime_a"}}
+{"seq":1,"ts":"2026-09-05T10:00:00Z","ts_unix_nano":"1757066400000000000","kind":"observe","op":"generation.observe","session_id":"s1","attrs":{"runtime_generation":1,"issuer_id":"lease_plane","runtime_id":"runtime_a"}}
 ```
+
+Events without `ts_unix_nano` remain valid (backward compatible).
 
 ## Write helper
 
 `serialize_history_jsonl(events)` / `write_history_file(path, events)` emit one JSON object per line. Writers should validate monotonic `seq` before writing.
+
+When writing new events, prefer setting both `ts` (ISO-8601 wall-clock hint) and `ts_unix_nano` (decimal string). Core helper `format_unix_nano_decimal()` uses `BigInt(Date.now()) * 1_000_000n` — millisecond precision expanded to nanosecond units, not true OS nanosecond resolution.
 
 ## Checker output shape
 

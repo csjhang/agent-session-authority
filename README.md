@@ -68,7 +68,7 @@ pnpm fixture:acp-mux
 
 ## What we measure
 
-Profile **v0.2** AUTH scenarios (AUTH-01…08) over a shared history JSONL + `asa check`. Labels include `supported`, `not_declared`, `violation`, `inconclusive`, `underspecified`, and `not_tested` (`not_tested` ≠ `not_declared`).
+Profile **v0.2** AUTH scenarios (AUTH-01…08) over a shared history JSONL + `asa check`. Labels include `supported`, `not_declared`, `violation`, `inconclusive`, `underspecified`, and `not_tested` (`not_tested` ≠ `not_declared`). Optional `ts_unix_nano` is a **decimal string** (not a JSON number) so values above `2^53-1` are not rounded by JS parsers — see [`spec/history-format.md`](spec/history-format.md).
 
 Build order: history → checker → mock sink → adapters.
 
