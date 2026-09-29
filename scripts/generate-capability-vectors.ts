@@ -7,9 +7,17 @@
  * - `fixture_vector` — asa-check results against fixture history
  *   (adapter+checker self-consistency only; digests/fence_epoch may be
  *   adapter-synthesized).
- * - `capability_vector` — target capability labels. Remains all
- *   `not_tested` until live/native evidence exists. Fixture asa-check
- *   results MUST NOT be promoted here.
+ * - `capability_vector` — target capability labels from live evidence only
+ *   (scripts/live-vector.ts): claim-rewritten under the target's live
+ *   test_basis (`capability_basis`). `not_tested` where no admissible live
+ *   evidence exists. Fixture asa-check results MUST NOT be promoted here.
+ * - `observed_vector` — raw aggregated live observed_result per invariant.
+ * - `capability_sources` — invariant → repo-relative live history.jsonl paths
+ *   backing each non-`not_tested` capability label.
+ * - `capability_exclusions` — invariant → why live runs can never promote it
+ *   for this target (probe-derived or not examined by the adapter).
+ * - `live_runs` — included runs (with per-run observed), excluded runs (with
+ *   reasons) and per-scenario run disagreements (reported, never voted).
  * - `claim_status_vector` — from profile claims. `load_profile(undefined)`
  *   currently loads no target profile, so every invariant is
  *   `not_declared`.
@@ -28,6 +36,7 @@ import { load_assessment, default_assessment } from "../packages/core/src/assess
 import { run_checkers } from "../packages/core/src/index.js";
 import { build_report } from "../packages/core/src/report.js";
 import type { ResultLabel } from "../packages/core/src/assessment.js";
+import { aggregate_live, load_live_runs, no_live_vector, type LiveConfig, type LiveVector } from "./live-vector.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo_root = path.resolve(here, "..");
@@ -99,16 +108,37 @@ const HAND_NOTES: Record<string, NotesBlock> = {
   },
 };
 
+/**
+ * claude-agent-acp live promotion rules. Listed invariants are never promoted from live runs
+ * because the live history only reflects the probe itself (or the adapter never examines them).
+ */
+export const ACP_LIVE: LiveConfig = {
+  runs_dir: "targets/claude-agent-acp/results/live-runs",
+  pinned_version: "0.75.1",
+  test_basis: "research_profile",
+  exclusions: {
+    "AUTH-01a": "profile-only: claude-agent-acp publishes no authority profile or generation_model",
+    "AUTH-01b":
+      "probe-derived: live runtime_generation is counted by the adapter from process spawns (issuer_id=acp_adapter_live), not reported by claude-agent-acp",
+    "AUTH-01c": "probe-derived: the only generation issuer in live history is the adapter itself (acp_adapter_live)",
+    "AUTH-06":
+      "not examined: the adapter does not map claude-agent-acp success claims (tool_call status) into history, so no implicit-success claim is ever checked",
+    "AUTH-08": "no checker (always not_tested)",
+  },
+};
+
 const TARGETS: Array<{
   id: string;
   history: string;
   assessment?: string;
   extra?: Record<string, unknown>;
+  live?: LiveConfig;
 }> = [
   {
     id: "claude-agent-acp",
     history: "targets/claude-agent-acp/results/history-fixture.jsonl",
     assessment: "targets/claude-agent-acp/authority-assessment.json",
+    live: ACP_LIVE,
     extra: {
       mode: "FIXTURE",
       package_name: "@agentclientprotocol/claude-agent-acp",
@@ -156,23 +186,22 @@ function today_ymd(): string {
   }).format(new Date());
 }
 
-function not_tested_vector(keys: string[]): Record<string, ResultLabel> {
-  const out: Record<string, ResultLabel> = {};
-  for (const k of keys) out[k] = "not_tested";
-  return out;
-}
-
 export type CapabilityVectorDoc = {
   target: string;
   profile_version: string;
+  /** Basis of fixture_vector (synthetic_fixture). */
   test_basis: string;
   capability_vector: Record<string, ResultLabel>;
+  /** Basis of capability_vector; null while no live run is included. */
+  capability_basis: string | null;
   /**
-   * For each capability_vector key that is not `not_tested`, a path to a
-   * non-fixture history artifact that backs the label (filename must not
-   * contain "fixture"; file must exist). Empty while all caps are not_tested.
+   * For each capability_vector key that is not `not_tested`: repo-relative
+   * non-fixture live history.jsonl paths that back the label (each must exist).
    */
-  capability_sources: Record<string, string>;
+  capability_sources: Record<string, string[]>;
+  observed_vector: Record<string, ResultLabel>;
+  capability_exclusions: Record<string, string>;
+  live_runs: LiveVector["live_runs"];
   fixture_vector: Record<string, ResultLabel>;
   claim_status_vector: Record<string, string>;
   checker_explanation: Record<string, string>;
@@ -187,7 +216,7 @@ export type CapabilityVectorDoc = {
   [extra: string]: unknown;
 };
 
-export function generate_all(opts: { write?: boolean } = {}): CapabilityVectorDoc[] {
+export function generate_all(opts: { write?: boolean; live_runs_root?: string } = {}): CapabilityVectorDoc[] {
   const write = opts.write !== false;
   const generated_at = today_ymd();
   const docs: CapabilityVectorDoc[] = [];
@@ -215,21 +244,27 @@ export function generate_all(opts: { write?: boolean } = {}): CapabilityVectorDo
     }
 
     const notes = HAND_NOTES[t.id];
-    const keys = Object.keys(report.capability_vector);
 
-    // capability_sources stays empty while capability_vector is all not_tested.
-    // When a key is later set to a non-not_tested label, point it at a real
-    // (non-fixture) history path that exists on disk.
-    const capability_sources: Record<string, string> = {};
+    // Target capability comes from live runs only (never from the fixture above).
+    let live = no_live_vector();
+    if (t.live) {
+      const runs_root = opts.live_runs_root ?? path.join(repo_root, t.live.runs_dir);
+      const { included, excluded } = load_live_runs(runs_root, repo_root, t.live, t.id);
+      live = aggregate_live(included, excluded, t.live);
+    }
 
     const out: CapabilityVectorDoc = {
       target: t.id,
       profile_version: report.profile_version,
       test_basis: report.test_basis,
       ...t.extra,
-      // Target capability: withheld until live/native evidence (not fixture asa-check).
-      capability_vector: not_tested_vector(keys),
-      capability_sources,
+      // Target capability: live evidence only (not fixture asa-check).
+      capability_vector: live.capability_vector,
+      capability_basis: live.capability_basis,
+      capability_sources: live.capability_sources,
+      observed_vector: live.observed_vector,
+      capability_exclusions: live.capability_exclusions,
+      live_runs: live.live_runs,
       // Adapter+checker self-consistency against fixture history only.
       fixture_vector: report.capability_vector,
       claim_status_vector: report.claim_status_vector,

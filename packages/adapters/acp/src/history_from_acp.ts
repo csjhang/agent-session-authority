@@ -241,7 +241,8 @@ export function acp_events_to_history(
         runtime_generation,
         issuer_id,
         runtime_id: "claude-agent-acp",
-        field_provenance: { ts: "derived" },
+        // The starting generation is assigned by the adapter, not reported by the target.
+        field_provenance: { ts: "derived", runtime_generation: "derived" },
       },
     },
     header_obs_ms,
