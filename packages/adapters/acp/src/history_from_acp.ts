@@ -1,26 +1,13 @@
 import path from "node:path";
-import { action_digest } from "@asa/core";
+import {
+  action_digest,
+  format_unix_nano_decimal,
+  serialize_history_jsonl,
+  type HistoryEvent,
+} from "@asa/core";
 import type { AcpPeerEvent } from "./mock_peer.js";
 
-/** Minimal history event shape (mirrors packages/core without importing it). */
-export interface HistoryEventLite {
-  seq: number;
-  ts?: string;
-  /** Unix nanoseconds as decimal string (not JSON number). */
-  ts_unix_nano?: string;
-  kind: "invoke" | "ok" | "fail" | "info" | "observe" | "fault";
-  op?: string;
-  fault?: string;
-  session_id?: string;
-  actor_id?: string;
-  attrs?: Record<string, unknown>;
-  note?: string;
-}
-
-/** Decimal-string unix nano from Date.now() ms (ms * 1e6; not true ns resolution). */
-function format_unix_nano_decimal(epoch_ms: number = Date.now()): string {
-  return String(BigInt(Math.trunc(epoch_ms)) * 1_000_000n);
-}
+export type HistoryEventLite = HistoryEvent;
 
 function session_id_of(events: readonly AcpPeerEvent[]): string | undefined {
   for (const ev of events) {
@@ -618,6 +605,5 @@ export function acp_events_to_history(
   return out;
 }
 
-export function history_to_jsonl(events: readonly HistoryEventLite[]): string {
-  return events.map((e) => JSON.stringify(e)).join("\n") + "\n";
-}
+export const history_to_jsonl = (events: readonly HistoryEventLite[]): string =>
+  serialize_history_jsonl(events as HistoryEvent[]);

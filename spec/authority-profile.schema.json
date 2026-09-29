@@ -4,32 +4,56 @@
   "title": "AuthorityProfile",
   "type": "object",
   "properties": {
-    "profile_version": { "type": "string", "description": "Profile schema / vocabulary version (Week-1: \"0.2\")." },
-    "target": { "type": "string", "description": "Named target under assessment (synthetic or real)." },
+    "profile_version": {
+      "type": "string",
+      "description": "Profile schema / vocabulary version (Week-1: \"0.2\")."
+    },
+    "target": {
+      "type": "string",
+      "description": "Named target under assessment (synthetic or real)."
+    },
     "generation_model": {
       "type": "string",
-      "enum": ["G0", "G1", "G2"],
+      "enum": [
+        "G0",
+        "G1",
+        "G2"
+      ],
       "description": "Runtime generation model claimed by the target."
     },
     "claimed_invariants": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "Invariant IDs the target declares (e.g. AUTH-01, AUTH-03b). Drives claim_status; independent of checker result."
     },
     "scope_decision": {
       "type": "object",
-      "additionalProperties": { "type": "string" },
-      "description": "Map of \"action_type|target\" → scope_id."
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Map of \"action_type|target\" \u2192 scope_id."
     },
     "scope_map": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["action_type", "target", "scope_id"],
+        "required": [
+          "action_type",
+          "target",
+          "scope_id"
+        ],
         "properties": {
-          "action_type": { "type": "string" },
-          "target": { "type": "string" },
-          "scope_id": { "type": "string" }
+          "action_type": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "scope_id": {
+            "type": "string"
+          }
         },
         "additionalProperties": false
       },
@@ -37,14 +61,25 @@
     },
     "known_bypasses": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "Documented bypasses / out-of-band paths."
     },
     "coverage_boundary": {
       "type": "string",
       "description": "What the profile does and does not cover."
     },
-    "notes": { "type": "string" }
+    "terminal_rules": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "AUTH-07 published terminal rules, e.g. cancel_vs_complete \u2192 cancel_wins"
+    },
+    "notes": {
+      "type": "string"
+    }
   },
   "additionalProperties": true
 }
