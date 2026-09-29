@@ -56,9 +56,14 @@ function normalize_path(p: string, session_cwd: string | undefined): string {
   return path.posix.normalize(s);
 }
 
-/** Match action.bind target to receipt path; win32 is case-insensitive only. */
+/**
+ * Match action.bind target to receipt path.
+ * Case-fold only when BOTH paths are Windows drive paths (/^[A-Za-z]:\//);
+ * otherwise compare exactly (host-independent).
+ */
 function paths_equal(a: string, b: string): boolean {
-  if (process.platform === "win32") {
+  const win_drive = /^[A-Za-z]:\//;
+  if (win_drive.test(a) && win_drive.test(b)) {
     return a.toLowerCase() === b.toLowerCase();
   }
   return a === b;
@@ -100,12 +105,13 @@ function effect_outcome_from_update(update: Record<string, unknown>): {
   outcome: "committed" | "unknown";
   reason?: string;
 } {
-  // Prefer content_mismatch over present-alone (matched===false wins first).
-  if (update.matched === false) {
-    return { outcome: "unknown", reason: "content_mismatch" };
-  }
+  // Absent file is always file_absent, even when the reader also set matched=false.
+  // content_mismatch only applies when the file exists but contents differ.
   if (update.absent === true || update.present === false) {
     return { outcome: "unknown", reason: "file_absent" };
+  }
+  if (update.matched === false) {
+    return { outcome: "unknown", reason: "content_mismatch" };
   }
   if (update.matched === true) {
     return { outcome: "committed" };
@@ -515,6 +521,61 @@ export function acp_events_to_history(
 
     if (ev.type === "permission_response") {
       const linked = pending_by_request.get(ev.requestId);
+
+      // Cancelled client outcome → always approval.record (never grant/deny).
+      if (ev.decision === "cancelled") {
+        let action_digest: string | undefined;
+        let tool_call_id: string | undefined;
+        let request_runtime_generation = runtime_generation;
+        if (linked) {
+          action_digest = linked.action_digest;
+          tool_call_id = linked.tool_call_id;
+          request_runtime_generation = linked.runtime_generation;
+          pending_by_request.delete(ev.requestId);
+          answered_by_request.set(ev.requestId, linked);
+        } else {
+          const prior = answered_by_request.get(ev.requestId);
+          action_digest = prior?.action_digest;
+          tool_call_id = prior?.tool_call_id;
+          request_runtime_generation = prior?.runtime_generation ?? runtime_generation;
+          if (action_digest === undefined) {
+            for (let i = out.length - 1; i >= 0; i--) {
+              const prev = out[i]!;
+              if (prev.op === "approval.request" && prev.attrs?.request_id === ev.requestId) {
+                if (typeof prev.attrs.runtime_generation === "number") {
+                  request_runtime_generation = prev.attrs.runtime_generation;
+                }
+                if (typeof prev.attrs.action_digest === "string") action_digest = prev.attrs.action_digest;
+                if (typeof prev.attrs.tool_call_id === "string") tool_call_id = prev.attrs.tool_call_id;
+                break;
+              }
+            }
+          }
+        }
+        next(
+          {
+            kind: "ok",
+            op: "approval.record",
+            session_id: ev.sessionId,
+            actor_id: "approver_client",
+            attrs: {
+              approver: "approver_client",
+              decision: "cancelled",
+              client_outcome: "cancelled",
+              ...(ev.reason !== undefined ? { reason: ev.reason } : {}),
+              request_id: ev.requestId,
+              ...(action_digest !== undefined ? { action_digest } : {}),
+              runtime_generation,
+              request_runtime_generation,
+              fence_epoch,
+              ...(tool_call_id !== undefined ? { tool_call_id } : {}),
+            },
+          },
+          ev.observed_at_ms,
+        );
+        continue;
+      }
+
       const decision = ev.decision === "allow" ? "grant" : "deny";
       if (!linked) {
         // Orphan / stale reply: no pending request for this requestId.
