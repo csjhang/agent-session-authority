@@ -433,12 +433,12 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
   const i1 = await initialize(c1, events, notes, timeout, gen1_mode);
   if (!i1.result) {
     await stop(c1);
-    return { events, history: acp_events_to_history(events, { issuer_id: "acp_adapter_live" }) };
+    return { events, history: acp_events_to_history(events, { issuer_id: "acp_adapter_live", session_cwd: cwd }) };
   }
   const n = await i1.rpc.request(build_session_new(3, cwd), timeout);
   const sid = String((n.result as Record<string, unknown> | undefined)?.sessionId ?? "live-session");
   i1.rpc.set_session(sid);
-  events.push({ type: "session_update", sessionId: sid, update: { kind: "session_new", response: n } });
+  events.push({ type: "session_update", sessionId: sid, update: { kind: "session_new", cwd, response: n } });
 
   const prompt1 = write_probe
     ? `Write ${first_path} with exactly: ${first_content}`
@@ -562,12 +562,12 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
   if (i2.result) {
     const loaded = await i2.rpc.request(build_session_load(6, sid, cwd), timeout);
     restored = "result" in loaded;
-    events.push({ type: "session_update", sessionId: sid, update: { kind: "session_load", response: loaded } });
+    events.push({ type: "session_update", sessionId: sid, update: { kind: "session_load", cwd, response: loaded } });
 
     if (stale && old_req && old_req.type === "permission_request") {
       i2.rpc.write(build_permission_selected(old_req.requestId, "allow_once"));
-      // Record the orphan allow_once reply in history so approval.grant is visible
-      // with request_runtime_generation=gen1 and runtime_generation=gen2.
+      // Record the orphan allow_once reply in history as approval.record
+      // (orphan=true) with request_runtime_generation=gen1 and runtime_generation=gen2.
       events.push({
         type: "permission_response",
         sessionId: sid,
@@ -1005,7 +1005,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
             ? "live_effect_ok"
             : "live_capped_ok";
   events.push({ type: "session_closed", sessionId: sid, reason: close_reason });
-  const history = acp_events_to_history(events, { fence_epoch: 1, issuer_id: "acp_adapter_live" });
+  const history = acp_events_to_history(events, { fence_epoch: 1, issuer_id: "acp_adapter_live", session_cwd: cwd });
   return { events, history };
 }
 
@@ -1027,7 +1027,7 @@ export async function collect_history(opts: AcpAdapterOptions = {}): Promise<Acp
     notes.push("FIXTURE reject-always: cheap fixture note only — live run requires reject_always / reject-always option via pick_reject_always_option (strict; no reject_once fallback); mock peer may list reject_once without reject_always");
   }
   const events = new MockAcpPeer().run_fixture_scenario();
-  const history = acp_events_to_history(events);
+  const history = acp_events_to_history(events, { session_cwd: opts.cwd });
   return { mode, target: "claude-agent-acp", package_name: PKG, package_version_pinned: PINNED, events, history, history_jsonl: history_to_jsonl(history), notes };
 }
 export { MockAcpPeer } from "./mock_peer.js";

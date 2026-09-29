@@ -242,8 +242,6 @@ describe("@asa/adapter-acp fixture", () => {
     expect(receipt?.attrs?.field_provenance).toMatchObject({ outcome: "derived" });
   });
 
-});
-
   it("content mismatch → effect.receipt unknown with reason content_mismatch", () => {
     const events = [
       {
@@ -301,11 +299,11 @@ describe("@asa/adapter-acp fixture", () => {
     expect(receipt?.attrs?.outcome).toBe("unknown");
     expect(receipt?.attrs?.reason).toBe("content_not_verified");
     expect(receipt?.attrs?.binding).toBe("unlinked");
-    expect(receipt?.attrs?.action_digest).toBe("");
+    expect(receipt?.attrs).not.toHaveProperty("action_digest");
     expect(receipt?.attrs?.effect_id).toBe("fs:repo/leftover.txt");
   });
 
-  it("stale-grant reply to old request records permission_response with dual generation attrs", () => {
+  it("stale-grant orphan reply becomes approval.record not approval.grant", () => {
     const events = [
       {
         type: "permission_request" as const,
@@ -340,13 +338,17 @@ describe("@asa/adapter-acp fixture", () => {
     ];
     const history = acp_events_to_history(events);
     const grants = history.filter((e) => e.op === "approval.grant");
-    expect(grants.length).toBe(2);
+    expect(grants.length).toBe(1);
     expect(grants[0]?.attrs?.runtime_generation).toBe(1);
     expect(grants[0]?.attrs?.request_runtime_generation).toBe(1);
-    // Decision made in gen2 for a gen1 request
-    expect(grants[1]?.attrs?.runtime_generation).toBe(2);
-    expect(grants[1]?.attrs?.request_runtime_generation).toBe(1);
-    expect(grants[1]?.attrs?.option_id).toBe("allow_once");
+    const records = history.filter((e) => e.op === "approval.record");
+    expect(records.length).toBe(1);
+    expect(records[0]?.attrs?.decision).toBe("grant");
+    expect(records[0]?.attrs?.orphan).toBe(true);
+    expect(records[0]?.attrs?.acknowledged).toBe("unknown");
+    expect(records[0]?.attrs?.runtime_generation).toBe(2);
+    expect(records[0]?.attrs?.request_runtime_generation).toBe(1);
+    expect(records[0]?.attrs?.option_id).toBe("allow_once");
   });
 
   it("dual-source observation same path merges into one effect.receipt with attrs.sources", () => {
@@ -401,3 +403,174 @@ describe("@asa/adapter-acp fixture", () => {
     expect(receipts[0]?.attrs?.action_digest).toBeTruthy();
     expect(receipts[0]?.attrs?.tool_call_id).toBe("tc-dual");
   });
+
+  it("live-shaped: title toolName + absolute file_path binds relative wait receipt", () => {
+    const abs = "/tmp/asa-probe/asa-x.txt";
+    const events = [
+      {
+        type: "session_update" as const,
+        sessionId: "s-live",
+        update: { kind: "session_new", cwd: "/tmp/asa-probe" },
+      },
+      {
+        type: "permission_request" as const,
+        sessionId: "s-live",
+        requestId: "r-live",
+        toolName: "Write asa-x.txt",
+        toolCallId: "tc-live-x",
+        input: { file_path: abs, content: "hello-x" },
+      },
+      {
+        type: "permission_response" as const,
+        sessionId: "s-live",
+        requestId: "r-live",
+        decision: "allow" as const,
+      },
+      {
+        type: "session_update" as const,
+        sessionId: "s-live",
+        update: {
+          kind: "effect_receipt",
+          sink: "wait_for_write_effect",
+          path: "asa-x.txt", // relative — must resolve against session cwd
+          present: true,
+          matched: true,
+          expected: "hello-x",
+          content: "hello-x",
+        },
+      },
+    ];
+    const history = acp_events_to_history(events);
+    const bind = history.find((e) => e.op === "action.bind");
+    expect(bind?.attrs?.target).toBe(abs);
+    const receipt = history.find((e) => e.op === "effect.receipt");
+    expect(receipt?.attrs?.path).toBe(abs);
+    expect(receipt?.attrs?.action_digest).toBe(bind?.attrs?.action_digest);
+    expect(receipt?.attrs?.action_digest).toBeTruthy();
+    expect(receipt?.attrs?.tool_call_id).toBe("tc-live-x");
+    expect(receipt?.attrs?.outcome).toBe("committed");
+    expect(receipt?.attrs).not.toHaveProperty("binding");
+  });
+
+  it("A: absent wait then new grant then present → two receipts; second committed after second grant", () => {
+    const events = [
+      {
+        type: "permission_request" as const,
+        sessionId: "s-a",
+        requestId: "r1",
+        toolName: "Write",
+        toolCallId: "tc-a1",
+        input: { path: "repo/a.txt", content: "v1" },
+      },
+      {
+        type: "permission_response" as const,
+        sessionId: "s-a",
+        requestId: "r1",
+        decision: "allow" as const,
+      },
+      {
+        type: "session_update" as const,
+        sessionId: "s-a",
+        update: {
+          kind: "effect_receipt",
+          sink: "wait_for_write_effect",
+          path: "repo/a.txt",
+          present: false,
+          absent: true,
+        },
+      },
+      {
+        type: "permission_request" as const,
+        sessionId: "s-a",
+        requestId: "r2",
+        toolName: "Write",
+        toolCallId: "tc-a2",
+        input: { path: "repo/a.txt", content: "v2" },
+      },
+      {
+        type: "permission_response" as const,
+        sessionId: "s-a",
+        requestId: "r2",
+        decision: "allow" as const,
+      },
+      {
+        type: "session_update" as const,
+        sessionId: "s-a",
+        update: {
+          kind: "effect_receipt",
+          sink: "wait_for_write_effect",
+          path: "repo/a.txt",
+          present: true,
+          matched: true,
+          expected: "v2",
+          content: "v2",
+        },
+      },
+    ];
+    const history = acp_events_to_history(events);
+    const receipts = history.filter((e) => e.op === "effect.receipt");
+    expect(receipts.length).toBe(2);
+    expect(receipts[0]?.attrs?.outcome).toBe("unknown");
+    expect(receipts[0]?.attrs?.reason).toBe("file_absent");
+    expect(receipts[1]?.attrs?.outcome).toBe("committed");
+    expect(receipts[1]?.attrs?.tool_call_id).toBe("tc-a2");
+    const grant2 = history.filter((e) => e.op === "approval.grant")[1];
+    expect(grant2).toBeTruthy();
+    expect(receipts[1]!.seq).toBeGreaterThan(grant2!.seq);
+    // First receipt must remain unchanged (no mutation of emitted events)
+    expect(receipts[0]?.attrs?.outcome).toBe("unknown");
+    expect(receipts[0]?.attrs?.reason).toBe("file_absent");
+  });
+
+  it("B: wait absent then adjacent direct_fs_read matched → not file_absent", () => {
+    const events = [
+      {
+        type: "permission_request" as const,
+        sessionId: "s-b",
+        requestId: "r-b",
+        toolName: "Write",
+        toolCallId: "tc-b",
+        input: { path: "repo/b.txt", content: "body" },
+      },
+      {
+        type: "permission_response" as const,
+        sessionId: "s-b",
+        requestId: "r-b",
+        decision: "allow" as const,
+      },
+      {
+        type: "session_update" as const,
+        sessionId: "s-b",
+        update: {
+          kind: "effect_receipt",
+          sink: "wait_for_write_effect",
+          path: "repo/b.txt",
+          present: false,
+          absent: true,
+        },
+      },
+      {
+        type: "session_update" as const,
+        sessionId: "s-b",
+        update: {
+          kind: "effect_receipt",
+          sink: "direct_fs_read",
+          path: "repo/b.txt",
+          present: true,
+          matched: true,
+          expected: "body",
+          content: "body",
+        },
+      },
+    ];
+    const history = acp_events_to_history(events);
+    const receipts = history.filter((e) => e.op === "effect.receipt");
+    // Adjacent merge OR new receipt both OK — final result must not be file_absent
+    const last = receipts[receipts.length - 1]!;
+    expect(last.attrs?.outcome).toBe("committed");
+    expect(last.attrs?.reason).not.toBe("file_absent");
+    if (receipts.length === 1) {
+      expect(receipts[0]?.attrs?.sources).toEqual(["wait_for_write_effect", "direct_fs_read"]);
+    }
+  });
+});

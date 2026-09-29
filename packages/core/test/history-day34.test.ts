@@ -276,10 +276,12 @@ describe("capability_vector generation", () => {
       expect(got).toEqual(want);
       // capability_vector must not promote fixture asa-check results
       const cap = g.capability_vector as Record<string, string>;
-      for (const v of Object.values(cap)) {
-        expect(v).toBe("not_tested");
+      const fix = g.fixture_vector as Record<string, string>;
+      expect(fix).toBeTruthy();
+      for (const [k, fv] of Object.entries(fix)) {
+        // Fixture-measured labels must not appear as capability_vector[k]
+        expect(cap[k], `${g.target}:${k}`).not.toBe(fv);
       }
-      expect(g.fixture_vector).toBeTruthy();
       expect(g.checker_explanation).toBeTruthy();
     }
   });
