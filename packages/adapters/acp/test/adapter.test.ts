@@ -191,16 +191,22 @@ describe("@asa/adapter-acp fixture", () => {
       expect(g.attrs?.action_digest).toBeTruthy();
     }
     expect(grants[0]?.attrs?.runtime_generation).toBe(1);
+    expect(grants[0]?.attrs?.request_runtime_generation).toBe(1);
     expect(grants[1]?.attrs?.runtime_generation).toBe(2);
+    expect(grants[1]?.attrs?.request_runtime_generation).toBe(2);
 
     const receipts = history.filter((e) => e.op === "effect.receipt");
     expect(receipts.length).toBe(2);
     for (const r of receipts) {
       expect(r.attrs?.outcome).toBe("committed");
       expect(r.attrs?.field_provenance).toMatchObject({ outcome: "derived" });
+      expect(r.attrs?.action_digest).toBeTruthy();
+      expect(r.attrs?.sources).toEqual(["fixture_fs"]);
     }
     expect(receipts[0]?.attrs?.runtime_generation).toBe(1);
+    expect(receipts[0]?.attrs?.effect_id).toBe("tc-gen1");
     expect(receipts[1]?.attrs?.runtime_generation).toBe(2);
+    expect(receipts[1]?.attrs?.effect_id).toBe("tc-gen2");
   });
 
   it("links approval.grant action_digest via request_id on single-generation fixture", () => {
@@ -237,3 +243,161 @@ describe("@asa/adapter-acp fixture", () => {
   });
 
 });
+
+  it("content mismatch → effect.receipt unknown with reason content_mismatch", () => {
+    const events = [
+      {
+        type: "permission_request" as const,
+        sessionId: "s-mm",
+        requestId: "r1",
+        toolName: "Write",
+        toolCallId: "tc-mm",
+        input: { path: "repo/mismatch.txt", content: "expected" },
+      },
+      {
+        type: "permission_response" as const,
+        sessionId: "s-mm",
+        requestId: "r1",
+        decision: "allow" as const,
+      },
+      {
+        type: "session_update" as const,
+        sessionId: "s-mm",
+        update: {
+          kind: "effect_receipt",
+          sink: "wait_for_write_effect",
+          path: "repo/mismatch.txt",
+          present: true,
+          matched: false,
+          expected: "expected",
+          content: "leftover-other",
+        },
+      },
+    ];
+    const history = acp_events_to_history(events);
+    const receipt = history.find((e) => e.op === "effect.receipt");
+    expect(receipt?.attrs?.outcome).toBe("unknown");
+    expect(receipt?.attrs?.reason).toBe("content_mismatch");
+    expect(receipt?.attrs?.action_digest).toBeTruthy();
+    expect(receipt?.attrs?.effect_id).toBe("tc-mm");
+  });
+
+  it("leftover old file present without content compare → content_not_verified not committed", () => {
+    const events = [
+      {
+        type: "session_update" as const,
+        sessionId: "s-left",
+        update: {
+          kind: "effect_receipt",
+          sink: "wait_for_write_effect",
+          path: "repo/leftover.txt",
+          present: true,
+          // no matched / expected — file exists from a prior run
+        },
+      },
+    ];
+    const history = acp_events_to_history(events);
+    const receipt = history.find((e) => e.op === "effect.receipt");
+    expect(receipt?.attrs?.outcome).toBe("unknown");
+    expect(receipt?.attrs?.reason).toBe("content_not_verified");
+    expect(receipt?.attrs?.binding).toBe("unlinked");
+    expect(receipt?.attrs?.action_digest).toBe("");
+    expect(receipt?.attrs?.effect_id).toBe("fs:repo/leftover.txt");
+  });
+
+  it("stale-grant reply to old request records permission_response with dual generation attrs", () => {
+    const events = [
+      {
+        type: "permission_request" as const,
+        sessionId: "s-stale",
+        requestId: "old-req",
+        toolName: "Write",
+        toolCallId: "tc-old",
+        input: { path: "repo/stale.txt", content: "v1" },
+      },
+      {
+        type: "permission_response" as const,
+        sessionId: "s-stale",
+        requestId: "old-req",
+        decision: "allow" as const,
+        optionId: "allow_once",
+        optionKind: "allow_once",
+      },
+      {
+        type: "runtime_restart" as const,
+        sessionId: "s-stale",
+        reason: "SIGTERM_gen1",
+      },
+      // Orphan allow_once for the gen1 requestId after restart (stale-grant probe)
+      {
+        type: "permission_response" as const,
+        sessionId: "s-stale",
+        requestId: "old-req",
+        decision: "allow" as const,
+        optionId: "allow_once",
+        optionKind: "allow_once",
+      },
+    ];
+    const history = acp_events_to_history(events);
+    const grants = history.filter((e) => e.op === "approval.grant");
+    expect(grants.length).toBe(2);
+    expect(grants[0]?.attrs?.runtime_generation).toBe(1);
+    expect(grants[0]?.attrs?.request_runtime_generation).toBe(1);
+    // Decision made in gen2 for a gen1 request
+    expect(grants[1]?.attrs?.runtime_generation).toBe(2);
+    expect(grants[1]?.attrs?.request_runtime_generation).toBe(1);
+    expect(grants[1]?.attrs?.option_id).toBe("allow_once");
+  });
+
+  it("dual-source observation same path merges into one effect.receipt with attrs.sources", () => {
+    const events = [
+      {
+        type: "permission_request" as const,
+        sessionId: "s-dual",
+        requestId: "r-dual",
+        toolName: "Write",
+        toolCallId: "tc-dual",
+        input: { path: "repo/dual.txt", content: "dual" },
+      },
+      {
+        type: "permission_response" as const,
+        sessionId: "s-dual",
+        requestId: "r-dual",
+        decision: "allow" as const,
+      },
+      {
+        type: "session_update" as const,
+        sessionId: "s-dual",
+        update: {
+          kind: "effect_receipt",
+          sink: "wait_for_write_effect",
+          path: "repo/dual.txt",
+          present: true,
+          matched: true,
+          expected: "dual",
+          content: "dual",
+        },
+      },
+      {
+        type: "session_update" as const,
+        sessionId: "s-dual",
+        update: {
+          kind: "effect_receipt",
+          sink: "direct_fs_read",
+          path: "repo/dual.txt",
+          present: true,
+          matched: true,
+          expected: "dual",
+          content: "dual",
+        },
+      },
+    ];
+    const history = acp_events_to_history(events);
+    const receipts = history.filter((e) => e.op === "effect.receipt");
+    expect(receipts.length).toBe(1);
+    expect(receipts[0]?.attrs?.outcome).toBe("committed");
+    expect(receipts[0]?.attrs?.sources).toEqual(["wait_for_write_effect", "direct_fs_read"]);
+    expect(receipts[0]?.attrs?.effect_id).toBe("tc-dual");
+    expect(receipts[0]?.attrs?.action_digest).toBeTruthy();
+    expect(receipts[0]?.attrs?.tool_call_id).toBe("tc-dual");
+  });

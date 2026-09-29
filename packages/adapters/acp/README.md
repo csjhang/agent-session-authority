@@ -22,3 +22,7 @@ For the min-C stale-effect probe (withhold post-restart approval; FS receipt che
 For the min allow_always-across-generation probe, use `--scenario always-grant`. Output is `history-live-always-grant.jsonl` under `targets/claude-agent-acp/results/`. Write-probe `session/prompt` waits default to 180s client-side (floor; override upward with `live_observe_ms`), then poll FS/tool_call. Synthetic `-32000` is a harness wait expiry (`harness_client_timeout`), not a peer defect — timeout alone is still not effect proof; FS receipts remain the score path.
 
 For the min reject_always-across-generation contrast (does durable reject persist like allow_always?), use `--scenario reject-always`. Output is `history-live-reject-always.jsonl` under `targets/claude-agent-acp/results/`. Gen1 selects reject_always strictly (no reject_once fallback); gen2 uses default allow to observe re-ask vs silent reject.
+
+## Runtime generation in live history
+
+Live histories set `runtime_generation` from the probe's process spawn count (`issuer_id=acp_adapter_live` on `generation.observe`), not from native target generations exposed by claude-agent-acp. AUTH-01b / AUTH-01c evaluated against such histories only validate the probe's own encoding — they do not establish native RuntimeGeneration support on the target.

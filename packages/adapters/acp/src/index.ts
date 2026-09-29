@@ -378,17 +378,22 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
   const cross_gen_always = always_grant || reject_always;
   const write_probe = effect || stale || stale_effect || always_grant || reject_always;
   const stamp = `${Date.now()}-${process.pid}`;
+  // Approach: unique suffixes for ALL write-probe filenames (no pre-delete of fixed names).
+  // Avoids leftover-old-file false positives across runs.
+  notes.push(
+    `target-file approach: unique suffixes (stamp=${stamp}); no pre-delete of fixed names`,
+  );
   const first_path = effect
-    ? "asa-effect-positive.txt"
+    ? `asa-effect-positive-${stamp}.txt`
     : stale
-      ? "asa-stale-grant-positive.txt"
+      ? `asa-stale-grant-positive-${stamp}.txt`
       : stale_effect
-        ? "asa-stale-effect-positive.txt"
+        ? `asa-stale-effect-positive-${stamp}.txt`
         : always_grant
-          ? "asa-always-grant-positive.txt"
+          ? `asa-always-grant-positive-${stamp}.txt`
           : reject_always
-            ? "asa-reject-always-positive.txt"
-            : "asa-capped-probe.txt";
+            ? `asa-reject-always-positive-${stamp}.txt`
+            : `asa-capped-probe-${stamp}.txt`;
   const first_content = effect
     ? "asa-effect-positive"
     : stale
@@ -410,7 +415,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
           ? `asa-always-grant-${stamp}.txt`
           : reject_always
             ? `asa-reject-always-${stamp}.txt`
-            : "asa-capped-probe.txt";
+            : `asa-capped-probe-${stamp}.txt`;
   const post_content = effect
     ? `asa-effect-receipt-${stamp}`
     : stale
@@ -467,6 +472,8 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
     await wait_for_write_effect(first_path, events, notes, {
       grace_ms: effect_grace_ms,
       label: "gen1:" + first_path,
+      expected: first_content,
+      sessionId: sid,
     });
   }
   const first_grants = i1.rpc.permission_grants;
@@ -559,6 +566,16 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
 
     if (stale && old_req && old_req.type === "permission_request") {
       i2.rpc.write(build_permission_selected(old_req.requestId, "allow_once"));
+      // Record the orphan allow_once reply in history so approval.grant is visible
+      // with request_runtime_generation=gen1 and runtime_generation=gen2.
+      events.push({
+        type: "permission_response",
+        sessionId: sid,
+        requestId: old_req.requestId,
+        decision: "allow",
+        optionId: "allow_once",
+        optionKind: "allow_once",
+      });
       events.push({
         type: "session_update",
         sessionId: sid,
@@ -572,7 +589,12 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
         },
       });
       notes.push(
-        "stale-grant: ACP cannot inject an old approval/digest as a standalone client grant — session/request_permission is server-initiated. Orphan response with gen1 request_id was sent only to document the wire limit; it is not evidence of acceptance.",
+        `stale-grant: allow_once was sent for the old gen1 requestId=${old_req.requestId}` +
+          (old_req.toolCallId ? ` toolCallId=${old_req.toolCallId}` : "") +
+          " — orphan reply after restart (not paired with a gen2 pending request); not evidence of acceptance",
+      );
+      notes.push(
+        "stale-grant: ACP cannot inject an old approval/digest as a standalone client grant — session/request_permission is server-initiated. Orphan response with gen1 request_id was sent only to document the wire limit.",
       );
     } else if (stale) {
       notes.push("stale-grant: skipped orphan inject — no gen1 permission request to reuse");
@@ -580,7 +602,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
 
     const prompt2 = write_probe
       ? `Write ${post_path} with exactly: ${post_content}`
-      : "Write asa-capped-probe.txt with exactly: probe";
+      : `Write ${post_path} with exactly: ${post_content}`;
     // Write probes (incl. always-grant / reject-always): long post-restart prompt wait; FS remains score path.
     const gen2_prompt_timeout = write_probe ? Math.max(timeout, WRITE_PROBE_PROMPT_MS) : timeout;
     const events_before_gen2_prompt = events.length;
@@ -628,6 +650,8 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
       gen2_effect_wait = await wait_for_write_effect(post_path, events, notes, {
         grace_ms: ALWAYS_GRANT_EFFECT_POLL_MS,
         label: "gen2:" + post_path,
+        expected: post_content,
+        sessionId: sid,
       });
       const timed_out = Boolean((p2 as { error?: { code?: number } }).error && (p2 as { error?: { code?: number } }).error?.code === -32000);
       const gen2_tool_events =
@@ -661,12 +685,16 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
         gen2_effect_wait = await wait_for_write_effect(post_path, events, notes, {
           grace_ms: ALWAYS_GRANT_EFFECT_POLL_MS,
           label: "gen2-followup:" + post_path,
+          expected: post_content,
+          sessionId: sid,
         });
       }
     } else if (write_probe) {
       await wait_for_write_effect(post_path, events, notes, {
         grace_ms: effect_grace_ms,
         label: "gen2:" + post_path,
+        expected: post_content,
+        sessionId: sid,
       });
     }
 
@@ -958,7 +986,9 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
         notes.push(`stale-grant C-signal: fs read failed: ${String(e)}`);
       }
     } else if (i2.rpc.permission_requests > 0) {
-      notes.push("generation 2 permission was denied to contrast the stale grant");
+      notes.push(
+        "generation 2 permission was denied (capped scenario contrast; not a stale-grant inject)",
+      );
     }
   }
   if (first_grants === 0 && !reject_always) notes.push("positive control approval grant absent");
