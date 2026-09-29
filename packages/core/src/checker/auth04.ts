@@ -14,6 +14,9 @@ type FenceRecord = {
 
 /**
  * AUTH-04 — fencing at effect boundary with sticky superseded flag and scope attribution.
+ * Superseded only when a record is actually updated (epoch up; same-epoch holder change;
+ * handoff; revoke/release raising epoch). Lower-epoch acquire/handoff must not mark superseded.
+ * Missing-controller trigger = prior control.handoff (ok|info), not "any record superseded".
  */
 export const check_auth04: Checker = (ctx) => {
   const inv = "AUTH-04";
@@ -30,10 +33,12 @@ export const check_auth04: Checker = (ctx) => {
   let global_epoch: FenceRecord | undefined;
   const violations: { text: string; witnesses: number[]; marker?: boolean }[] = [];
   let saw_positive_after_change = false;
+  let saw_positive_evaluated = false;
   const positive_witnesses: number[] = [];
   const missing_controller_witnesses: number[] = [];
   const unattributed_witnesses: number[] = [];
   let any_fence = false;
+  let handoff_seen = false;
 
   const mark_superseded = (rec: FenceRecord | undefined) => {
     if (rec) rec.superseded = true;
@@ -45,52 +50,46 @@ export const check_auth04: Checker = (ctx) => {
       const cur = live_fence.get(scope_id);
       if (!cur) {
         live_fence.set(scope_id, { epoch, seq, holder, superseded: false });
-      } else {
-        const epoch_up = epoch > cur.epoch;
+      } else if (epoch > cur.epoch) {
+        mark_superseded(cur);
+        live_fence.set(scope_id, {
+          epoch,
+          seq,
+          holder: holder ?? cur.holder,
+          superseded: cur.superseded,
+        });
+      } else if (epoch === cur.epoch) {
         const holder_change = holder != null && cur.holder != null && holder !== cur.holder;
-        if (epoch_up || holder_change) mark_superseded(cur);
-        if (epoch_up) {
-          live_fence.set(scope_id, {
-            epoch,
-            seq,
-            holder: holder ?? cur.holder,
-            superseded: cur.superseded,
-          });
-        } else if (epoch === cur.epoch) {
-          if (holder_change) mark_superseded(cur);
-          live_fence.set(scope_id, {
-            epoch,
-            seq,
-            holder: holder ?? cur.holder,
-            superseded: cur.superseded,
-          });
-        }
-        // epoch < cur.epoch: lower-epoch must not update live holder
+        if (holder_change) mark_superseded(cur);
+        live_fence.set(scope_id, {
+          epoch,
+          seq,
+          holder: holder ?? cur.holder,
+          superseded: cur.superseded,
+        });
       }
+      // epoch < cur.epoch: lower-epoch must not update live holder or mark superseded
     }
     if (!global_epoch) {
       global_epoch = { epoch, seq, holder, superseded: false };
-    } else {
-      const epoch_up = epoch > global_epoch.epoch;
+    } else if (epoch > global_epoch.epoch) {
+      mark_superseded(global_epoch);
+      global_epoch = {
+        epoch,
+        seq,
+        holder: holder ?? global_epoch.holder,
+        superseded: global_epoch.superseded,
+      };
+    } else if (epoch === global_epoch.epoch) {
       const holder_change =
         holder != null && global_epoch.holder != null && holder !== global_epoch.holder;
-      if (epoch_up || holder_change) mark_superseded(global_epoch);
-      if (epoch_up) {
-        global_epoch = {
-          epoch,
-          seq,
-          holder: holder ?? global_epoch.holder,
-          superseded: global_epoch.superseded,
-        };
-      } else if (epoch === global_epoch.epoch) {
-        if (holder_change) mark_superseded(global_epoch);
-        global_epoch = {
-          epoch,
-          seq,
-          holder: holder ?? global_epoch.holder,
-          superseded: global_epoch.superseded,
-        };
-      }
+      if (holder_change) mark_superseded(global_epoch);
+      global_epoch = {
+        epoch,
+        seq,
+        holder: holder ?? global_epoch.holder,
+        superseded: global_epoch.superseded,
+      };
     }
   };
 
@@ -122,7 +121,6 @@ export const check_auth04: Checker = (ctx) => {
     if (live_fence.size === 0) return global_epoch;
     if (!scope_id && live_fence.size === 1) return [...live_fence.values()][0];
     if (!scope_id && live_fence.size !== 1) return "unattributed";
-    // has scope_id but no matching record, and scope records exist
     if (scope_id && !live_fence.has(scope_id)) return "unattributed";
     return "unattributed";
   };
@@ -138,20 +136,39 @@ export const check_auth04: Checker = (ctx) => {
     }
 
     if (ev.op === "control.handoff" && (ev.kind === "ok" || ev.kind === "info")) {
+      handoff_seen = true;
       const epoch = num(a.fence_epoch) ?? num(a.new_fence_epoch);
       const scope_id = str(a.scope_id);
       const holder = str(a.to) ?? str(a.holder) ?? str(a.successor) ?? ev.actor_id;
-      // Any control.handoff marks superseded on attributed records
-      if (scope_id && live_fence.has(scope_id)) mark_superseded(live_fence.get(scope_id));
-      else if (live_fence.size === 0 && global_epoch) mark_superseded(global_epoch);
-      else if (!scope_id && live_fence.size === 1) mark_superseded([...live_fence.values()][0]);
-      else {
-        // mark all scope records + global on handoff when ambiguous
-        for (const rec of live_fence.values()) mark_superseded(rec);
-        mark_superseded(global_epoch);
+
+      // Lower-epoch handoff must NOT mark superseded or update live holder.
+      let lower_epoch_noop = false;
+      if (epoch != null) {
+        if (scope_id && live_fence.has(scope_id)) {
+          const cur = live_fence.get(scope_id)!;
+          if (epoch < cur.epoch) lower_epoch_noop = true;
+        } else if (!scope_id && live_fence.size === 0 && global_epoch && epoch < global_epoch.epoch) {
+          lower_epoch_noop = true;
+        } else if (!scope_id && live_fence.size === 1) {
+          const only = [...live_fence.values()][0]!;
+          if (epoch < only.epoch) lower_epoch_noop = true;
+        }
       }
-      if (epoch != null) bump(scope_id, epoch, ev.seq, holder ?? undefined);
-      else if (holder) set_holder(scope_id, holder, ev.seq);
+
+      if (!lower_epoch_noop) {
+        // Handoff that updates (or has no lower-epoch conflict) marks superseded
+        if (scope_id && live_fence.has(scope_id)) mark_superseded(live_fence.get(scope_id));
+        else if (live_fence.size === 0 && global_epoch) mark_superseded(global_epoch);
+        else if (!scope_id && live_fence.size === 1) mark_superseded([...live_fence.values()][0]);
+        else if (!scope_id && live_fence.size > 1) {
+          for (const rec of live_fence.values()) mark_superseded(rec);
+          mark_superseded(global_epoch);
+        } else if (scope_id && !live_fence.has(scope_id)) {
+          // new scope via handoff — bump below creates record; no prior to mark
+        }
+        if (epoch != null) bump(scope_id, epoch, ev.seq, holder ?? undefined);
+        else if (holder) set_holder(scope_id, holder, ev.seq);
+      }
     }
 
     if ((ev.op === "lease.revoke" || ev.op === "lease.release") && (ev.kind === "ok" || ev.kind === "info")) {
@@ -180,7 +197,6 @@ export const check_auth04: Checker = (ctx) => {
         if (outcome === "committed" && (any_fence || live_fence.size > 0 || global_epoch)) {
           unattributed_witnesses.push(ev.seq);
         }
-        // no compare, not positive evidence
         continue;
       }
 
@@ -203,7 +219,7 @@ export const check_auth04: Checker = (ctx) => {
         });
       }
 
-      const handoff_seen = [...live_fence.values()].some((r) => r.superseded) || !!global_epoch?.superseded;
+      // Missing controller after prior control.handoff (not "any superseded")
       if (outcome === "committed" && handoff_seen && !controller) {
         missing_controller_witnesses.push(ev.seq);
         continue;
@@ -215,13 +231,15 @@ export const check_auth04: Checker = (ctx) => {
           witnesses: [live.seq, ev.seq],
         });
       } else if (outcome === "committed" && controller) {
-        if (!(fence_epoch != null && live && fence_epoch < live.epoch)) {
-          if (!(live?.holder && controller !== live.holder)) {
-            if (live?.superseded) {
-              saw_positive_after_change = true;
-              positive_witnesses.push(ev.seq);
-              if (live.seq != null) positive_witnesses.push(live.seq);
-            }
+        const stale_epoch = fence_epoch != null && live && fence_epoch < live.epoch;
+        const wrong_holder = !!(live?.holder && controller !== live.holder);
+        if (!stale_epoch && !wrong_holder) {
+          // positively evaluated committed
+          saw_positive_evaluated = true;
+          if (live?.superseded) {
+            saw_positive_after_change = true;
+            positive_witnesses.push(ev.seq);
+            if (live.seq != null) positive_witnesses.push(live.seq);
           }
         }
       }
@@ -267,93 +285,65 @@ export const check_auth04: Checker = (ctx) => {
     }
   }
 
+  const missing_note =
+    missing_controller_witnesses.length > 0
+      ? ` Committed receipt(s) missing controller/holder/actor_id after handoff cannot count as supported evidence; witness_seqs=[${uniq_sort(missing_controller_witnesses).join(",")}].`
+      : "";
   const unattributed_note =
     unattributed_witnesses.length > 0
       ? ` Committed receipt(s) whose scope cannot be attributed to a fence record are not evidence; witness_seqs=[${uniq_sort(unattributed_witnesses).join(",")}].`
       : "";
 
   if (violations.length > 0) {
-    const witnesses = uniq_sort([
-      ...violations.flatMap((v) => v.witnesses),
-      ...unattributed_witnesses,
-    ]);
+    // violation witnesses = counterexamples only; unattributed tip in explanation OK
+    const witnesses = uniq_sort(violations.flatMap((v) => v.witnesses));
     const marker_note = violations.some((v) => v.marker) ? " Includes test-injected marker." : "";
+    const tip = unattributed_note; // explanation tip only
     return [
       finding(
         inv,
         cs,
         "violation",
-        violations.map((v) => v.text).join(" ") + marker_note + unattributed_note,
+        violations.map((v) => v.text).join(" ") + marker_note + tip,
         witnesses,
         basis(ctx),
       ),
     ];
   }
 
-  // Detect whether any fence change (superseded) was examined
-  const any_superseded =
-    [...live_fence.values()].some((r) => r.superseded) || !!global_epoch?.superseded;
-
-  if (!saw_positive_after_change) {
-    if (!any_superseded) {
-      // positive committed may exist but none after fence change, or no positive at all
-      const missing_note =
-        missing_controller_witnesses.length > 0
-          ? `. Committed receipt(s) missing controller/holder/actor_id after handoff cannot count as supported evidence; witness_seqs=[${uniq_sort(missing_controller_witnesses).join(",")}].`
-          : "";
-      // Order 3: positive but none after fence change → inconclusive no fence change
-      // Order 2: no positive committed
-      // If we had attributed committed that weren't after change, or only unattributed:
-      const has_any_committed = ctx.events.some(
-        (e) => e.op === "effect.receipt" && str(attrs(e).outcome) === "committed",
-      );
-      if (has_any_committed && !any_superseded) {
-        return [
-          finding(
-            inv,
-            cs,
-            "inconclusive",
-            "no fence change examined" + unattributed_note + missing_note,
-            uniq_sort([...unattributed_witnesses, ...missing_controller_witnesses]),
-            basis(ctx),
-          ),
-        ];
-      }
-      return [
-        finding(
-          inv,
-          cs,
-          "inconclusive",
-          "no committed receipt evaluated" + (unattributed_note ? "." + unattributed_note : "") + missing_note,
-          uniq_sort([...unattributed_witnesses, ...missing_controller_witnesses]),
-          basis(ctx),
-        ),
-      ];
-    }
-    // superseded exists but no positive after change
-    const missing_note =
-      missing_controller_witnesses.length > 0
-        ? `. Committed receipt(s) missing controller/holder/actor_id after handoff cannot count as supported evidence; witness_seqs=[${uniq_sort(missing_controller_witnesses).join(",")}].`
-        : "";
+  if (saw_positive_after_change) {
     return [
       finding(
         inv,
         cs,
-        "inconclusive",
-        "no committed receipt evaluated" + (unattributed_note ? "." + unattributed_note : "") + missing_note,
-        uniq_sort([...unattributed_witnesses, ...missing_controller_witnesses]),
+        "supported",
+        "No stale fence/controller commit at effect boundary observed." + unattributed_note,
+        uniq_sort(positive_witnesses),
         basis(ctx),
       ),
     ];
   }
 
+  // Per-receipt: positively evaluated but attributed records not superseded → no fence change
+  // Zero positive → no committed receipt evaluated. Do not use whole-history superseded flags.
+  const opening = saw_positive_evaluated ? "no fence change examined" : "no committed receipt evaluated";
+  // Order: opening → missing controller → unattributed; single period+space between segments
+  const explanation = opening + "." + missing_note + unattributed_note;
+  // opening already ends without trailing period before notes; notes start with space then capital.
+  // Ensure "opening. Note" form: if missing_note/unattributed_note empty, trim trailing period? Golden expects
+  // "no committed receipt evaluated. Committed..." when missing note present.
+  // When both empty, "no fence change examined." or "no committed receipt evaluated." — existing
+  // corpora match without requiring trailing period on bare opening. Prefer no trailing period when alone.
+  const bare = missing_note === "" && unattributed_note === "";
+  const final_explanation = bare ? opening : opening + "." + missing_note + unattributed_note;
+
   return [
     finding(
       inv,
       cs,
-      "supported",
-      "No stale fence/controller commit at effect boundary observed." + unattributed_note,
-      uniq_sort(positive_witnesses),
+      "inconclusive",
+      final_explanation,
+      uniq_sort([...unattributed_witnesses, ...missing_controller_witnesses]),
       basis(ctx),
     ),
   ];

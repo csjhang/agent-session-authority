@@ -16,12 +16,11 @@ function observe_generation(ev: HistoryEvent): number | undefined {
   return num(a.runtime_generation) ?? num(a.generation);
 }
 
-/** Stream key: attrs.runtime_id, else session_id. */
-function stream_of(ev: HistoryEvent): string | undefined {
-  const rid = str(attrs(ev).runtime_id);
-  if (rid) return `runtime:${rid}`;
-  if (ev.session_id) return `session:${ev.session_id}`;
-  return undefined;
+/** Stream key: `${runtime_id ?? ""}|${session_id ?? ""}` (empty ids share one stream). */
+function stream_of(ev: HistoryEvent): string {
+  const rid = str(attrs(ev).runtime_id) ?? "";
+  const sid = ev.session_id ?? "";
+  return `${rid}|${sid}`;
 }
 
 /** AUTH-01a — declare generation model G0/G1/G2 (profile-only; no event witnesses) */
@@ -101,7 +100,7 @@ export const check_auth01b: Checker = (ctx) => {
     if (!(ev.kind === "observe" && ev.op === "generation.observe")) continue;
     const g = observe_generation(ev);
     if (g == null) continue;
-    const stream = stream_of(ev) ?? `anon:${ev.seq}`;
+    const stream = stream_of(ev);
     compared.push(ev.seq);
     const prev = last_by_stream.get(stream);
     if (prev != null && g < prev.gen) {
@@ -127,8 +126,7 @@ export const check_auth01b: Checker = (ctx) => {
     const restart_has_neither = str(attrs(fault).runtime_id) == null && !fault.session_id;
     const mapped_streams = new Set<string>();
     for (const ev of mapped) {
-      const s = stream_of(ev);
-      if (s) mapped_streams.add(s);
+      mapped_streams.add(stream_of(ev));
     }
     if (restart_has_neither && mapped_streams.size > 1) {
       // unexamined — handled below; still record restart for witness path
@@ -166,13 +164,35 @@ export const check_auth01b: Checker = (ctx) => {
         break;
       }
       if (gen_before != null && gen_after != null && gen_after <= gen_before) {
-        const witnesses = uniq_sort(
+        const witnesses_base = uniq_sort(
           [fault.seq, before_seq!, after_seq!].filter((x): x is number => typeof x === "number"),
         );
-        violations.push({
-          text: `After ${fault.fault}, RuntimeGeneration did not strictly increase (${gen_before} -> ${gen_after}).`,
-          witnesses,
-        });
+        let committed_prior = false;
+        for (let j = 0; j < events.length; j++) {
+          if (events[j]!.seq <= (after_seq ?? fault.seq)) continue;
+          const e = events[j]!;
+          if (
+            e.op === "effect.receipt" &&
+            (e.kind === "ok" || e.kind === "info" || e.kind === "observe")
+          ) {
+            const outcome = str(attrs(e).outcome);
+            const receipt_gen = num(attrs(e).runtime_generation);
+            if (outcome === "committed" && (receipt_gen == null || receipt_gen <= gen_before)) {
+              committed_prior = true;
+              violations.push({
+                text: `After ${fault.fault}, RuntimeGeneration did not increase (${gen_before} -> ${gen_after}) and prior-gen effect committed.`,
+                witnesses: uniq_sort([...witnesses_base, e.seq]),
+              });
+              break;
+            }
+          }
+        }
+        if (!committed_prior) {
+          violations.push({
+            text: `After ${fault.fault}, RuntimeGeneration did not strictly increase (${gen_before} -> ${gen_after}).`,
+            witnesses: witnesses_base,
+          });
+        }
       }
     }
   }
@@ -215,8 +235,7 @@ export const check_auth01b: Checker = (ctx) => {
     const restart_has_neither = str(attrs(fault).runtime_id) == null && !fault.session_id;
     const mapped_streams = new Set<string>();
     for (const ev of mapped) {
-      const s = stream_of(ev);
-      if (s) mapped_streams.add(s);
+      mapped_streams.add(stream_of(ev));
     }
     if (restart_has_neither && mapped_streams.size > 1) {
       unexamined.push(fault.seq);
@@ -232,7 +251,7 @@ export const check_auth01b: Checker = (ctx) => {
         const e = events[j]!;
         if (!(e.kind === "observe" && e.op === "generation.observe")) continue;
         if (!observe_maps_to_restart(e, fault)) continue;
-        if ((stream_of(e) ?? "") !== stream) continue;
+        if (stream_of(e) !== stream) continue;
         if (observe_generation(e) != null) {
           before = true;
           break;
@@ -242,7 +261,7 @@ export const check_auth01b: Checker = (ctx) => {
         const e = events[j]!;
         if (!(e.kind === "observe" && e.op === "generation.observe")) continue;
         if (!observe_maps_to_restart(e, fault)) continue;
-        if ((stream_of(e) ?? "") !== stream) continue;
+        if (stream_of(e) !== stream) continue;
         if (observe_generation(e) != null) {
           after = true;
           break;

@@ -39,8 +39,7 @@ describe("golden corpus AUTH-01", () => {
     const f = by_inv(violate, "AUTH-01b").find((x) => x.result === "violation");
     expect(f).toBeTruthy();
     expect(f!.witness_seqs.length).toBeGreaterThan(0);
-    // nearest numeric before + restart + first numeric after (committed receipt no longer required)
-    expect(f!.witness_seqs).toEqual(expect.arrayContaining([1, 3, 4]));
+    expect(f!.witness_seqs).toEqual(expect.arrayContaining([3, 4, 5]));
   });
 });
 

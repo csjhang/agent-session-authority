@@ -21,6 +21,8 @@ Paths are relative to cwd. Exit codes: `0` = no violation (post claim-rewrite), 
 
 Every `corpus/**/pass*.jsonl` must produce **no `violation`** on any invariant when checked with that directory's `profile.json`. Do not weaken golden asserts to allow pass-file violations; instead add matching bind/grant (or other supporting events) so the history is clean, or rename/document the file if it is intentionally single-invariant / non-pass.
 
+`auth03/pass.jsonl` has a single holder (no lease contention) → **AUTH-03b inconclusive** (`no lease contention examined`). The positive AUTH-03b example is `auth03/pass-contended.jsonl`.
+
 Intentional non-`pass*.jsonl` single-scenario files (ok to violate other invariants):
 
 - `auth02/pass-with-unlinked.jsonl` — still a `pass*` name; kept free of violations (unlinked receipts → inconclusive, not violation).
