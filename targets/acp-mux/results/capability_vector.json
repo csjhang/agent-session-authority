@@ -20,6 +20,7 @@
     "AUTH-06": "not_tested",
     "AUTH-07": "not_tested"
   },
+  "capability_sources": {},
   "fixture_vector": {
     "AUTH-01a": "not_declared",
     "AUTH-01b": "supported",

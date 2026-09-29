@@ -167,6 +167,12 @@ export type CapabilityVectorDoc = {
   profile_version: string;
   test_basis: string;
   capability_vector: Record<string, ResultLabel>;
+  /**
+   * For each capability_vector key that is not `not_tested`, a path to a
+   * non-fixture history artifact that backs the label (filename must not
+   * contain "fixture"; file must exist). Empty while all caps are not_tested.
+   */
+  capability_sources: Record<string, string>;
   fixture_vector: Record<string, ResultLabel>;
   claim_status_vector: Record<string, string>;
   checker_explanation: Record<string, string>;
@@ -211,6 +217,11 @@ export function generate_all(opts: { write?: boolean } = {}): CapabilityVectorDo
     const notes = HAND_NOTES[t.id];
     const keys = Object.keys(report.capability_vector);
 
+    // capability_sources stays empty while capability_vector is all not_tested.
+    // When a key is later set to a non-not_tested label, point it at a real
+    // (non-fixture) history path that exists on disk.
+    const capability_sources: Record<string, string> = {};
+
     const out: CapabilityVectorDoc = {
       target: t.id,
       profile_version: report.profile_version,
@@ -218,6 +229,7 @@ export function generate_all(opts: { write?: boolean } = {}): CapabilityVectorDo
       ...t.extra,
       // Target capability: withheld until live/native evidence (not fixture asa-check).
       capability_vector: not_tested_vector(keys),
+      capability_sources,
       // Adapter+checker self-consistency against fixture history only.
       fixture_vector: report.capability_vector,
       claim_status_vector: report.claim_status_vector,

@@ -573,4 +573,130 @@ describe("@asa/adapter-acp fixture", () => {
       expect(receipts[0]?.attrs?.sources).toEqual(["wait_for_write_effect", "direct_fs_read"]);
     }
   });
+
+  it("observed_at_ms: two events ≥5ms apart convert to distinct ordered ts_unix_nano", async () => {
+    const t0 = 1_700_000_000_000;
+    const events = [
+      {
+        type: "permission_request" as const,
+        sessionId: "s-obs",
+        requestId: "r1",
+        toolName: "Write",
+        toolCallId: "tc-obs-1",
+        input: { path: "repo/a.txt", content: "a" },
+        observed_at_ms: t0,
+      },
+      {
+        type: "permission_response" as const,
+        sessionId: "s-obs",
+        requestId: "r1",
+        decision: "allow" as const,
+        observed_at_ms: t0 + 5,
+      },
+    ];
+    const history = acp_events_to_history(events);
+    const bind = history.find((e) => e.op === "action.bind");
+    const grant = history.find((e) => e.op === "approval.grant");
+    expect(bind?.ts_unix_nano).toBeTruthy();
+    expect(grant?.ts_unix_nano).toBeTruthy();
+    expect(bind!.ts_unix_nano).not.toBe(grant!.ts_unix_nano);
+    expect(BigInt(bind!.ts_unix_nano!)).toBeLessThan(BigInt(grant!.ts_unix_nano!));
+    expect(bind!.seq).toBeLessThan(grant!.seq);
+    // Mock peer stamps observed_at_ms at push
+    const peer = new MockAcpPeer({ sessionId: "s-stamp" });
+    const stamped = peer.run_fixture_scenario();
+    expect(stamped.every((e) => typeof e.observed_at_ms === "number")).toBe(true);
+  });
+
+  it("missing observed_at_ms → conversion-time ts and attrs.field_provenance.ts=derived", () => {
+    const events = [
+      {
+        type: "session_update" as const,
+        sessionId: "s-derived",
+        update: { kind: "agent_message_chunk", text: "hi" },
+        // no observed_at_ms
+      },
+    ];
+    const history = acp_events_to_history(events);
+    const upd = history.find((e) => e.attrs?.update_kind === "agent_message_chunk");
+    expect(upd?.ts_unix_nano).toBeTruthy();
+    expect(upd?.attrs?.field_provenance).toMatchObject({ ts: "derived" });
+  });
+
+  it("bind target: path-normalize only for file_path/path; toolName stays raw with target_kind", () => {
+    const with_path = acp_events_to_history(
+      [
+        {
+          type: "permission_request" as const,
+          sessionId: "s-path",
+          requestId: "r1",
+          toolName: "Write asa-x.txt",
+          input: { file_path: "/tmp/asa-probe/asa-x.txt", content: "x" },
+        },
+      ],
+      { session_cwd: "/tmp/asa-probe" },
+    );
+    const bind_path = with_path.find((e) => e.op === "action.bind");
+    expect(bind_path?.attrs?.target).toBe("/tmp/asa-probe/asa-x.txt");
+    expect(bind_path?.attrs?.target_kind).toBe("path");
+
+    const tool_only = acp_events_to_history([
+      {
+        type: "permission_request" as const,
+        sessionId: "s-tool",
+        requestId: "r2",
+        toolName: "Write asa-x.txt",
+        input: { content: "x" },
+      },
+    ]);
+    const bind_tool = tool_only.find((e) => e.op === "action.bind");
+    expect(bind_tool?.attrs?.target).toBe("Write asa-x.txt");
+    expect(bind_tool?.attrs?.target_kind).toBe("tool_name");
+  });
+
+  it("win32 only: case-insensitive compare of action.bind target vs receipt path", () => {
+    const desc = Object.getOwnPropertyDescriptor(process, "platform");
+    Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+    try {
+      const events = [
+        {
+          type: "permission_request" as const,
+          sessionId: "s-win",
+          requestId: "r-win",
+          toolName: "Write",
+          toolCallId: "tc-win",
+          input: { path: "C:/Probe/Asa-X.txt", content: "hello" },
+        },
+        {
+          type: "permission_response" as const,
+          sessionId: "s-win",
+          requestId: "r-win",
+          decision: "allow" as const,
+        },
+        {
+          type: "session_update" as const,
+          sessionId: "s-win",
+          update: {
+            kind: "effect_receipt",
+            sink: "wait_for_write_effect",
+            path: "c:/probe/asa-x.txt",
+            present: true,
+            matched: true,
+            expected: "hello",
+            content: "hello",
+          },
+        },
+      ];
+      const history = acp_events_to_history(events);
+      const bind = history.find((e) => e.op === "action.bind");
+      const receipt = history.find((e) => e.op === "effect.receipt");
+      expect(receipt?.attrs?.action_digest).toBe(bind?.attrs?.action_digest);
+      expect(receipt?.attrs?.action_digest).toBeTruthy();
+      expect(receipt?.attrs?.outcome).toBe("committed");
+    } finally {
+      if (desc) Object.defineProperty(process, "platform", desc);
+      else Object.defineProperty(process, "platform", { value: "linux", configurable: true });
+    }
+  });
+
 });
