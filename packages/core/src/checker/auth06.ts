@@ -5,6 +5,8 @@ import { attrs, basis, claim_for, finding, str, observation_guard } from "./inde
  * AUTH-06 — no implicit success without trusted EffectReceipt.
  * Only outcome=committed receipts may support later committed/completed/success
  * claims; unknown/rejected/failed may not.
+ * Supported requires ≥1 outcome=committed receipt positively evaluated;
+ * otherwise inconclusive "no committed receipt evaluated".
  */
 export const check_auth06: Checker = (ctx) => {
   const inv = "AUTH-06";
@@ -18,6 +20,7 @@ export const check_auth06: Checker = (ctx) => {
   /** effect_id -> only committed receipts count as supporting evidence */
   const committed_receipts = new Set<string>();
   const violations: { text: string; witnesses: number[] }[] = [];
+  let saw_committed_receipt = false;
 
   for (const ev of ctx.events) {
     const a = attrs(ev);
@@ -26,6 +29,7 @@ export const check_auth06: Checker = (ctx) => {
       const outcome = str(a.outcome);
       if (effect_id && outcome === "committed") {
         committed_receipts.add(effect_id);
+        saw_committed_receipt = true;
       }
       // unknown/rejected/failed intentionally do NOT populate committed_receipts
       continue;
@@ -64,6 +68,18 @@ export const check_auth06: Checker = (ctx) => {
     const witnesses = [...new Set(violations.flatMap((v) => v.witnesses))].sort((a, b) => a - b);
     return [
       finding(inv, cs, "violation", violations.map((v) => v.text).join(" "), witnesses, basis(ctx)),
+    ];
+  }
+  if (!saw_committed_receipt) {
+    return [
+      finding(
+        inv,
+        cs,
+        "inconclusive",
+        "no committed receipt evaluated",
+        [],
+        basis(ctx),
+      ),
     ];
   }
   return [

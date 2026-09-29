@@ -7,6 +7,10 @@ import { attrs, basis, claim_for, finding, num, str, observation_guard } from ".
  * not only in UI/relay.
  * After handoff, receipt/dispatch whose controller is not the current live holder
  * is a violation even when fence_epoch is unchanged.
+ * Lower-epoch lease.acquire/handoff must not update the live holder (bump).
+ * After handoff, committed receipt missing controller/holder/actor_id cannot
+ * count as supported evidence.
+ * Supported requires ≥1 outcome=committed receipt positively evaluated.
  */
 export const check_auth04: Checker = (ctx) => {
   const inv = "AUTH-04";
@@ -23,18 +27,26 @@ export const check_auth04: Checker = (ctx) => {
   const live_fence = new Map<string, { epoch: number; seq: number; holder?: string }>();
   let global_epoch: { epoch: number; seq: number; holder?: string } | undefined;
   const violations: { text: string; witnesses: number[]; marker?: boolean }[] = [];
+  let handoff_seen = false;
+  let saw_positive_committed = false;
+  const missing_controller_witnesses: number[] = [];
 
   const bump = (scope_id: string | undefined, epoch: number, seq: number, holder?: string) => {
     if (scope_id) {
       const cur = live_fence.get(scope_id);
-      if (!cur || epoch >= cur.epoch) live_fence.set(scope_id, { epoch, seq, holder: holder ?? cur?.holder });
-      else if (holder) live_fence.set(scope_id, { ...cur, holder, seq });
+      if (!cur || epoch > cur.epoch) {
+        live_fence.set(scope_id, { epoch, seq, holder: holder ?? cur?.holder });
+      } else if (epoch === cur.epoch) {
+        live_fence.set(scope_id, { epoch, seq, holder: holder ?? cur.holder });
+      }
+      // epoch < cur.epoch: lower-epoch must not update live holder
     }
-    if (!global_epoch || epoch >= global_epoch.epoch) {
+    if (!global_epoch || epoch > global_epoch.epoch) {
       global_epoch = { epoch, seq, holder: holder ?? global_epoch?.holder };
-    } else if (holder && global_epoch) {
-      global_epoch = { ...global_epoch, holder, seq };
+    } else if (epoch === global_epoch.epoch) {
+      global_epoch = { epoch, seq, holder: holder ?? global_epoch.holder };
     }
+    // epoch < global: do not update
   };
 
   const set_holder = (scope_id: string | undefined, holder: string, seq: number) => {
@@ -57,9 +69,10 @@ export const check_auth04: Checker = (ctx) => {
     }
 
     if (ev.op === "control.handoff" && (ev.kind === "ok" || ev.kind === "info")) {
+      handoff_seen = true;
       const epoch = num(a.fence_epoch) ?? num(a.new_fence_epoch);
       const scope_id = str(a.scope_id);
-      const holder = str(a.holder) ?? str(a.successor) ?? ev.actor_id;
+      const holder = str(a.to) ?? str(a.holder) ?? str(a.successor) ?? ev.actor_id;
       if (epoch != null) bump(scope_id, epoch, ev.seq, holder ?? undefined);
       else if (holder) set_holder(scope_id, holder, ev.seq);
     }
@@ -91,7 +104,6 @@ export const check_auth04: Checker = (ctx) => {
             marker: true,
           });
         }
-        // rejected/failed at gateway is the compliant path; still check controller below if committed
       }
 
       if (outcome === "committed" && fence_epoch != null && live && fence_epoch < live.epoch) {
@@ -101,12 +113,25 @@ export const check_auth04: Checker = (ctx) => {
         });
       }
 
+      // After handoff: missing controller/holder/actor_id cannot count as supported evidence
+      if (outcome === "committed" && handoff_seen && !controller) {
+        missing_controller_witnesses.push(ev.seq);
+        continue;
+      }
+
       // After handoff: controller must be current live holder even if epoch unchanged
       if (outcome === "committed" && controller && live?.holder && controller !== live.holder) {
         violations.push({
           text: `Committed effect controller=${controller} is not live holder=${live.holder} after handoff/lease (fence_epoch may be unchanged).`,
           witnesses: [live.seq, ev.seq],
         });
+      } else if (outcome === "committed" && controller) {
+        // Positively evaluated committed receipt (controller present; not a wrong-holder miss)
+        if (!(fence_epoch != null && live && fence_epoch < live.epoch)) {
+          if (!(live?.holder && controller !== live.holder)) {
+            saw_positive_committed = true;
+          }
+        }
       }
     }
 
@@ -154,6 +179,23 @@ export const check_auth04: Checker = (ctx) => {
     const marker_note = violations.some((v) => v.marker) ? " Includes test-injected marker." : "";
     return [
       finding(inv, cs, "violation", violations.map((v) => v.text).join(" ") + marker_note, witnesses, basis(ctx)),
+    ];
+  }
+
+  if (!saw_positive_committed) {
+    const missing_note =
+      missing_controller_witnesses.length > 0
+        ? ` Committed receipt(s) missing controller/holder/actor_id after handoff cannot count as supported evidence; witness_seqs=[${[...new Set(missing_controller_witnesses)].sort((a, b) => a - b).join(",")}].`
+        : "";
+    return [
+      finding(
+        inv,
+        cs,
+        "inconclusive",
+        "no committed receipt evaluated" + missing_note,
+        [...new Set(missing_controller_witnesses)].sort((a, b) => a - b),
+        basis(ctx),
+      ),
     ];
   }
 

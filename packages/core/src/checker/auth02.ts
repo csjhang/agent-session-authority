@@ -1,6 +1,10 @@
 import type { Checker } from "./index.js";
 import { attrs, basis, claim_for, finding, num, str, observation_guard } from "./index.js";
 
+/** Fields that define the action for rebound detection (nonce/runtime_generation/expiry are request identity, not rebound). */
+const ACTION_DEFINING_KEYS = ["action_type", "target", "args", "policy_version"] as const;
+
+/** Binding-field compare for receipt vs grant (unchanged set; gen mismatch also yields cross_generation_grant). */
 const BINDING_KEYS = [
   "target",
   "args",
@@ -13,6 +17,7 @@ const BINDING_KEYS = [
 type BindingSnap = {
   seq: number;
   action_digest: string;
+  action_type?: string;
   target?: string;
   args?: string;
   policy_version?: string;
@@ -25,6 +30,7 @@ function snap_from_attrs(seq: number, digest: string, a: Record<string, unknown>
   return {
     seq,
     action_digest: digest,
+    action_type: str(a.action_type),
     target: str(a.target),
     args: a.args !== undefined ? JSON.stringify(a.args) : undefined,
     policy_version: str(a.policy_version),
@@ -34,11 +40,15 @@ function snap_from_attrs(seq: number, digest: string, a: Record<string, unknown>
   };
 }
 
-function changed_fields(approved: BindingSnap, current: BindingSnap): string[] {
+function changed_fields(
+  approved: BindingSnap,
+  current: BindingSnap,
+  keys: readonly string[],
+): string[] {
   const out: string[] = [];
-  for (const k of BINDING_KEYS) {
-    const left = approved[k];
-    const right = current[k];
+  for (const k of keys) {
+    const left = (approved as Record<string, unknown>)[k];
+    const right = (current as Record<string, unknown>)[k];
     if (left === undefined || right === undefined) continue;
     if (left !== right) out.push(k);
   }
@@ -50,6 +60,7 @@ type Decision = {
   kind: "grant" | "deny";
   snap: BindingSnap;
   runtime_generation?: number;
+  option_kind?: string;
 };
 
 type ViolationNote = { text: string; witnesses: number[]; marker?: boolean };
@@ -57,20 +68,12 @@ type ViolationNote = { text: string; witnesses: number[]; marker?: boolean };
 /**
  * AUTH-02 — action-bound approval.
  *
- * For each outcome=committed effect.receipt:
- * 1. With action_digest: find latest approval.grant/approval.deny before this
- *    receipt with the same action_digest (approval.record never counts).
- *    - none → committed_without_grant
- *    - latest deny → committed_after_deny
- *    - latest grant but grant.runtime_generation ≠ receipt.runtime_generation
- *      → cross_generation_grant
- *    - else this receipt counts as supported evidence
- * 2. No action_digest (binding=unlinked) → receipt only inconclusive
- * 3. Overall: any violation → violation; else ≥1 supported evidence → supported;
- *    else (no committed or all unlinked) → inconclusive
- * 4. Prerequisite: any effect.receipt is enough to evaluate
- * 5. Existing binding-field compares (target, args, policy_version, nonce, expiry,
- *    runtime_generation) still apply.
+ * Rebound compares only action-defining fields (action_type, target, args,
+ * policy_version). Different nonce/runtime_generation/expiry = new request for
+ * the same action, not rebound.
+ *
+ * allow_once grants may be consumed by at most one effect_id (once_grant_reused).
+ * Committed receipts are deduplicated by effect_id.
  */
 export const check_auth02: Checker = (ctx) => {
   const inv = "AUTH-02";
@@ -86,6 +89,11 @@ export const check_auth02: Checker = (ctx) => {
   const violations: ViolationNote[] = [];
   const supported_witnesses: number[] = [];
   const inconclusive_witnesses: number[] = [];
+  const unlinked_witnesses: number[] = [];
+  /** grant seq -> effect_ids that consumed an allow_once grant */
+  const once_grant_uses = new Map<number, Set<string>>();
+  /** effect_ids already evaluated as committed */
+  const seen_effect_ids = new Set<string>();
   let saw_supported = false;
   let saw_committed = false;
   let saw_unlinked_only = true;
@@ -103,7 +111,7 @@ export const check_auth02: Checker = (ctx) => {
       const snap = snap_from_attrs(ev.seq, digest, a);
       const prev = bindings.get(digest);
       if (prev) {
-        const delta = changed_fields(prev, snap);
+        const delta = changed_fields(prev, snap, ACTION_DEFINING_KEYS);
         if (delta.length > 0) {
           const approved = [...decisions].reverse().find((d) => d.kind === "grant" && d.snap.action_digest === digest);
           if (approved) {
@@ -118,6 +126,7 @@ export const check_auth02: Checker = (ctx) => {
             );
           }
         }
+        // Non-defining field changes (nonce/runtime_generation/expiry) = new request, not rebound.
       } else {
         bindings.set(digest, snap);
       }
@@ -133,6 +142,7 @@ export const check_auth02: Checker = (ctx) => {
         kind: "grant",
         snap: { ...base, ...snap, action_digest: digest },
         runtime_generation: num(a.runtime_generation) ?? snap.runtime_generation,
+        option_kind: str(a.option_kind),
       });
     }
 
@@ -146,6 +156,7 @@ export const check_auth02: Checker = (ctx) => {
         kind: "deny",
         snap: { ...base, ...snap, action_digest: digest },
         runtime_generation: num(a.runtime_generation) ?? snap.runtime_generation,
+        option_kind: str(a.option_kind),
       });
     }
 
@@ -182,12 +193,12 @@ export const check_auth02: Checker = (ctx) => {
         );
       }
 
-      // Binding-field compare against latest matching grant (existing rule)
+      // Binding-field compare against latest matching grant (existing rule; unchanged key set)
       if (digest) {
         const approved = [...decisions].reverse().find((d) => d.kind === "grant" && d.snap.action_digest === digest);
         if (approved) {
           const current = snap_from_attrs(ev.seq, digest, a);
-          const delta = changed_fields(approved.snap, current);
+          const delta = changed_fields(approved.snap, current, BINDING_KEYS);
           if (
             delta.length > 0 &&
             (outcome === "committed" || (ev.op === "effect.receipt" && outcome !== "rejected" && outcome !== "failed"))
@@ -211,9 +222,19 @@ export const check_auth02: Checker = (ctx) => {
 
       saw_committed = true;
 
+      const effect_id = str(a.effect_id);
+      // Deduplicate committed receipts by effect_id
+      if (effect_id) {
+        if (seen_effect_ids.has(effect_id)) {
+          continue;
+        }
+        seen_effect_ids.add(effect_id);
+      }
+
       // Rule 2: unlinked / no action_digest → inconclusive witness only
       if (!digest || str(a.binding) === "unlinked") {
         inconclusive_witnesses.push(ev.seq);
+        unlinked_witnesses.push(ev.seq);
         continue;
       }
 
@@ -255,6 +276,22 @@ export const check_auth02: Checker = (ctx) => {
         continue;
       }
 
+      // once_grant_reused: allow_once grant consumed by two different effect_ids
+      if (latest.option_kind === "allow_once" && effect_id) {
+        const used = once_grant_uses.get(latest.seq) ?? new Set<string>();
+        if (used.size > 0 && !used.has(effect_id)) {
+          push_violation(
+            `once_grant_reused: option_kind=allow_once grant at seq=${latest.seq} used by multiple effect_ids (${[...used, effect_id].join(",")}).`,
+            [latest.seq, ev.seq],
+          );
+          used.add(effect_id);
+          once_grant_uses.set(latest.seq, used);
+          continue;
+        }
+        used.add(effect_id);
+        once_grant_uses.set(latest.seq, used);
+      }
+
       saw_supported = true;
       supported_witnesses.push(latest.seq, ev.seq);
     }
@@ -279,13 +316,18 @@ export const check_auth02: Checker = (ctx) => {
   }
 
   if (saw_supported) {
+    const unlinked_note =
+      unlinked_witnesses.length > 0
+        ? ` Also ${unlinked_witnesses.length} unlinked committed receipt(s) (inconclusive evidence only); witness_seqs=[${[...new Set(unlinked_witnesses)].sort((a, b) => a - b).join(",")}].`
+        : "";
     return [
       finding(
         inv,
         cs,
         "supported",
-        "Committed effect.receipt(s) matched same-generation approval.grant; no action-bound approval reuse after binding-field change.",
-        [...new Set(supported_witnesses)].sort((a, b) => a - b),
+        "Committed effect.receipt(s) matched same-generation approval.grant; no action-bound approval reuse after binding-field change." +
+          unlinked_note,
+        [...new Set([...supported_witnesses, ...unlinked_witnesses])].sort((a, b) => a - b),
         basis(ctx),
       ),
     ];
@@ -322,4 +364,3 @@ export const check_auth02: Checker = (ctx) => {
     ),
   ];
 };
-

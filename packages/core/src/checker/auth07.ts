@@ -249,6 +249,20 @@ export const check_auth07: Checker = (ctx) => {
     ];
   }
 
+  const saw_terminal_subject = terminals.size > 0;
+  if (!saw_terminal_subject) {
+    return [
+      finding(
+        inv,
+        cs,
+        "inconclusive",
+        "no subject with terminal event evaluated",
+        [],
+        basis(ctx),
+      ),
+    ];
+  }
+
   return [
     finding(
       inv,

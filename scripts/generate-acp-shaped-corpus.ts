@@ -3,11 +3,14 @@
  * Generate corpus/acp-shaped/*.jsonl via acp_events_to_history.
  * Paths are always absolute; session_cwd is fixed to /ws.
  *
+ * Export `generate_acp_shaped_corpus()` for in-process tests (map filename → JSONL).
+ * CLI mode writes files under corpus/acp-shaped/.
+ *
  * Regeneration: pnpm exec tsx scripts/generate-acp-shaped-corpus.ts
  */
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { acp_events_to_history, history_to_jsonl } from "../packages/adapters/acp/src/history_from_acp.js";
 import type { AcpPeerEvent } from "../packages/adapters/acp/src/mock_peer.js";
 
@@ -30,16 +33,6 @@ function abs(rel: string): string {
 
 function stamp(events: AcpPeerEvent[]): AcpPeerEvent[] {
   return events.map((e, i) => ({ ...e, observed_at_ms: BASE_MS + i * 1000 }));
-}
-
-function write_file(name: string, events: AcpPeerEvent[]): void {
-  const history = acp_events_to_history(stamp(events), {
-    session_cwd: CWD,
-    issuer_id: "acp_adapter_fixture",
-  });
-  const dest = path.join(out_dir, name);
-  fs.writeFileSync(dest, history_to_jsonl(history) + "\n", "utf8");
-  console.log(`wrote ${path.relative(path.resolve(here, ".."), dest)} (${history.length} events)`);
 }
 
 const scenarios: Record<string, AcpPeerEvent[]> = {
@@ -293,9 +286,90 @@ const scenarios: Record<string, AcpPeerEvent[]> = {
       },
     },
   ],
+
+  /**
+   * AUTH-02: deny → restart → re-ask same action (same path/content = same digest)
+   * with new nonce/runtime_generation → grant → committed = supported.
+   * Different nonce/runtime_generation must NOT be treated as rebound.
+   */
+  "a7-deny-restart-reask-same-action.jsonl": [
+    {
+      type: "permission_request",
+      sessionId: SID,
+      requestId: "r1",
+      toolName: "Write",
+      toolCallId: "tc1",
+      input: { file_path: abs("a7.txt"), content: "same" },
+      options: OPTIONS,
+    },
+    {
+      type: "permission_response",
+      sessionId: SID,
+      requestId: "r1",
+      decision: "deny",
+      optionId: "reject",
+      optionKind: "reject_once",
+    },
+    { type: "runtime_restart", sessionId: SID, reason: "restart" },
+    {
+      type: "permission_request",
+      sessionId: SID,
+      requestId: "r2",
+      toolName: "Write",
+      toolCallId: "tc2",
+      input: { file_path: abs("a7.txt"), content: "same" },
+      options: OPTIONS,
+    },
+    {
+      type: "permission_response",
+      sessionId: SID,
+      requestId: "r2",
+      decision: "allow",
+      optionId: "allow-once",
+      optionKind: "allow_once",
+    },
+    {
+      type: "session_update",
+      sessionId: SID,
+      update: {
+        kind: "effect_receipt",
+        sink: "fixture_fs",
+        path: abs("a7.txt"),
+        present: true,
+        matched: true,
+        expected: "same",
+        content: "same",
+      },
+    },
+  ],
 };
 
-fs.mkdirSync(out_dir, { recursive: true });
-for (const [name, events] of Object.entries(scenarios)) {
-  write_file(name, events);
+/** Build filename → JSONL string map (no filesystem writes). */
+export function generate_acp_shaped_corpus(): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [name, events] of Object.entries(scenarios)) {
+    const history = acp_events_to_history(stamp(events), {
+      session_cwd: CWD,
+      issuer_id: "acp_adapter_fixture",
+    });
+    out[name] = history_to_jsonl(history) + "\n";
+  }
+  return out;
+}
+
+function write_files(map: Record<string, string>): void {
+  fs.mkdirSync(out_dir, { recursive: true });
+  for (const [name, body] of Object.entries(map)) {
+    const dest = path.join(out_dir, name);
+    fs.writeFileSync(dest, body, "utf8");
+    const lines = body.trim().split("\n").filter(Boolean).length;
+    console.log(`wrote ${path.relative(path.resolve(here, ".."), dest)} (${lines} events)`);
+  }
+}
+
+const is_cli =
+  process.argv[1] != null && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
+
+if (is_cli) {
+  write_files(generate_acp_shaped_corpus());
 }

@@ -54,6 +54,21 @@ describe("golden corpus AUTH-02", () => {
     expect(f!.witness_seqs.length).toBeGreaterThan(0);
     expect(f!.witness_seqs).toEqual(expect.arrayContaining([1, 2, 3]));
   });
+  it("once_grant_reused when allow_once grant covers two effect_ids", () => {
+    const history = load_history_file(path.join(repo_root, "corpus", "auth02", "violate-once-grant-reused.jsonl"));
+    const profile = load_profile(path.join(repo_root, "corpus", "auth02", "profile.json"));
+    const f = by_inv(run_checkers(history, profile, default_assessment()), "AUTH-02").find((x) => x.result === "violation");
+    expect(f).toBeTruthy();
+    expect(f!.explanation).toMatch(/once_grant_reused/);
+  });
+  it("supported explanation notes unlinked committed receipts", () => {
+    const history = load_history_file(path.join(repo_root, "corpus", "auth02", "pass-with-unlinked.jsonl"));
+    const profile = load_profile(path.join(repo_root, "corpus", "auth02", "profile.json"));
+    const f = by_inv(run_checkers(history, profile, default_assessment()), "AUTH-02")[0];
+    expect(f?.result).toBe("supported");
+    expect(f!.explanation).toMatch(/unlinked committed receipt/);
+    expect(f!.explanation).toMatch(/witness_seqs=\[4\]/);
+  });
 });
 
 describe("golden corpus AUTH-03", () => {
@@ -69,6 +84,13 @@ describe("golden corpus AUTH-03", () => {
     expect(v.some((x) => x.invariant.startsWith("AUTH-03"))).toBe(true);
     expect(v.some((x) => x.witness_seqs.length > 0)).toBe(true);
   });
+  it("AUTH-03c handoff without from/actor_id strips scope from all but to", () => {
+    const history = load_history_file(path.join(repo_root, "corpus", "auth03", "violate-handoff-no-from.jsonl"));
+    const profile = load_profile(path.join(repo_root, "corpus", "auth03", "profile.json"));
+    const f = by_inv(run_checkers(history, profile, default_assessment()), "AUTH-03c").find((x) => x.result === "violation");
+    expect(f).toBeTruthy();
+    expect(f!.explanation).toMatch(/not covered/);
+  });
 });
 
 describe("golden corpus AUTH-04", () => {
@@ -81,6 +103,27 @@ describe("golden corpus AUTH-04", () => {
     const f = by_inv(violate, "AUTH-04").find((x) => x.result === "violation");
     expect(f).toBeTruthy();
     expect(f!.witness_seqs).toEqual(expect.arrayContaining([4]));
+  });
+  it("lower-epoch lease.acquire after handoff must not update live holder", () => {
+    const history = load_history_file(path.join(repo_root, "corpus", "auth04", "violate-lower-epoch-acquire.jsonl"));
+    const profile = load_profile(path.join(repo_root, "corpus", "auth04", "profile.json"));
+    const f = by_inv(run_checkers(history, profile, default_assessment()), "AUTH-04").find((x) => x.result === "violation");
+    expect(f).toBeTruthy();
+    expect(f!.explanation).toMatch(/not live holder/);
+  });
+  it("only rejected receipt → AUTH-04 inconclusive (no committed evidence)", () => {
+    const history = load_history_file(path.join(repo_root, "corpus", "auth04", "inconclusive-rejected-only.jsonl"));
+    const profile = load_profile(path.join(repo_root, "corpus", "auth04", "profile.json"));
+    const f = by_inv(run_checkers(history, profile, default_assessment()), "AUTH-04")[0];
+    expect(f?.result).toBe("inconclusive");
+    expect(f!.explanation).toMatch(/no committed receipt evaluated/);
+  });
+  it("after handoff, committed receipt missing controller → inconclusive", () => {
+    const history = load_history_file(path.join(repo_root, "corpus", "auth04", "inconclusive-missing-controller.jsonl"));
+    const profile = load_profile(path.join(repo_root, "corpus", "auth04", "profile.json"));
+    const f = by_inv(run_checkers(history, profile, default_assessment()), "AUTH-04")[0];
+    expect(f?.result).toBe("inconclusive");
+    expect(f!.explanation).toMatch(/missing controller/);
   });
 });
 
@@ -150,7 +193,10 @@ const ACP_SHAPED_CASES: Array<{ file: string; result: "supported" | "violation" 
   { file: "a4-no-request-committed.jsonl", result: "inconclusive" },
   { file: "a5-unknown-only.jsonl", result: "inconclusive" },
   { file: "a6-orphan-only.jsonl", result: "violation" },
+  { file: "a7-deny-restart-reask-same-action.jsonl", result: "supported" },
 ];
+
+const BAD_REBOUND = /rebound with changed fields \((?:[^)]*\b(?:runtime_generation|nonce|expiry)\b[^)]*)\)/;
 
 describe("golden corpus ACP-shaped AUTH-02", () => {
   const profile = load_profile(path.join(repo_root, "corpus", "acp-shaped", "profile.json"));
@@ -164,6 +210,7 @@ describe("golden corpus ACP-shaped AUTH-02", () => {
       const f = by_inv(findings, "AUTH-02")[0];
       expect(f?.result).toBe(result);
       expect(f!.witness_seqs.length).toBeGreaterThan(0);
+      expect(f!.explanation ?? "").not.toMatch(BAD_REBOUND);
     });
   }
 
