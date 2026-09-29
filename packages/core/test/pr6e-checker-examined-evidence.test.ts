@@ -253,13 +253,13 @@ describe("PR-6e: checker examined evidence", () => {
     }
   });
 
-  it("bind with only tool_call_id → receipt committed → then restart → AUTH-07 inconclusive not supported.", () => {
+  it("bind with only tool_call_id → ACP receipt (effect_id+tool_call_id tc1) → restart → AUTH-07 inconclusive not supported.", () => {
     const profile = load_profile(path.join(repo_root, "corpus", "auth07", "profile.json"));
     const f = inv_of(
       check(
         [
           `{"seq":1,"kind":"ok","op":"action.bind","session_id":"s1","attrs":{"action_type":"tool.Write","target":"/ws/a.txt","tool_call_id":"tc1"}}`,
-          `{"seq":2,"kind":"ok","op":"effect.receipt","session_id":"s1","attrs":{"tool_call_id":"tc1","outcome":"committed"}}`,
+          `{"seq":2,"kind":"ok","op":"effect.receipt","session_id":"s1","attrs":{"effect_id":"tc1","tool_call_id":"tc1","outcome":"committed"}}`,
           `{"seq":3,"kind":"fault","fault":"runtime.restart","session_id":"s1"}`,
         ],
         profile,
@@ -304,6 +304,140 @@ describe("PR-6e: checker examined evidence", () => {
       terminal_rules: { timeout_vs_complete: "reconcile_required" },
     });
     expect(good).toEqual([]);
+  });
+
+
+  it("corpus/auth01/violate.jsonl AUTH-01b violation witnesses [1,3,4,5] prior-gen effect committed.", () => {
+    const { findings } = load_corpus("auth01", "violate.jsonl");
+    const f = inv_of(findings, "AUTH-01b");
+    expect(f.observed_result).toBe("violation");
+    expect(f.witness_seqs).toEqual([1, 3, 4, 5]);
+    expect(f.explanation).toMatch(/prior-gen effect committed/);
+  });
+
+  it("no-id observes gen 5→3 no restart → AUTH-01b violation witnesses [1,2].", () => {
+    const profile = load_profile(path.join(repo_root, "corpus", "auth01", "profile.json"));
+    const f = inv_of(
+      check(
+        [
+          `{"seq":1,"kind":"observe","op":"generation.observe","attrs":{"runtime_generation":5,"issuer_id":"lease_plane"}}`,
+          `{"seq":2,"kind":"observe","op":"generation.observe","attrs":{"runtime_generation":3,"issuer_id":"lease_plane"}}`,
+        ],
+        profile,
+      ),
+      "AUTH-01b",
+    );
+    expect(f.observed_result).toBe("violation");
+    expect(f.witness_seqs).toEqual([1, 2]);
+  });
+
+  it("no-id 5→restart→6→3 → AUTH-01b violation witnesses [3,4].", () => {
+    const profile = load_profile(path.join(repo_root, "corpus", "auth01", "profile.json"));
+    const f = inv_of(
+      check(
+        [
+          `{"seq":1,"kind":"observe","op":"generation.observe","attrs":{"runtime_generation":5,"issuer_id":"lease_plane"}}`,
+          `{"seq":2,"kind":"fault","fault":"runtime.restart"}`,
+          `{"seq":3,"kind":"observe","op":"generation.observe","attrs":{"runtime_generation":6,"issuer_id":"lease_plane"}}`,
+          `{"seq":4,"kind":"observe","op":"generation.observe","attrs":{"runtime_generation":3,"issuer_id":"lease_plane"}}`,
+        ],
+        profile,
+      ),
+      "AUTH-01b",
+    );
+    expect(f.observed_result).toBe("violation");
+    expect(f.witness_seqs).toEqual([3, 4]);
+  });
+
+  it("same runtime_id two sessions gens no restart → AUTH-01b not violation (inconclusive).", () => {
+    const profile = load_profile(path.join(repo_root, "corpus", "auth01", "profile.json"));
+    const f = inv_of(
+      check(
+        [
+          `{"seq":1,"kind":"observe","op":"generation.observe","session_id":"A","attrs":{"runtime_generation":5,"issuer_id":"lease_plane","runtime_id":"r1"}}`,
+          `{"seq":2,"kind":"observe","op":"generation.observe","session_id":"B","attrs":{"runtime_generation":1,"issuer_id":"lease_plane","runtime_id":"r1"}}`,
+        ],
+        profile,
+      ),
+      "AUTH-01b",
+    );
+    expect(f.result).not.toBe("violation");
+    expect(f.observed_result).toBe("inconclusive");
+  });
+
+  it("same runtime_id two sessions each restart+inc → AUTH-01b supported witnesses [1..6].", () => {
+    const profile = load_profile(path.join(repo_root, "corpus", "auth01", "profile.json"));
+    const f = inv_of(
+      check(
+        [
+          `{"seq":1,"kind":"observe","op":"generation.observe","session_id":"A","attrs":{"runtime_generation":5,"issuer_id":"lease_plane","runtime_id":"r1"}}`,
+          `{"seq":2,"kind":"fault","fault":"runtime.restart","session_id":"A","attrs":{"runtime_id":"r1"}}`,
+          `{"seq":3,"kind":"observe","op":"generation.observe","session_id":"A","attrs":{"runtime_generation":6,"issuer_id":"lease_plane","runtime_id":"r1"}}`,
+          `{"seq":4,"kind":"observe","op":"generation.observe","session_id":"B","attrs":{"runtime_generation":1,"issuer_id":"lease_plane","runtime_id":"r1"}}`,
+          `{"seq":5,"kind":"fault","fault":"runtime.restart","session_id":"B","attrs":{"runtime_id":"r1"}}`,
+          `{"seq":6,"kind":"observe","op":"generation.observe","session_id":"B","attrs":{"runtime_generation":2,"issuer_id":"lease_plane","runtime_id":"r1"}}`,
+        ],
+        profile,
+      ),
+      "AUTH-01b",
+    );
+    expect(f.observed_result).toBe("supported");
+    expect(f.witness_seqs).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  it("lower-epoch acquire then original holder commit → AUTH-04 inconclusive no fence change examined.", () => {
+    const profile = load_profile(path.join(repo_root, "corpus", "auth04", "profile.json"));
+    const f = inv_of(
+      check(
+        [
+          `{"seq":1,"kind":"ok","op":"lease.acquire","actor_id":"c1","attrs":{"scope_id":"s","holder":"c1","fence_epoch":2,"accepted":true}}`,
+          `{"seq":2,"kind":"ok","op":"lease.acquire","actor_id":"c2","attrs":{"scope_id":"s","holder":"c2","fence_epoch":1,"accepted":true}}`,
+          `{"seq":3,"kind":"ok","op":"effect.receipt","attrs":{"effect_id":"e1","outcome":"committed","scope_id":"s","controller":"c1","fence_epoch":2}}`,
+        ],
+        profile,
+      ),
+      "AUTH-04",
+    );
+    expect(f.observed_result).toBe("inconclusive");
+    expect(f.explanation).toMatch(/no fence change examined/);
+  });
+
+  it("AUTH-04 violation + unattributed receipt → violation witnesses exclude unattributed receipt.", () => {
+    const profile = load_profile(path.join(repo_root, "corpus", "auth04", "profile.json"));
+    const f = inv_of(
+      check(
+        [
+          `{"seq":1,"kind":"ok","op":"lease.acquire","actor_id":"c1","attrs":{"scope_id":"s","holder":"c1","fence_epoch":1,"accepted":true}}`,
+          `{"seq":2,"kind":"ok","op":"lease.acquire","actor_id":"c2","attrs":{"scope_id":"s","holder":"c2","fence_epoch":2,"accepted":true}}`,
+          `{"seq":3,"kind":"ok","op":"lease.acquire","actor_id":"c3","attrs":{"scope_id":"t","holder":"c3","fence_epoch":1,"accepted":true}}`,
+          `{"seq":4,"kind":"ok","op":"effect.receipt","attrs":{"effect_id":"e1","outcome":"committed","scope_id":"s","controller":"c1","fence_epoch":1}}`,
+          `{"seq":5,"kind":"ok","op":"effect.receipt","attrs":{"effect_id":"e2","outcome":"committed","controller":"c3"}}`,
+        ],
+        profile,
+      ),
+      "AUTH-04",
+    );
+    expect(f.observed_result).toBe("violation");
+    expect(f.witness_seqs).toEqual([2, 4]);
+    expect(f.witness_seqs).not.toContain(5);
+  });
+
+  it("fence change only on t, commit on unchanged s → AUTH-04 inconclusive no fence change examined.", () => {
+    const profile = load_profile(path.join(repo_root, "corpus", "auth04", "profile.json"));
+    const f = inv_of(
+      check(
+        [
+          `{"seq":1,"kind":"ok","op":"lease.acquire","actor_id":"c1","attrs":{"scope_id":"s","holder":"c1","fence_epoch":1,"accepted":true}}`,
+          `{"seq":2,"kind":"ok","op":"lease.acquire","actor_id":"c1","attrs":{"scope_id":"t","holder":"c1","fence_epoch":1,"accepted":true}}`,
+          `{"seq":3,"kind":"ok","op":"lease.acquire","actor_id":"c2","attrs":{"scope_id":"t","holder":"c2","fence_epoch":2,"accepted":true}}`,
+          `{"seq":4,"kind":"ok","op":"effect.receipt","attrs":{"effect_id":"e1","outcome":"committed","scope_id":"s","controller":"c1","fence_epoch":1}}`,
+        ],
+        profile,
+      ),
+      "AUTH-04",
+    );
+    expect(f.observed_result).toBe("inconclusive");
+    expect(f.explanation).toMatch(/no fence change examined/);
   });
 
   it("The 6 new corpora: under synthetic_fixture, research_profile, vendor_claim — observed_result and witness_seqs identical.", () => {
