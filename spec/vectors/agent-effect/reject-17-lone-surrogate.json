@@ -1,0 +1,20 @@
+{
+  "id": "reject-17-lone-surrogate",
+  "expect": "reject",
+  "reject_code": "invalid_unicode",
+  "description": "effect_id contains a lone high surrogate (U+D800) \u2192 invalid_unicode",
+  "record": {
+    "schema_version": "asa.agent-effect/0.1",
+    "effect_id": "e\ud800",
+    "action_digest": "sha256:deadbeef",
+    "runtime_generation": 1,
+    "fence_epoch": 1,
+    "boundary_id": "fs-gateway",
+    "stream_id": "boundary/fs-gateway",
+    "outcome": "committed",
+    "sequence_number": 1,
+    "ts_unix_nano": "1759107600000000000",
+    "approval_decision": "grant",
+    "approval_id": "a1"
+  }
+}

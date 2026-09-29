@@ -49,8 +49,6 @@
     "gap_missing": [
       2
     ],
-    "unknown_effect_ids": [
-      "eff-1"
-    ]
+    "unknown_effect_ids": []
   }
 }

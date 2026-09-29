@@ -168,9 +168,12 @@ function isApprovalRecord(f: AgentEffectFields): boolean {
   return isIndependentDecision(f);
 }
 
-/** Unknowns report lists only effect-kind records (default when record_kind absent). */
+/**
+ * Unknowns list only outcome=unknown records that are not approval records.
+ * isApprovalRecord covers record_kind=approval and legacy non-committed decision+id.
+ */
 function isEffectKindForUnknowns(f: AgentEffectFields): boolean {
-  return f.record_kind !== "approval";
+  return !isApprovalRecord(f);
 }
 
 function parseTs(ts: string): bigint {
@@ -211,9 +214,10 @@ function isPriorOrSame(a: IndexedRecord, c: IndexedRecord): boolean {
 
 /**
  * Latest among prior candidates. Fail-closed only when stream-heads at max
- * order_ts disagree (both grant and deny). Per stream, only the largest
- * sequence_number at that order_ts is the head — superseded same-stream
- * decisions do not participate in conflict.
+ * order_ts disagree (both grant and deny). Per stream, every record that
+ * shares the largest sequence_number at that order_ts is a head — so a
+ * same-stream duplicate_sequence grant+deny tie participates in conflict.
+ * Superseded (lower sequence_number) same-stream decisions do not.
  * Global sort (order_ts, stream_id, sequence_number, JCS) picks the latest
  * among heads already known to be prior — not for deciding priorness.
  */
@@ -226,15 +230,17 @@ function pickLatest(
     if (r.order_ts > maxTs) maxTs = r.order_ts;
   }
   const atMax = recs.filter((r) => r.order_ts === maxTs);
-  // Per-stream head: largest sequence_number at max order_ts.
-  const headByStream = new Map<string, IndexedRecord>();
+  // Per-stream heads: ALL records sharing the max sequence_number at max order_ts.
+  const maxSeqByStream = new Map<string, number>();
   for (const r of atMax) {
-    const cur = headByStream.get(r.fields.stream_id);
-    if (!cur || r.fields.sequence_number > cur.fields.sequence_number) {
-      headByStream.set(r.fields.stream_id, r);
+    const cur = maxSeqByStream.get(r.fields.stream_id);
+    if (cur === undefined || r.fields.sequence_number > cur) {
+      maxSeqByStream.set(r.fields.stream_id, r.fields.sequence_number);
     }
   }
-  const heads = [...headByStream.values()];
+  const heads = atMax.filter(
+    (r) => r.fields.sequence_number === maxSeqByStream.get(r.fields.stream_id),
+  );
   const hasGrant = heads.some((r) => isGrant(r.fields));
   const hasDeny = heads.some((r) => isDeny(r.fields));
   if (hasGrant && hasDeny) {

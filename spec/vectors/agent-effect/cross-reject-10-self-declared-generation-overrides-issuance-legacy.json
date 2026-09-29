@@ -45,8 +45,6 @@
     ],
     "report_codes": [],
     "gap_streams": [],
-    "unknown_effect_ids": [
-      "e1"
-    ]
+    "unknown_effect_ids": []
   }
 }

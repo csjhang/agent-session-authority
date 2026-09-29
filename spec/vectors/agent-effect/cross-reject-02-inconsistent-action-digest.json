@@ -47,8 +47,6 @@
       "approval_digest_mismatch"
     ],
     "gap_streams": [],
-    "unknown_effect_ids": [
-      "eff-1"
-    ]
+    "unknown_effect_ids": []
   }
 }

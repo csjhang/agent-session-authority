@@ -7,7 +7,7 @@ import {
   runVector,
   sha256Hex,
 } from "./verify.js";
-import { stripIntegrity } from "./profile.js";
+import { stripIntegrity, verifyAgentEffectRecord } from "./profile.js";
 import { verifyCrossRecords } from "./cross-verify.js";
 
 describe("agent-effect JCS vectors", () => {
@@ -35,6 +35,7 @@ describe("agent-effect JCS vectors", () => {
       "reject-14-record-kind-null",
       "reject-15-approval-record-decision-none",
       "reject-16-sequence-number-unsafe-integer",
+      "reject-17-lone-surrogate",
     ]);
   });
 
@@ -161,5 +162,48 @@ describe("jcs basics", () => {
   });
   it("rejects non-finite numbers", () => {
     expect(() => canonicalize(Number.NaN)).toThrow(/JCS/);
+  });
+  it("throws on a lone high surrogate", () => {
+    expect(() => canonicalize("\uD800")).toThrow();
+  });
+  it("throws on a lone low surrogate inside a string", () => {
+    expect(() => canonicalize("a\uDC00b")).toThrow();
+  });
+  it("accepts a well-formed surrogate pair (U+1F600)", () => {
+    expect(canonicalize("\uD83D\uDE00")).toBe(JSON.stringify("\uD83D\uDE00"));
+  });
+});
+
+describe("profile invalid_unicode", () => {
+  const base: Record<string, unknown> = {
+    schema_version: "asa.agent-effect/0.1",
+    effect_id: "e1",
+    action_digest: "sha256:deadbeef",
+    runtime_generation: 1,
+    fence_epoch: 1,
+    boundary_id: "fs-gateway",
+    stream_id: "boundary/fs-gateway",
+    outcome: "committed",
+    sequence_number: 1,
+    ts_unix_nano: "1759107600000000000",
+    approval_decision: "grant",
+    approval_id: "a1",
+  };
+
+  it("rejects a lone surrogate in a string value", () => {
+    const r = verifyAgentEffectRecord({ ...base, effect_id: "e\uD800" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe("invalid_unicode");
+  });
+
+  it("rejects a lone surrogate in a nested object key", () => {
+    const r = verifyAgentEffectRecord({ ...base, extra: { "\uD800": "x" } });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe("invalid_unicode");
+  });
+
+  it("accepts U+FFFD and well-formed pairs", () => {
+    expect(verifyAgentEffectRecord({ ...base, effect_id: "e\uFFFD" }).ok).toBe(true);
+    expect(verifyAgentEffectRecord({ ...base, effect_id: "e\uD83D\uDE00" }).ok).toBe(true);
   });
 });

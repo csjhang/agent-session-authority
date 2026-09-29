@@ -46,8 +46,6 @@
       "duplicate_sequence"
     ],
     "gap_streams": [],
-    "unknown_effect_ids": [
-      "eff-a"
-    ]
+    "unknown_effect_ids": []
   }
 }

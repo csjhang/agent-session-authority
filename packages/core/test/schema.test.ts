@@ -114,3 +114,18 @@ describe("validate_json schema-walk and Object.hasOwn", () => {
     expect(errs.some((e) => e.includes("/constructor") && /missing|required/i.test(e))).toBe(true);
   });
 });
+
+describe("validate_json RFC 6901 pointer escape", () => {
+  it("escapes / as ~1 and ~ as ~0 in error paths", () => {
+    const schema = {
+      type: "object",
+      properties: {
+        "a/b": { type: "string" },
+        "c~d": { type: "string" },
+      },
+    };
+    const errs = validate_json(schema, { "a/b": 1, "c~d": 2 });
+    expect(errs.some((e) => e.startsWith("/a~1b"))).toBe(true);
+    expect(errs.some((e) => e.startsWith("/c~0d"))).toBe(true);
+  });
+});

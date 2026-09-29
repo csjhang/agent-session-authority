@@ -1,4 +1,5 @@
 /** Shared rules for asa.agent-effect/0.1 offline verify. */
+import { containsLoneSurrogate } from "./jcs.js";
 
 export const SCHEMA_VERSION = "asa.agent-effect/0.1";
 
@@ -31,7 +32,8 @@ export type RejectCode =
   | "bad_record_kind"
   | "numeric_ts_unix_nano"
   | "bad_ts_unix_nano"
-  | "integrity_in_hashed_form";
+  | "integrity_in_hashed_form"
+  | "invalid_unicode";
 
 export interface VerifyOk {
   ok: true;
@@ -72,6 +74,17 @@ function isNonNegativeSafeInteger(n: unknown): n is number {
   return typeof n === "number" && Number.isSafeInteger(n) && n >= 0;
 }
 
+function recordHasLoneSurrogate(value: unknown): boolean {
+  if (typeof value === "string") return containsLoneSurrogate(value);
+  if (Array.isArray(value)) return value.some(recordHasLoneSurrogate);
+  if (value !== null && typeof value === "object") {
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (containsLoneSurrogate(k) || recordHasLoneSurrogate(v)) return true;
+    }
+  }
+  return false;
+}
+
 export function verifyAgentEffectRecord(
   raw: unknown,
   opts: { hashed_form?: unknown } = {},
@@ -80,6 +93,14 @@ export function verifyAgentEffectRecord(
     return { ok: false, code: "not_object", message: "record must be a JSON object" };
   }
   const record = raw as Record<string, unknown>;
+
+  if (recordHasLoneSurrogate(record)) {
+    return {
+      ok: false,
+      code: "invalid_unicode",
+      message: "record contains a lone UTF-16 surrogate in a key or string value",
+    };
+  }
 
   if (record.schema_version !== SCHEMA_VERSION) {
     return {

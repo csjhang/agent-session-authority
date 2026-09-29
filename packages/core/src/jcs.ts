@@ -1,10 +1,29 @@
 /**
  * Minimal RFC 8785 JSON Canonicalization Scheme (JCS).
  * Enough for object/array/string/number/bool/null agent-effect fixtures.
- * Not a full Unicode edge-case suite; vectors stay in the BMP / ASCII.
+ * Lone UTF-16 surrogates are rejected (they would otherwise UTF-8 as U+FFFD
+ * and collide with a real U+FFFD in action_digest).
  */
 
+/** True if `s` contains a UTF-16 lone surrogate (high without low, or low without high). */
+export function containsLoneSurrogate(s: string): boolean {
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c >= 0xd800 && c <= 0xdbff) {
+      const next = i + 1 < s.length ? s.charCodeAt(i + 1) : -1;
+      if (next < 0xdc00 || next > 0xdfff) return true;
+      i++;
+    } else if (c >= 0xdc00 && c <= 0xdfff) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function escapeString(s: string): string {
+  if (containsLoneSurrogate(s)) {
+    throw new Error("JCS: lone surrogate is not permitted");
+  }
   let out = '"';
   for (let i = 0; i < s.length; i++) {
     const c = s.charCodeAt(i);
