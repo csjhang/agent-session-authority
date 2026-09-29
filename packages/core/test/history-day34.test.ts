@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   HistoryValidationError,
+  format_unix_nano_decimal,
   parse_history_jsonl,
   serialize_history_jsonl,
   type HistoryEvent,
@@ -93,6 +94,75 @@ describe("Day 3-4 history parse / validate", () => {
     const text = `#header\n\n${valid_jsonl}\n# trailer\n`;
     const events = parse_history_jsonl(text, { warn_unknown_vocab: false });
     expect(events).toHaveLength(3);
+  });
+});
+
+describe("ts_unix_nano decimal string", () => {
+  // Strictly greater than Number.MAX_SAFE_INTEGER (9007199254740991)
+  const ABOVE_SAFE = "9007199254740993";
+  // Realistic ~2026 unix nano (~1.7e18)
+  const REALISTIC_NANO = "1757066400000000000";
+
+  it("round-trips a value > Number.MAX_SAFE_INTEGER unchanged as string", () => {
+    expect(BigInt(ABOVE_SAFE) > BigInt(Number.MAX_SAFE_INTEGER)).toBe(true);
+    const line = JSON.stringify({
+      seq: 1,
+      kind: "observe",
+      op: "generation.observe",
+      ts: "2026-09-05T10:00:00Z",
+      ts_unix_nano: ABOVE_SAFE,
+    });
+    const events = parse_history_jsonl(line + "\n", { warn_unknown_vocab: false });
+    expect(events[0]!.ts_unix_nano).toBe(ABOVE_SAFE);
+    expect(typeof events[0]!.ts_unix_nano).toBe("string");
+
+    const again = parse_history_jsonl(serialize_history_jsonl(events), {
+      warn_unknown_vocab: false,
+    });
+    expect(again[0]!.ts_unix_nano).toBe(ABOVE_SAFE);
+    // Serialized JSON must keep quotes (string), not a bare number
+    expect(serialize_history_jsonl(events)).toContain(`"ts_unix_nano":"${ABOVE_SAFE}"`);
+  });
+
+  it("round-trips a realistic ~1.7e18 nano decimal string", () => {
+    expect(BigInt(REALISTIC_NANO) > BigInt(Number.MAX_SAFE_INTEGER)).toBe(true);
+    const line = `{"seq":1,"kind":"ok","op":"lease.acquire","ts_unix_nano":"${REALISTIC_NANO}"}`;
+    const events = parse_history_jsonl(line + "\n", { warn_unknown_vocab: false });
+    expect(events[0]!.ts_unix_nano).toBe(REALISTIC_NANO);
+    expect(parse_history_jsonl(serialize_history_jsonl(events), { warn_unknown_vocab: false })[0]!.ts_unix_nano).toBe(
+      REALISTIC_NANO,
+    );
+  });
+
+  it("rejects numeric ts_unix_nano (JSON number type)", () => {
+    // Craft JSON with a bare number — even a "safe" one must be rejected by type
+    const line = '{"seq":1,"kind":"ok","op":"lease.acquire","ts_unix_nano":12345}';
+    expect(() => parse_history_jsonl(line + "\n")).toThrow(HistoryValidationError);
+    expect(() => parse_history_jsonl(line + "\n")).toThrow(/ts_unix_nano must be a decimal digit string/);
+  });
+
+  it("rejects float / scientific-notation string forms", () => {
+    expect(() =>
+      parse_history_jsonl('{"seq":1,"kind":"ok","ts_unix_nano":"1.5"}\n'),
+    ).toThrow(/ts_unix_nano/);
+    expect(() =>
+      parse_history_jsonl('{"seq":1,"kind":"ok","ts_unix_nano":"1e18"}\n'),
+    ).toThrow(/ts_unix_nano/);
+  });
+
+  it("allows events without ts_unix_nano (backward compatible)", () => {
+    const events = parse_history_jsonl(
+      '{"seq":1,"kind":"ok","op":"lease.acquire","ts":"2026-09-05T10:00:00Z"}\n',
+      { warn_unknown_vocab: false },
+    );
+    expect(events[0]!.ts_unix_nano).toBeUndefined();
+  });
+
+  it("format_unix_nano_decimal returns digit string from Date.now ms * 1e6", () => {
+    const s = format_unix_nano_decimal(1757066400000);
+    expect(s).toBe("1757066400000000000");
+    expect(/^[0-9]+$/.test(s)).toBe(true);
+    expect(BigInt(s) > BigInt(Number.MAX_SAFE_INTEGER)).toBe(true);
   });
 });
 

@@ -63,6 +63,8 @@ export type FaultName = KnownFaultName | (string & {});
 export interface HistoryEvent {
   seq: number;
   ts?: string;
+  /** Unix nanoseconds as decimal string (not JSON number). See format_unix_nano_decimal. */
+  ts_unix_nano?: string;
   kind: EventKind;
   op?: OpName;
   fault?: FaultName;
@@ -160,6 +162,26 @@ function is_finite_number(v: unknown): v is number {
   return typeof v === "number" && Number.isFinite(v);
 }
 
+/** Decimal-digit string for unix nanoseconds (and any integer that may exceed 2^53-1). */
+export const TS_UNIX_NANO_PATTERN = /^[0-9]+$/;
+
+/**
+ * Format wall time as a decimal-string unix nanosecond timestamp.
+ * Uses `BigInt(ms) * 1_000_000n` from `Date.now()` (or the given epoch ms), so precision
+ * is milliseconds expanded into nanosecond units — not true OS/clock nanosecond resolution.
+ * Always returns a string so JSON never encodes the value as a Number (JS rounds past 2^53-1).
+ */
+export function format_unix_nano_decimal(epoch_ms: number = Date.now()): string {
+  if (!Number.isFinite(epoch_ms)) {
+    throw new HistoryValidationError("format_unix_nano_decimal: epoch_ms must be finite");
+  }
+  return String(BigInt(Math.trunc(epoch_ms)) * 1_000_000n);
+}
+
+export function is_ts_unix_nano_string(v: unknown): v is string {
+  return typeof v === "string" && TS_UNIX_NANO_PATTERN.test(v);
+}
+
 /**
  * Validate a single parsed object as a HistoryEvent.
  * Rejects missing/invalid required fields and unknown kinds.
@@ -230,6 +252,15 @@ export function validate_history_event(
     if (typeof raw.attrs !== "object" || Array.isArray(raw.attrs)) {
       throw new HistoryValidationError(
         `history JSONL attrs must be an object at line ${line_no}`,
+      );
+    }
+  }
+
+  if ("ts_unix_nano" in raw && raw.ts_unix_nano !== undefined && raw.ts_unix_nano !== null) {
+    // Must be a JSON string of decimal digits — never a JSON number (JS rounds > 2^53-1).
+    if (typeof raw.ts_unix_nano !== "string" || !TS_UNIX_NANO_PATTERN.test(raw.ts_unix_nano)) {
+      throw new HistoryValidationError(
+        `history JSONL ts_unix_nano must be a decimal digit string matching /^[0-9]+$/ at line ${line_no} (JSON numbers are rejected; values may exceed Number.MAX_SAFE_INTEGER)`,
       );
     }
   }
