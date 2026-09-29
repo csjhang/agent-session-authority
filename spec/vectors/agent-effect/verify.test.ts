@@ -29,6 +29,12 @@ describe("agent-effect JCS vectors", () => {
       "reject-08-record-kind-wrong-case",
       "reject-09-approval-missing-approval-id",
       "reject-10-approval-outcome-committed",
+      "reject-11-approval-id-empty-string",
+      "reject-12-approval-id-null",
+      "reject-13-approval-runtime-generation-null",
+      "reject-14-record-kind-null",
+      "reject-15-approval-record-decision-none",
+      "reject-16-sequence-number-unsafe-integer",
     ]);
   });
 
@@ -139,9 +145,11 @@ describe("agent-effect cross-record permutation invariance", () => {
           ? permutations(v.records)
           : Array.from({ length: 200 }, (_, i) => shuffle(v.records, mulberry32(0xae00 + i)));
       for (const recs of variants) {
-        expect(summary(recs, options), `order=${JSON.stringify(recs.map((r, i) => i))}`).toEqual(
-          baseline,
-        );
+        const originalIndices = recs.map((r) => v.records.indexOf(r));
+        expect(
+          summary(recs, options),
+          `order=${JSON.stringify(originalIndices)}`,
+        ).toEqual(baseline);
       }
     });
   }

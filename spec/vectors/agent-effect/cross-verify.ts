@@ -195,39 +195,54 @@ function compareGlobal(a: IndexedRecord, b: IndexedRecord): number {
   return a.index - b.index;
 }
 
+/**
+ * Whether `a` is prior-or-same relative to commit `c`.
+ * Same stream: sequence_number ≤. Different streams: order_ts only (equal = prior).
+ * Does NOT use stream_id / sequence_number / JCS for cross-stream priorness —
+ * those belong only to pickLatest among candidates already known to be prior.
+ */
 function isPriorOrSame(a: IndexedRecord, c: IndexedRecord): boolean {
   if (a.index === c.index) return true;
-  return compareGlobal(a, c) <= 0;
+  if (a.fields.stream_id === c.fields.stream_id) {
+    return a.fields.sequence_number <= c.fields.sequence_number;
+  }
+  return a.order_ts <= c.order_ts;
 }
 
 /**
- * Latest prior decision. Fail-closed on grant+deny at the same global order key:
- * returns the deny and sets ambiguous=true.
+ * Latest among prior candidates. Fail-closed only when stream-heads at max
+ * order_ts disagree (both grant and deny). Per stream, only the largest
+ * sequence_number at that order_ts is the head — superseded same-stream
+ * decisions do not participate in conflict.
+ * Global sort (order_ts, stream_id, sequence_number, JCS) picks the latest
+ * among heads already known to be prior — not for deciding priorness.
  */
 function pickLatest(
   recs: IndexedRecord[],
 ): { latest: IndexedRecord | undefined; ambiguous: boolean } {
   if (recs.length === 0) return { latest: undefined, ambiguous: false };
-  const sorted = [...recs].sort(compareGlobal);
-  const last = sorted[sorted.length - 1]!;
-  const maxTs = last.order_ts;
-  const atMax = sorted.filter((r) => r.order_ts === maxTs);
-  // Same-stream ties are broken by sequence_number (already in compareGlobal).
-  // Cross-stream grant+deny at the same order_ts → fail-closed ambiguous.
-  const streams = new Set(atMax.map((r) => r.fields.stream_id));
-  if (streams.size > 1) {
-    const hasGrant = atMax.some((r) => isGrant(r.fields));
-    const hasDeny = atMax.some((r) => isDeny(r.fields));
-    if (hasGrant && hasDeny) {
-      const deny = atMax.filter((r) => isDeny(r.fields)).sort(compareGlobal).pop()!;
-      return { latest: deny, ambiguous: true };
+  let maxTs = recs[0]!.order_ts;
+  for (const r of recs) {
+    if (r.order_ts > maxTs) maxTs = r.order_ts;
+  }
+  const atMax = recs.filter((r) => r.order_ts === maxTs);
+  // Per-stream head: largest sequence_number at max order_ts.
+  const headByStream = new Map<string, IndexedRecord>();
+  for (const r of atMax) {
+    const cur = headByStream.get(r.fields.stream_id);
+    if (!cur || r.fields.sequence_number > cur.fields.sequence_number) {
+      headByStream.set(r.fields.stream_id, r);
     }
   }
-  return { latest: last, ambiguous: false };
-}
-
-function claimsGrantUse(f: AgentEffectFields, approvalId: string): boolean {
-  return f.approval_decision === "grant" && f.approval_id === approvalId;
+  const heads = [...headByStream.values()];
+  const hasGrant = heads.some((r) => isGrant(r.fields));
+  const hasDeny = heads.some((r) => isDeny(r.fields));
+  if (hasGrant && hasDeny) {
+    const deny = heads.filter((r) => isDeny(r.fields)).sort(compareGlobal).pop()!;
+    return { latest: deny, ambiguous: true };
+  }
+  const sorted = [...heads].sort(compareGlobal);
+  return { latest: sorted[sorted.length - 1], ambiguous: false };
 }
 
 /**
@@ -479,7 +494,7 @@ export function verifyCrossRecords(
         continue;
       }
 
-      // Loose claim-only: allow when commit claims this approval_id (or resolved from prior).
+      // Effect-level revoke check order unchanged (before loose eligibility).
       if (latestEffect && isDeny(latestEffect.fields)) {
         violations.push({
           code: "committed_after_deny",
@@ -488,11 +503,18 @@ export function verifyCrossRecords(
           approval_id: approvalId,
           indices: [latestEffect.index, c.index],
         });
-      } else if (!hasApprovalId(c.fields) && !claimsGrantUse(c.fields, approvalId)) {
-        // Resolved id from prior decisions but those weren't grants (shouldn't reach here often)
+      }
+
+      // Loose path ONLY for legacy (no record_kind) + approval_decision===grant.
+      // record_kind="effect", decision none/deny/missing, etc. → unauthorized_effect.
+      const looseEligible =
+        c.fields.record_kind === undefined &&
+        c.fields.approval_decision === "grant" &&
+        hasApprovalId(c.fields);
+      if (!looseEligible) {
         violations.push({
           code: "unauthorized_effect",
-          message: `committed effect_id=${c.fields.effect_id} has no prior grant for approval_id=${approvalId}`,
+          message: `committed effect_id=${c.fields.effect_id} has no prior grant for approval_id=${approvalId} (loose mode requires legacy format with approval_decision=grant)`,
           effect_id: c.fields.effect_id,
           approval_id: approvalId,
           indices: [c.index],
@@ -572,7 +594,11 @@ export function verifyCrossRecords(
       });
     }
 
-    // Generation binding: independent issuance ONLY (never committed self-declare).
+    // Generation binding: independent issuance wins for the issuance check.
+    // Separately: commit self-declared approval_runtime_generation ≠ own
+    // runtime_generation is ALWAYS cross_generation_reuse (stricter only).
+    // Report cross_generation_reuse at most once per commit.
+    let reportedCrossGen = false;
     const gen = issuanceGeneration(bindingGrant);
     if (gen !== c.fields.runtime_generation) {
       violations.push({
@@ -581,6 +607,20 @@ export function verifyCrossRecords(
         effect_id: c.fields.effect_id,
         approval_id: approvalId,
         indices: [bindingGrant.index, c.index],
+      });
+      reportedCrossGen = true;
+    }
+    if (
+      !reportedCrossGen &&
+      typeof c.fields.approval_runtime_generation === "number" &&
+      c.fields.approval_runtime_generation !== c.fields.runtime_generation
+    ) {
+      violations.push({
+        code: "cross_generation_reuse",
+        message: `self-declared approval_runtime_generation=${c.fields.approval_runtime_generation} != effect runtime_generation=${c.fields.runtime_generation} for effect_id=${c.fields.effect_id} approval_id=${approvalId}`,
+        effect_id: c.fields.effect_id,
+        approval_id: approvalId,
+        indices: [c.index],
       });
     }
   }

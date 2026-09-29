@@ -220,20 +220,28 @@ describe("multi-seed generative enforce sequences", () => {
                 failures.push(`seed=${seed} tamper ${field} at record ${ci} not detected ops=${ops.join(",")}`);
               }
             }
-            // Tamper approval_id across effects when another approval exists.
+            // Approval-swap tamper: find an approval grant for a different effect_id,
+            // replace target commit's approval_id AND approval_runtime_generation.
+            // Skip (do not count) when no such record exists.
             const otherAppr = records.find(
-              (r, i) =>
-                i !== ci &&
+              (r) =>
+                r.record_kind === "approval" &&
+                r.approval_decision === "grant" &&
                 typeof r.approval_id === "string" &&
-                r.approval_id !== records[ci]!.approval_id,
+                typeof r.effect_id === "string" &&
+                r.effect_id !== records[ci]!.effect_id,
             );
             if (otherAppr && records[ci]!.approval_id) {
               const swapped = records.map((r) => ({ ...r }));
-              swapped[ci] = { ...swapped[ci]!, approval_id: otherAppr.approval_id };
+              swapped[ci] = {
+                ...swapped[ci]!,
+                approval_id: otherAppr.approval_id,
+                approval_runtime_generation: otherAppr.approval_runtime_generation,
+              };
               tamperChecks += 1;
               if (verifyCrossRecords(swapped, crossOpts).ok) {
                 failures.push(
-                  `seed=${seed} tamper approval_id at record ${ci} not detected ops=${ops.join(",")}`,
+                  `seed=${seed} tamper approval-swap at record ${ci} not detected ops=${ops.join(",")}`,
                 );
               }
             }

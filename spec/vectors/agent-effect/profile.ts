@@ -68,8 +68,8 @@ export function stripIntegrity(record: Record<string, unknown>): Record<string, 
   return out;
 }
 
-function isNonNegativeInteger(n: unknown): n is number {
-  return typeof n === "number" && Number.isFinite(n) && Number.isInteger(n) && n >= 0;
+function isNonNegativeSafeInteger(n: unknown): n is number {
+  return typeof n === "number" && Number.isSafeInteger(n) && n >= 0;
 }
 
 export function verifyAgentEffectRecord(
@@ -110,11 +110,11 @@ export function verifyAgentEffectRecord(
     if (!(key in record) || record[key] === undefined || record[key] === null) {
       return { ok: false, code: "missing_required", message: `missing required field ${key}` };
     }
-    if (!isNonNegativeInteger(record[key])) {
+    if (!isNonNegativeSafeInteger(record[key])) {
       return {
         ok: false,
         code: "bad_type",
-        message: `${key} must be a finite non-negative integer`,
+        message: `${key} must be a non-negative safe integer`,
       };
     }
   }
@@ -151,28 +151,28 @@ export function verifyAgentEffectRecord(
     }
   }
 
-  if ("approval_id" in record && record.approval_id !== undefined && record.approval_id !== null) {
-    if (typeof record.approval_id !== "string") {
-      return { ok: false, code: "bad_type", message: "approval_id must be a string" };
-    }
-  }
-
-  if (
-    "approval_runtime_generation" in record &&
-    record.approval_runtime_generation !== undefined &&
-    record.approval_runtime_generation !== null
-  ) {
-    if (!isNonNegativeInteger(record.approval_runtime_generation)) {
+  if ("approval_id" in record) {
+    if (typeof record.approval_id !== "string" || record.approval_id.length === 0) {
       return {
         ok: false,
         code: "bad_type",
-        message: "approval_runtime_generation must be a finite non-negative integer",
+        message: "approval_id must be a non-empty string when present",
       };
     }
   }
 
-  if ("record_kind" in record && record.record_kind !== undefined && record.record_kind !== null) {
-    if (typeof record.record_kind !== "string" || !RECORD_KINDS.has(record.record_kind)) {
+  if ("approval_runtime_generation" in record) {
+    if (!isNonNegativeSafeInteger(record.approval_runtime_generation)) {
+      return {
+        ok: false,
+        code: "bad_type",
+        message: "approval_runtime_generation must be a non-negative safe integer when present",
+      };
+    }
+  }
+
+  if ("record_kind" in record) {
+    if (typeof record.record_kind !== "string" || !RECORD_KINDS.has(record.record_kind as string)) {
       return {
         ok: false,
         code: "bad_record_kind",
@@ -194,6 +194,13 @@ export function verifyAgentEffectRecord(
           ok: false,
           code: "bad_record_kind",
           message: 'record_kind="approval" requires non-empty approval_id',
+        };
+      }
+      if (record.approval_decision !== "grant" && record.approval_decision !== "deny") {
+        return {
+          ok: false,
+          code: "bad_record_kind",
+          message: 'record_kind="approval" requires approval_decision "grant"|"deny"',
         };
       }
     }

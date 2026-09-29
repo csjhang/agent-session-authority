@@ -33,15 +33,15 @@ One JSON object per effect-boundary emission (one intended effect attempt / rece
 | `action_digest` | string | **MUST** | `ActionDigest` / AUTH-02 / AUTH-05 | Unambiguous digest of the canonical `ActionBinding` that was (or was not) approved. |
 | `approval_decision` | string enum | **SHOULD** | `ApprovalDecision.decision` | `"grant"` \| `"deny"` \| `"none"`. Use `"none"` when the boundary recorded no approval object (still emit the field when the producer knows that fact). |
 | `approval_id` | string | **SHOULD** | approval binding | Opaque id tying this receipt to a stored approval / permission decision. Omit only when `approval_decision` is `"none"` and no id exists. |
-| `approval_runtime_generation` | number (finite, ≥ 0) | **SHOULD** | approval issuance generation | Generation **when the referenced approval was issued**. Distinct from `runtime_generation` (generation at the effect boundary for this record). When present, cross-record generation binding uses this value; when absent, the verifier uses a separate issuance record if one exists, otherwise soft-reports `approval_generation_unverifiable`. |
+| `approval_runtime_generation` | non-negative safe integer | **SHOULD** | approval issuance generation | Generation **when the referenced approval was issued**. Distinct from `runtime_generation` (generation at the effect boundary for this record). With independent issuance the issuance record wins; a value on the commit can only make the check **stricter** (`approval_runtime_generation` ≠ own `runtime_generation` → `cross_generation_reuse`). When absent and no independent issuance exists → soft `approval_generation_unverifiable`. |
 | `approver` | string | **SHOULD** | `ApprovalDecision.approver` | Who granted/denied, when known. |
-| `runtime_generation` | number (finite, ≥ 0) | **MUST** | `RuntimeGeneration` / AUTH-01 | Generation at the boundary when the effect was accepted or rejected. |
-| `fence_epoch` | number (finite, ≥ 0) | **MUST** | `FenceEpoch` / AUTH-03–05 | Fence token epoch verified (or refused) at the gateway. |
+| `runtime_generation` | non-negative safe integer | **MUST** | `RuntimeGeneration` / AUTH-01 | Generation at the boundary when the effect was accepted or rejected. |
+| `fence_epoch` | non-negative safe integer | **MUST** | `FenceEpoch` / AUTH-03–05 | Fence token epoch verified (or refused) at the gateway. |
 | `boundary_id` | string | **MUST** | `EffectReceipt.boundary_id` | Which effect boundary emitted this record. |
 | `outcome` | string enum | **MUST** | `EffectReceipt.outcome` / AUTH-06 | `"committed"` \| `"rejected"` \| `"failed"` \| `"unknown"`. **`unknown` is first-class** — crash / lost reply / truncated stream MUST NOT be rewritten as success. `fail` ≠ `info` in history JSONL; same honesty here. |
 | `external_reference` | string \| null | **SHOULD** | `EffectReceipt.external_reference` | Pointer to an external system receipt (ticket id, FS path witness, API response id). Use JSON `null` when none. |
 | `stream_id` | string | **MUST** | OTEP-style source stream | Id of the **source-assigned** stream owned by this boundary (or its AuditLogger). Different producers MUST NOT share a `stream_id`. |
-| `sequence_number` | number (finite, ≥ 0) | **MUST** | OTEP-style `sequence.number` | Monotonic sequence **assigned by the producer** inside `stream_id`. Arrival order at a collector is **not** causal order. |
+| `sequence_number` | non-negative safe integer | **MUST** | OTEP-style `sequence.number` | Monotonic sequence **assigned by the producer** inside `stream_id`. Arrival order at a collector is **not** causal order. |
 | `ts` | string (ISO-8601) | **SHOULD** | history `ts` | Wall-clock hint only; not causal order. |
 | `ts_unix_nano` | string (decimal digits) | **MUST** (this profile) | history `ts_unix_nano` | Unix time in nanoseconds as a **decimal string** matching `/^[0-9]+$/`. **MUST NOT** be a JSON number (JS `JSON.parse` rounds above `2^53-1`). |
 
@@ -54,7 +54,7 @@ Optional but useful (warn-or-allow if present with wrong type):
 | `scope_id` | string | **SHOULD** | Lease / action scope. |
 | `action_type` / `target` | string | **SHOULD** | Human-debug; digest remains authoritative. |
 | `policy_version` | string | **MAY** | Binding policy version. |
-| `record_kind` | string enum | **MAY** | `"effect"` (default when omitted) \| `"approval"`. Sink `grant()` issuance emits `"approval"`; accept/reject receipts always emit `"effect"`. Cross-verify: `record_kind="effect"` MUST NOT be treated as approval by `isApprovalRecord` even if approval fields are present; legacy issuance only when `record_kind` is absent. |
+| `record_kind` | string enum | **MAY** (authority-relevant) | `"effect"` (default when omitted) \| `"approval"`. **Invalid values always reject** (`bad_record_kind`). Changes authority judgment: `record_kind="effect"` MUST NOT be treated as approval issuance even if approval fields are present; legacy issuance only when `record_kind` is absent. `record_kind="approval"` requires `approval_decision` `"grant"`\|`"deny"`, non-empty `approval_id`, and must not use `outcome="committed"`. Sink `grant()` emits `"approval"`; accept/reject receipts emit `"effect"`. |
 
 ### Integrity / envelope fields (not authority content)
 
@@ -105,7 +105,7 @@ Witness data must not appear inside the bytes being witnessed. If a collector la
 3. Every **MUST** authority field above MUST be present with the declared type.
 4. `outcome` MUST be one of the four enum values (including `"unknown"`).
 5. `ts_unix_nano` MUST be a JSON **string** matching `/^[0-9]+$/` — reject JSON number, float string, or scientific notation.
-6. `runtime_generation` and `fence_epoch` MUST be finite JSON numbers ≥ 0 (these stay numbers; only integers that may exceed `2^53-1` use decimal strings).
+6. `runtime_generation`, `fence_epoch`, and `sequence_number` MUST be non-negative **safe integers** (`Number.isSafeInteger` / ≤ `2^53-1`). When present, `approval_runtime_generation` MUST likewise be a non-negative safe integer (including rejecting JSON `null`). When present, `approval_id` MUST be a non-empty string (reject `""` and `null`). These stay JSON numbers; only integers that may exceed `2^53-1` use decimal strings (e.g. `ts_unix_nano`).
 7. Build hashed form by deep-cloning the object and deleting exclusion-set keys at the **top level**.
 8. Hashed form MUST NOT contain any exclusion-set key (reject `integrity_in_hashed_form` if a provided `hashed_form` object still includes them).
 9. JCS(hashed form) MUST be stable cross-implementation; vectors pin expected JCS UTF-8 bytes (as hex of SHA-256, and/or the exact JCS string for small fixtures).
@@ -159,16 +159,16 @@ Given a **set** of `AgentEffectRecord` objects (JSONL lines or a JSON array), th
 
 **Indexing:** approvals are keyed by `approval_id`, not by `effect_id`. **Independent issuance** is only: `record_kind=approval`, or legacy (absent `record_kind`) **non-committed** decision+id. `outcome=committed` and `record_kind=effect` **never** enter decision / issuance candidate sets — including when a commit self-declares `approval_decision=grant`. Self-declared approval fields on a committed record are a **claim of use**, not issuance.
 
-**Loose vs strict:** default (loose) allows a claim-only commit (self-declared `approval_id`) with soft `approval_generation_unverifiable`. `options.requireIssuance=true` (strict) rejects claim-only commits as `unauthorized_effect`.
+**Loose vs strict:** default (loose) accepts **only** legacy-format (absent `record_kind`) commits that self-claim `approval_decision="grant"` with an `approval_id`, soft-reporting `approval_generation_unverifiable`. Everything else without independent issuance — including `record_kind="effect"`, `approval_decision` `"none"`/`"deny"`/missing — → `unauthorized_effect`. `options.requireIssuance=true` (strict) rejects all claim-only commits as `unauthorized_effect`.
 
-1. **Committed needs approval** — every `outcome=committed` must resolve to a prior **independent issuance** grant for its `approval_id`, or (loose only) a self-declared claim. If the commit omits approval fields, recover `approval_id` only from prior independent decisions on the **same** `effect_id`. Otherwise → `unauthorized_effect` (always under `requireIssuance`).
+1. **Committed needs approval** — every `outcome=committed` must resolve to a prior **independent issuance** grant for its `approval_id`, or (loose only) a legacy `approval_decision=grant` self-claim. If the commit omits approval fields, recover `approval_id` only from prior independent decisions on the **same** `effect_id`. Otherwise → `unauthorized_effect` (always under `requireIssuance`).
 2. **Action digest consistency** — among **committed effects** and **approval records** sharing an `effect_id`, digests must match; the approval-bound digest must equal the committed effect's digest. A `rejected`/`failed` record with a different digest → soft `rejected_digest_variant` (does **not** flip `ok`).
-3. **Generation binding** — issuance generation comes from **independent issuance only** (`approval_runtime_generation` on the issuance record, else its `runtime_generation`). A committed record's self-declared `approval_runtime_generation` must **not** override independent evidence. Mismatch with landing `runtime_generation` → `cross_generation_reuse`. No independent issuance → soft `approval_generation_unverifiable`; if the claim nonetheless self-declares a mismatched `approval_runtime_generation` → also hard `cross_generation_reuse`.
+3. **Generation binding** — issuance generation comes from **independent issuance** (`approval_runtime_generation` on the issuance record, else its `runtime_generation`); mismatch with landing `runtime_generation` → `cross_generation_reuse`. A committed record's self-declared `approval_runtime_generation` must **not** override independent evidence, but **can only make the check stricter**: if present and ≠ the commit's own `runtime_generation` → always `cross_generation_reuse` (whether or not independent issuance exists). Report `cross_generation_reuse` at most once per commit. No independent issuance → soft `approval_generation_unverifiable` (loose legacy grant path).
 4. **Fence monotonicity** —
    - **4a (stream):** within one `stream_id`, `fence_epoch` must not go backwards when ordered by `sequence_number`, counting **only committed + approval** records. A `rejected`/`failed` (non-approval) record with a lower `fence_epoch` than the prior hard fence → soft `rejected_stale_fence`.
    - **4b (binding):** a committed effect's `fence_epoch` must not be lower than its approval issuance's `fence_epoch` → hard `effect_fence_before_approval`.
 5. **Unauthorized / revoked / deny / bind / reuse / duplicate commit** —
-   - no resolvable prior independent grant (strict, or loose without claim) → `unauthorized_effect`;
+   - no resolvable prior independent grant (strict, or loose without a legacy `approval_decision=grant` claim) → `unauthorized_effect`;
    - **latest prior independent decision wins** for the same `approval_id`: latest `deny` then commit → `revoked_approval_used` (a commit cannot “reclaim” a revoked id by self-declaring grant);
    - effect-level latest independent decision is `deny` (possibly a different `approval_id`) while commit claims another id → `committed_after_deny` (fresh grant after deny is allowed — see `cross-pass-10-deny-then-fresh-grant`);
    - independent grant's `effect_id` ≠ committed `effect_id` → `approval_effect_mismatch`;
@@ -179,11 +179,18 @@ Given a **set** of `AgentEffectRecord` objects (JSONL lines or a JSON array), th
 
 ### Ordering (`order_ts`)
 
-Within one `stream_id`, records are ordered by `sequence_number`. Each stream assigns a monotonic-max **`order_ts`**: walking by sequence, `order_ts = max(prior_order_ts, ts_unix_nano)`. A raw `ts_unix_nano` regression within the stream → soft `stream_ts_regression` (does **not** flip `ok`). Global prior/later uses `(order_ts, stream_id, sequence_number, JCS)`. Cross-stream grant+deny at the **same** `order_ts` → soft `ambiguous_decision_order` and **fail-closed** as deny. `ts_unix_nano` remains a reference clock only — not causal order across producers.
+**Whether prior** and **pick latest** are separate.
+
+Within one `stream_id`, records are ordered by `sequence_number`. Each stream assigns a monotonic-max **`order_ts`**: walking by sequence, `order_ts = max(prior_order_ts, ts_unix_nano)`. A raw `ts_unix_nano` regression within the stream → soft `stream_ts_regression` (does **not** flip `ok`).
+
+- **Priorness:** same stream → compare `sequence_number`; different streams → compare **only** `order_ts` (equal counts as prior). Cross-stream priorness MUST NOT use `stream_id`, `sequence_number`, or JCS.
+- **Pick latest** among candidates already determined prior: find max `order_ts`; per stream take the record with largest `sequence_number` at that `order_ts` (that stream's **head**). Global sort key `(order_ts, stream_id, sequence_number, JCS)` is used only to pick the latest among those heads — not to decide whether a record is prior. Fail-closed: only when stream-heads include **both** grant and deny → soft `ambiguous_decision_order` and treat as deny. Denies/grants superseded by later records on the **same** stream do not participate in conflict.
+
+`ts_unix_nano` remains a reference clock only — not causal order across producers.
 
 ### Single-record type / kind checks (profile)
 
-Optional fields when present: `approval_runtime_generation` and MUST numbers must be finite non-negative **integers**; `approval_id` must be a string. `record_kind` must be `"effect"`|`"approval"`; `record_kind=approval` requires non-empty `approval_id` and must not use `outcome=committed` → else `bad_record_kind`.
+`runtime_generation`, `fence_epoch`, `sequence_number`, and (when the key is present) `approval_runtime_generation` must be non-negative **safe integers** (`Number.isSafeInteger`); `null` on `approval_runtime_generation` → `bad_type`. When `approval_id` is present it must be a non-empty string (`""` or `null` → `bad_type`). `record_kind` when present must be `"effect"`|`"approval"` (`null` → `bad_record_kind`); `record_kind=approval` requires `approval_decision` `"grant"`|`"deny"`, non-empty `approval_id`, and must not use `outcome=committed` → else `bad_record_kind`.
 
 ### Boundary (what this does *not* prove)
 

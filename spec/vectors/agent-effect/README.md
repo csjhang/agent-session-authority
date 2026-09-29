@@ -26,7 +26,7 @@ Or: `pnpm test:agent-effect` / `pnpm verify:agent-effect`
 
 ## Single-record
 
-Reject coverage: numeric `ts_unix_nano`, missing `action_digest`, integrity key left inside claimed `hashed_form`, non-integer / wrong-type fields (`reject-04`…`07`), and `bad_record_kind` (`reject-08`…`10`).
+Reject coverage: numeric `ts_unix_nano`, missing `action_digest`, integrity key left inside claimed `hashed_form`, non-integer / wrong-type / null / empty / unsafe-integer fields (`reject-04`…`07`, `reject-11`…`13`, `reject-16`), and `bad_record_kind` (`reject-08`…`10`, `reject-14`…`15`).
 
 ## Cross-record authority
 
@@ -34,15 +34,15 @@ Reject coverage: numeric `ts_unix_nano`, missing `action_digest`, integrity key 
 
 Approvals are indexed by `approval_id` (not `effect_id`). **Independent issuance only** (`record_kind=approval`, or legacy non-committed decision+id). `outcome=committed` never counts as a decision candidate. Self-declared approval fields on a commit are a claim of use.
 
-1. Every `outcome=committed` resolves to a prior **independent** grant for its `approval_id`, or (loose) a claim-only self-declaration. Strict (`requireIssuance`) rejects claim-only → `unauthorized_effect`.
+1. Every `outcome=committed` resolves to a prior **independent** grant for its `approval_id`, or (loose only) a **legacy** (absent `record_kind`) `approval_decision=grant` self-claim. `record_kind="effect"` claims, `approval_decision` none/deny/missing without issuance → `unauthorized_effect`. Strict (`requireIssuance`) rejects all claim-only → `unauthorized_effect`.
 2. Committed + approval records for the same `effect_id` keep a consistent `action_digest`; approval digest equals effect digest. `rejected`/`failed` digest divergence → soft `rejected_digest_variant`.
-3. Issuance generation from **independent issuance only** must equal landing `runtime_generation`. Self-declared generation on the commit must not override issuance (`cross-reject-09` / `cross-reject-10`). No issuance → soft `approval_generation_unverifiable`; self-admitted mismatch → also hard `cross_generation_reuse` (`cross-reject-11`).
+3. Issuance generation from **independent issuance** must equal landing `runtime_generation`. Self-declared generation on the commit must not override issuance (`cross-reject-09` / `cross-reject-10`) but can only make the check stricter: commit `approval_runtime_generation` ≠ own `runtime_generation` → always `cross_generation_reuse` even with issuance (`cross-reject-24`). No issuance → soft `approval_generation_unverifiable`; self-admitted mismatch → also hard `cross_generation_reuse` (`cross-reject-11`).
 4. `fence_epoch` must not go backwards within a `stream_id`; effect epoch ≥ approval epoch.
 5. Latest prior independent decision wins: deny then commit same id → `revoked_approval_used` (including “reclaim on commit”). Effect-level deny (other id) → `committed_after_deny`. Grant issued for another `effect_id` → `approval_effect_mismatch`. Same `approval_id` on multiple committed effects → `approval_reused_across_effects`. Multiple commits → `duplicate_commit`. Deny then **fresh** grant then commit → pass (`cross-pass-10-deny-then-fresh-grant`).
 6. `outcome=unknown` with `record_kind`≠`approval` is listed separately; never treated as committed or failed. `record_kind=approval` issuances are omitted from the unknowns list.
 7. Duplicate `sequence_number` → hard `duplicate_sequence`; gaps → soft `sequence_gap` report (do **not** fail `ok`).
 
-Ordering: per-stream monotonic-max `order_ts`; soft `stream_ts_regression`; cross-stream grant+deny at same `order_ts` → soft `ambiguous_decision_order` + fail-closed deny. Vectors are permutation-invariant (see `verify.test.ts`).
+Ordering: **priorness** vs **pick latest** are separate. Cross-stream priorness = `order_ts` only (equal = prior; no stream_id/seq/JCS). Pick latest uses per-stream heads at max `order_ts`; fail-closed only when heads disagree grant+deny. Soft `stream_ts_regression`. Vectors are permutation-invariant (see `verify.test.ts`).
 
 Boundary: mutual consistency only — not proof that external effects happened, and not signatures / hash chains.
 
@@ -57,4 +57,4 @@ Core checkers operate on fault-probe `HistoryEvent` streams (`approval.grant`, `
 ## Cross-record limits
 
 - Sequence gaps use **adjacent differences** only (no min→max integer walk).
-- Cross-stream prior/later uses monotonic-max `order_ts` derived from `ts_unix_nano` as a reference clock only — not causal order. See the Cross-record section in the attribute draft.
+- Cross-stream priorness uses monotonic-max `order_ts` only (equal = prior); pick-latest uses stream heads. `ts_unix_nano` is a reference clock only — not causal order. See the Cross-record section in the attribute draft.
