@@ -1,0 +1,3 @@
+{"seq":1,"kind":"ok","op":"lease.acquire","actor_id":"c1","attrs":{"scope_id":"workspace","holder":"c1","fence_epoch":5,"accepted":true}}
+{"seq":2,"kind":"ok","op":"lease.acquire","actor_id":"c2","attrs":{"scope_id":"docs","holder":"c2","fence_epoch":1,"accepted":true}}
+{"seq":3,"kind":"ok","op":"effect.receipt","attrs":{"effect_id":"e1","outcome":"committed","controller":"c2","fence_epoch":1}}
