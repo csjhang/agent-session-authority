@@ -37,6 +37,8 @@ export interface CrossVectorExpected {
   gap_streams: string[];
   unknown_effect_ids: string[];
   gap_missing?: number[];
+  /** Soft report codes (approval_generation_unverifiable, …); checked when present. */
+  report_codes?: string[];
 }
 
 export interface CrossVectorFile {
@@ -112,6 +114,7 @@ export function runCrossVector(v: CrossVectorFile): { ok: boolean; detail: strin
   const wantGaps = sortedUnique(v.expected.gap_streams);
   const gotUnknowns = sortedUnique(result.unknowns.map((u) => u.effect_id));
   const wantUnknowns = sortedUnique(v.expected.unknown_effect_ids);
+  const gotReports = sortedUnique(result.reports.map((r) => r.code));
 
   const mismatches: string[] = [];
   if (result.ok !== v.expected.ok) {
@@ -137,12 +140,21 @@ export function runCrossVector(v: CrossVectorFile): { ok: boolean; detail: strin
       );
     }
   }
+  if (v.expected.report_codes) {
+    const wantReports = sortedUnique(v.expected.report_codes);
+    if (JSON.stringify(gotReports) !== JSON.stringify(wantReports)) {
+      mismatches.push(
+        `report_codes got=${gotReports.join(",") || "∅"} want=${wantReports.join(",") || "∅"}`,
+      );
+    }
+  }
 
   if (mismatches.length > 0) {
     const violMsg = result.violations.map((x) => `${x.code}:${x.message}`).join("; ");
+    const reportMsg = result.reports.map((x) => `${x.code}:${x.message}`).join("; ");
     return {
       ok: false,
-      detail: `${v.id}: ${mismatches.join(" | ")}${violMsg ? ` | detail=${violMsg}` : ""}`,
+      detail: `${v.id}: ${mismatches.join(" | ")}${violMsg ? ` | detail=${violMsg}` : ""}${reportMsg ? ` | reports=${reportMsg}` : ""}`,
     };
   }
 
@@ -150,7 +162,7 @@ export function runCrossVector(v: CrossVectorFile): { ok: boolean; detail: strin
     v.expect === "reject"
       ? `reject [${gotCodes.join(",")}]`
       : v.expect === "report"
-        ? `report gaps=${gotGaps.join(",") || "∅"} unknowns=${gotUnknowns.join(",") || "∅"}`
+        ? `report gaps=${gotGaps.join(",") || "∅"} unknowns=${gotUnknowns.join(",") || "∅"} reports=${gotReports.join(",") || "∅"}`
         : "pass";
   return { ok: true, detail: `${v.id}: ${tag}` };
 }

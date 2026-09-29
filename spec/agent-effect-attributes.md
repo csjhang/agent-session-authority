@@ -33,6 +33,7 @@ One JSON object per effect-boundary emission (one intended effect attempt / rece
 | `action_digest` | string | **MUST** | `ActionDigest` / AUTH-02 / AUTH-05 | Unambiguous digest of the canonical `ActionBinding` that was (or was not) approved. |
 | `approval_decision` | string enum | **SHOULD** | `ApprovalDecision.decision` | `"grant"` \| `"deny"` \| `"none"`. Use `"none"` when the boundary recorded no approval object (still emit the field when the producer knows that fact). |
 | `approval_id` | string | **SHOULD** | approval binding | Opaque id tying this receipt to a stored approval / permission decision. Omit only when `approval_decision` is `"none"` and no id exists. |
+| `approval_runtime_generation` | number (finite, ≥ 0) | **SHOULD** | approval issuance generation | Generation **when the referenced approval was issued**. Distinct from `runtime_generation` (generation at the effect boundary for this record). When present, cross-record generation binding uses this value; when absent, the verifier uses a separate issuance record if one exists, otherwise soft-reports `approval_generation_unverifiable`. |
 | `approver` | string | **SHOULD** | `ApprovalDecision.approver` | Who granted/denied, when known. |
 | `runtime_generation` | number (finite, ≥ 0) | **MUST** | `RuntimeGeneration` / AUTH-01 | Generation at the boundary when the effect was accepted or rejected. |
 | `fence_epoch` | number (finite, ≥ 0) | **MUST** | `FenceEpoch` / AUTH-03–05 | Fence token epoch verified (or refused) at the gateway. |
@@ -146,13 +147,19 @@ After exclusion, `signature` is gone; JCS is taken over the remaining object (ke
 Offline verifier: [`vectors/agent-effect/cross-verify.ts`](vectors/agent-effect/cross-verify.ts) (`verifyCrossRecords`).
 Fixtures: `cross-pass-*` / `cross-reject-*` / `cross-report-*` under [`vectors/agent-effect/`](vectors/agent-effect/).
 
-Given a **set** of `AgentEffectRecord` objects (JSONL lines or a JSON array), the verifier checks mutual authority consistency:
+Given a **set** of `AgentEffectRecord` objects (JSONL lines or a JSON array), the verifier checks mutual authority consistency.
 
-1. **Committed needs approval** — every record with `outcome=committed` must have a corresponding prior approval: some record with the same `effect_id`, `approval_decision=grant`, and a non-empty `approval_id` (same record counts).
+**Indexing:** approvals are keyed by `approval_id`, not by `effect_id`. A committed effect’s referenced `approval_id` must resolve to an **issuance** (a prior `approval_decision=grant` for that id whose `outcome` is not `committed`). Self-declared approval fields on a committed record are only a **claim** of use, not independent issuance evidence for generation binding — including when another effect’s committed record self-declares the same `approval_id`.
+
+1. **Committed needs approval** — every `outcome=committed` must resolve to a prior grant for its `approval_id` (`approval_decision=grant` + non-empty `approval_id`). If the commit omits approval fields, the verifier may recover an `approval_id` only from prior grant/deny decisions on the **same** `effect_id` (so commit-after-revoke is visible). Otherwise → `unauthorized_effect`.
 2. **Action digest consistency** — all records sharing an `effect_id` must carry the same `action_digest`; the approval-bound digest must equal the committed effect’s digest.
-3. **Generation binding** — the approval’s `runtime_generation` must equal the landing effect’s `runtime_generation`. Reusing an approval across generations is an error (`cross_generation_reuse`).
+3. **Generation binding** — the approval’s **issuance generation** must equal the landing effect’s `runtime_generation`. Issuance generation is taken from `approval_runtime_generation` when present; otherwise from a **separate** issuance record’s `approval_runtime_generation` or `runtime_generation`. Reusing an approval across generations → `cross_generation_reuse`. If neither `approval_runtime_generation` nor a separate issuance record exists → soft report `approval_generation_unverifiable` (does **not** fail `ok`). Same-record self-declaration alone is not enough to decide generation.
 4. **Fence monotonicity** — within one `stream_id`, `fence_epoch` must not go backwards when ordered by `sequence_number`. A committed effect’s `fence_epoch` must not be lower than its approval’s `fence_epoch`.
-5. **Unauthorized effect** — a committed effect with no prior approval is reported as `unauthorized_effect` (the hard failure for rule 1).
+5. **Unauthorized / revoked / reuse / duplicate commit** —
+   - no resolvable prior grant → `unauthorized_effect`;
+   - **latest prior decision wins** for the same `approval_id` (not earliest): if the latest decision before the effect is `deny`, a subsequent commit → `revoked_approval_used`;
+   - same `approval_id` used by multiple different `effect_id`s among committed records → `approval_reused_across_effects`;
+   - more than one `outcome=committed` for the same `effect_id` → `duplicate_commit`.
 6. **Unknown is first-class** — `outcome=unknown` is listed in a separate `unknowns` report. It is **not** treated as committed (does not require approval) and **not** treated as failed.
 7. **Sequence integrity** — within one `stream_id`, a duplicate `sequence_number` is a hard violation (`duplicate_sequence`). Missing numbers between the observed min and max are reported as `sequence_gap` soft reports (they do **not** flip `ok` to false).
 

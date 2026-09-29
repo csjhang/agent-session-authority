@@ -1,0 +1,38 @@
+{
+  "id": "cross-report-03-approval-generation-unverifiable",
+  "expect": "report",
+  "kind": "cross_record",
+  "rules": [
+    3
+  ],
+  "description": "Single committed record self-declares grant a1; no separate issuance and no approval_runtime_generation → soft report approval_generation_unverifiable (ok stays true)",
+  "records": [
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "eff-1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 2,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "outcome": "committed",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000000",
+      "session_id": "s1",
+      "controller": "runtime_a",
+      "approval_decision": "grant",
+      "approval_id": "appr-1",
+      "approver": "human:alice",
+      "external_reference": "file:///tmp/w.txt"
+    }
+  ],
+  "expected": {
+    "ok": true,
+    "violation_codes": [],
+    "report_codes": [
+      "approval_generation_unverifiable"
+    ],
+    "gap_streams": [],
+    "unknown_effect_ids": []
+  }
+}

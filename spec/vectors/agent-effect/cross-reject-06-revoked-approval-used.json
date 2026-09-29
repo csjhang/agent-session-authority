@@ -1,0 +1,70 @@
+{
+  "id": "cross-reject-06-revoked-approval-used",
+  "expect": "reject",
+  "kind": "cross_record",
+  "rules": [
+    1
+  ],
+  "description": "Grant a1 then deny a1 then committed without approval fields → revoked_approval_used (latest prior decision wins)",
+  "records": [
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "eff-1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 1,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "outcome": "unknown",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000000",
+      "session_id": "s1",
+      "controller": "runtime_a",
+      "approval_decision": "grant",
+      "approval_id": "appr-1",
+      "approver": "human:alice"
+    },
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "eff-1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 1,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "outcome": "rejected",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 2,
+      "ts_unix_nano": "1759107600000000001",
+      "session_id": "s1",
+      "controller": "runtime_a",
+      "approval_decision": "deny",
+      "approval_id": "appr-1",
+      "approver": "human:alice"
+    },
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "eff-1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 1,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "outcome": "committed",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 3,
+      "ts_unix_nano": "1759107600000000002",
+      "session_id": "s1",
+      "controller": "runtime_a",
+      "external_reference": "file:///tmp/w.txt"
+    }
+  ],
+  "expected": {
+    "ok": false,
+    "violation_codes": [
+      "revoked_approval_used"
+    ],
+    "gap_streams": [],
+    "unknown_effect_ids": [
+      "eff-1"
+    ]
+  }
+}
