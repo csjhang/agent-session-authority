@@ -25,7 +25,8 @@
     "fixture:acp": "pnpm --filter @asa/adapter-acp fixture",
     "adapter:acp:fixture": "pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode fixture",
     "test:agent-effect": "vitest run --config spec/vectors/agent-effect/vitest.config.ts",
-    "verify:agent-effect": "tsx spec/vectors/agent-effect/verify.ts"
+    "verify:agent-effect": "tsx spec/vectors/agent-effect/verify.ts",
+    "generate:capability-vectors": "tsx scripts/generate-capability-vectors.ts"
   },
   "devDependencies": {
     "typescript": "^5.7.2",

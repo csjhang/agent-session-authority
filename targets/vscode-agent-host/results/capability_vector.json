@@ -1,31 +1,38 @@
 {
   "target": "vscode-agent-host",
-  "protocol": "AHP",
   "profile_version": "0.2",
   "test_basis": "synthetic_fixture",
   "mode": "FIXTURE",
+  "protocol": "AHP",
+  "fixture_limitations": [
+    "synthetic_fixture only",
+    "no live Agent Host"
+  ],
   "capability_vector": {
-    "AUTH-01": "not_tested",
+    "AUTH-01a": "not_declared",
+    "AUTH-01b": "supported",
+    "AUTH-01c": "inconclusive",
+    "AUTH-02": "inconclusive",
+    "AUTH-03a": "inconclusive",
+    "AUTH-03b": "inconclusive",
+    "AUTH-03c": "inconclusive",
+    "AUTH-04": "inconclusive",
+    "AUTH-05": "inconclusive",
+    "AUTH-06": "inconclusive",
+    "AUTH-07": "inconclusive"
+  },
+  "claim_status_vector": {
     "AUTH-01a": "not_declared",
     "AUTH-01b": "not_declared",
     "AUTH-01c": "not_declared",
-    "AUTH-02": "inconclusive",
-    "AUTH-03": "underspecified",
-    "AUTH-04": "not_declared",
-    "AUTH-05": "not_declared",
-    "AUTH-06": "not_declared",
-    "AUTH-07": "not_declared",
-    "AUTH-08": "not_declared"
-  },
-  "claim_status_vector": {
-    "AUTH-01": "not_declared",
     "AUTH-02": "not_declared",
-    "AUTH-03": "not_declared",
+    "AUTH-03a": "not_declared",
+    "AUTH-03b": "not_declared",
+    "AUTH-03c": "not_declared",
     "AUTH-04": "not_declared",
     "AUTH-05": "not_declared",
     "AUTH-06": "not_declared",
-    "AUTH-07": "not_declared",
-    "AUTH-08": "not_declared"
+    "AUTH-07": "not_declared"
   },
   "explanation": {
     "AUTH-02": "Fixture maps in-process first-wins tool confirmation to approval.grant with synthesized action_digest; public AHP docs do not define canonical ActionBinding+generation.",
@@ -33,8 +40,18 @@
     "AUTH-01b": "Host process death is modeled as fault; cross-restart generation bump is not defined in public AHP — not_declared.",
     "AUTH-04": "No FenceToken/FenceEpoch in public AHP surface.",
     "AUTH-05": "No Approver!=Controller SoD as first-class AHP objects.",
-    "AUTH-06": "AHP alone does not emit EffectReceipt."
+    "AUTH-06": "AHP alone does not emit EffectReceipt.",
+    "AUTH-01a": "No generation_model declared in profile.",
+    "AUTH-01c": "Required prerequisite observations are absent.",
+    "AUTH-03a": "Required prerequisite observations are absent.",
+    "AUTH-03b": "Required prerequisite observations are absent.",
+    "AUTH-03c": "Required prerequisite observations are absent.",
+    "AUTH-07": "Required prerequisite observations are absent."
+  },
+  "notes": {
+    "summary": "Fixture vector from asa check against history-fixture.jsonl (AHP mock peer). Digests/fence_epoch are adapter-synthesized; public AHP does not define portable RuntimeGeneration across host restart."
   },
   "history_artifact": "targets/vscode-agent-host/results/history-fixture.jsonl",
-  "fixture_limitations": ["synthetic_fixture only", "no live Agent Host"]
+  "generated_by": "scripts/generate-capability-vectors.ts",
+  "generated_at": "2026-09-29"
 }

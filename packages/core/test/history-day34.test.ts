@@ -9,6 +9,7 @@ import {
 import { default_assessment } from "../src/assessment.js";
 import { run_checkers } from "../src/index.js";
 import { build_report } from "../src/report.js";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { load_history_file } from "../src/history.js";
@@ -220,5 +221,32 @@ describe("published ACP witness", () => {
     expect(events.map((event) => event.seq)).toEqual(
       [...events].map((event) => event.seq).sort((a, b) => a - b),
     );
+  });
+});
+
+describe("targets/**/results/*.jsonl", () => {
+  it("all parse via core parse_history_jsonl", () => {
+    const results_root = path.join(repo_root, "targets");
+    const files: string[] = [];
+    function walk(dir: string): void {
+      if (!fs.existsSync(dir)) return;
+      for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, ent.name);
+        if (ent.isDirectory()) walk(full);
+        else if (ent.isFile() && ent.name.endsWith(".jsonl") && full.includes(`${path.sep}results${path.sep}`)) {
+          files.push(full);
+        }
+      }
+    }
+    walk(results_root);
+    expect(files.length).toBeGreaterThan(0);
+    for (const file of files) {
+      const events = load_history_file(file, { warn_unknown_vocab: false });
+      expect(events.length).toBeGreaterThan(0);
+      // seq must be strictly increasing (parse_history_jsonl already asserts)
+      for (let i = 1; i < events.length; i++) {
+        expect(events[i]!.seq).toBeGreaterThan(events[i - 1]!.seq);
+      }
+    }
   });
 });

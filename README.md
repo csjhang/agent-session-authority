@@ -10,22 +10,11 @@ CLI: `asa` · License: Apache-2.0 · `packages/core` stays free of target SDKs.
 
 Live work targets `@agentclientprotocol/claude-agent-acp@0.75.1`. Generation re-ask chasing on this pin is **paused**. Outbound [claude-agent-acp#1094](https://github.com/agentclientprotocol/claude-agent-acp/issues/1094) is **closed** (no reproducible authorization defect; history replay on `session/load` is resume UX, not a stale grant authorizing a new effect).
 
-### Live permission-axis results (Write)
+### Live permission-axis results (Write) — WITHDRAWN
 
-Score from independent filesystem receipts and native approval events — never from prompt timeout alone. Harness `-32000` on `session/prompt` is a **client wait expiry** (`harness_client_timeout`), not a peer defect verdict.
+Previously published live permission-axis conclusions are **not supported by reproducible evidence**: the published live history does not encode runtime generation, the restart fault, approval↔action binding, or effect receipts, so `asa check` cannot reproduce those conclusions. They are not established. Pending re-run with the fixed adapter. Original writeups are kept as history (not deleted):
 
-| Path | Result on this pin |
-| --- | --- |
-| **allow_once** (restart + new Write) | Post-restart Write gets a **new** `session/request_permission`. Withhold that approval → **no** FS effect. |
-| **allow_always** (`allow-with-updates`) | Option offered and selected in gen1. Post-restart Write still gets a **new** approval request — silent always-allow across generation **not observed**. FS effect after a fresh gen2 grant **demonstrated**. |
-| **reject_always** | On Write, options were only `allow-once` / `allow-with-updates` (`allow_always`) / `reject` (`reject_once`). **`reject_always` not offered** → durable-deny across generation **not scored**. Treat as **not offered / underspecified**, not a failed test. |
-
-Published reports:
-
-- [`targets/claude-agent-acp/results/AUTH_EFFECT_CHAIN.md`](targets/claude-agent-acp/results/AUTH_EFFECT_CHAIN.md) — auth→effect chain (effect / stale-grant / stale-effect)
-- [`targets/claude-agent-acp/results/AUTH_ALWAYS_GRANT_LIVE.md`](targets/claude-agent-acp/results/AUTH_ALWAYS_GRANT_LIVE.md) — hardened always-grant live
-- [`targets/claude-agent-acp/results/AUTH_REJECT_ALWAYS_LIVE.md`](targets/claude-agent-acp/results/AUTH_REJECT_ALWAYS_LIVE.md) — reject_always not offered
-- [`targets/claude-agent-acp/results/LIVE_CAPPED.md`](targets/claude-agent-acp/results/LIVE_CAPPED.md) — early capped history-replay writeup
+- [`AUTH_EFFECT_CHAIN.md`](targets/claude-agent-acp/results/AUTH_EFFECT_CHAIN.md) · [`AUTH_ALWAYS_GRANT_LIVE.md`](targets/claude-agent-acp/results/AUTH_ALWAYS_GRANT_LIVE.md) · [`AUTH_REJECT_ALWAYS_LIVE.md`](targets/claude-agent-acp/results/AUTH_REJECT_ALWAYS_LIVE.md) · [`LIVE_CAPPED.md`](targets/claude-agent-acp/results/LIVE_CAPPED.md)
 - Slim witnesses under `targets/claude-agent-acp/results/history-live-*-witnesses.jsonl` (verbose full histories are gitignored)
 
 ### Next probe posture
@@ -77,7 +66,7 @@ Build order: history → checker → mock sink → adapters.
 - **Stage 1:** history JSONL, `asa check`, AUTH checkers and corpora; Dogwood generation notes under `findings/`
 - **Stage 2:** mock sink, AUTH-02/04/07, ACP fixture adapter
 - **Stage 3 (fixtures done):** AHP / VS Code Agent Host, Ably, acp-mux fixtures; Docker compose; comparison table
-- **Live ACP (this pin):** permission-axis runs above; generation re-ask expansion **paused**
+- **Live ACP (this pin):** permission-axis live conclusions **withdrawn** (not supported by reproducible evidence; pending re-run with fixed adapter); generation re-ask expansion **paused**
 - **Parked:** further live wire (Ably / AHP / acp-mux) until the option-offer survey and offline-receipt work set the next gate
 
 ## Docker mock-sink repro

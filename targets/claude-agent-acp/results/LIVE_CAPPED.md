@@ -1,3 +1,8 @@
+Status: WITHDRAWN (2026-09-29)
+Reason: the published live history does not encode runtime generation, the restart fault,
+approval↔action binding, or effect receipts, so `asa check` cannot reproduce these
+conclusions. They are not established. Pending re-run with the fixed adapter.
+
 # Capped live ACP (2026-09-06)
 
 - Pin: `@agentclientprotocol/claude-agent-acp@0.75.1`

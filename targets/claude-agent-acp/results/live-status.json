@@ -4,7 +4,7 @@
   "api_key_status": "present",
   "package_install": "@agentclientprotocol/claude-agent-acp@0.75.1",
   "spawn": "ok",
-  "asa_check": "not_run",
+  "asa_check": "not_tested",
   "scenario": "capped",
   "detach_reason": "live_capped_ok",
   "history_events": 72,
@@ -14,5 +14,9 @@
     "approval": "Write asa-capped-probe.txt grant seq 27-29",
     "AUTH-04": "partial; post-restart write timeout; session/cancel method-not-found"
   },
-  "secrets_committed": false
+  "secrets_committed": false,
+  "status": "WITHDRAWN",
+  "withdrawn_at": "2026-09-29",
+  "live_derived_results": "not_tested",
+  "notes": "WITHDRAWN (2026-09-29): previously published live conclusions are not supported by reproducible evidence \u2014 the published live history does not encode runtime generation, the restart fault, approval\u2194action binding, or effect receipts, so asa check cannot reproduce those conclusions. They are not established. Pending re-run with the fixed adapter."
 }
