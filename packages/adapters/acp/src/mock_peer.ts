@@ -20,9 +20,10 @@ export type AcpPeerEvent =
       type: "permission_response";
       sessionId: string;
       requestId: string;
-      decision: "allow" | "deny";
+      decision: "allow" | "deny" | "cancelled";
       optionId?: string;
       optionKind?: string;
+      reason?: string;
       observed_at_ms?: number;
     }
   | {
