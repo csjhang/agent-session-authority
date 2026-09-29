@@ -14,12 +14,26 @@ interface TerminalEvent {
   published?: string;
 }
 
+const KNOWN_RULE_VALUES = new Set([
+  "cancel_wins",
+  "complete_wins",
+  "timeout_wins",
+  "restart_wins",
+  "failed_wins",
+  "reconcile_required",
+]);
+
 function subject_of(a: Record<string, unknown>, ev_session?: string): string | undefined {
-  return str(a.effect_id) ?? str(a.task_id) ?? str(a.subject_id) ?? ev_session;
+  return (
+    str(a.effect_id) ??
+    str(a.task_id) ??
+    str(a.subject_id) ??
+    str(a.tool_call_id) ??
+    ev_session
+  );
 }
 
 function classify(ev_op: string | undefined, a: Record<string, unknown>, fault?: string): TerminalKind | undefined {
-  // Explicit terminal/terminal_kind/status first
   const t = str(a.terminal) ?? str(a.terminal_kind) ?? str(a.status);
   if (t === "cancelled" || t === "canceled" || t === "cancel") return "cancel";
   if (t === "completed" || t === "complete" || t === "committed" || t === "success") return "complete";
@@ -32,7 +46,6 @@ function classify(ev_op: string | undefined, a: Record<string, unknown>, fault?:
   if (ev_op === "task.timeout") return "timeout";
   if (ev_op === "task.reconcile") return undefined;
 
-  // effect.receipt outcome: committed→complete, failed→failed, unknown→unknown; rejected is NOT terminal
   if (ev_op === "effect.receipt") {
     const outcome = str(a.outcome);
     if (outcome === "committed") return "complete";
@@ -71,15 +84,11 @@ function is_terminal_class_event(e: {
 
 /**
  * AUTH-07 — deterministic terminal interpretation.
- * Cancel/complete/timeout/restart races require a published rule or reconciliation.
- * Restart fault with session_id pairs with all unfinished effects/tasks in that session.
- * All *_wins rule kinds are verified, not only cancel_wins and complete_wins.
  */
 export const check_auth07: Checker = (ctx) => {
   const inv = "AUTH-07";
   const cs = claim_for(ctx, inv);
   const has_terminal_class = ctx.events.some((e) => is_terminal_class_event(e));
-  // Second prerequisite = same as first: any terminal-class event continues.
   const guard = observation_guard(ctx, inv, has_terminal_class, has_terminal_class);
   if (guard) return guard;
 
@@ -88,19 +97,14 @@ export const check_auth07: Checker = (ctx) => {
 
   const terminals = new Map<string, TerminalEvent[]>();
   const reconciles = new Map<string, { seq: number; resolved: string }>();
-  /** session_id -> unfinished effect/task subjects observed before a restart */
   const unfinished_by_session = new Map<string, Set<string>>();
-  const started = new Set<string>();
-  const finished = new Set<string>();
   const violations: { text: string; witnesses: number[]; marker?: boolean }[] = [];
 
   for (const ev of ctx.events) {
     const a = attrs(ev);
 
-    // Track unfinished subjects per session for restart pairing
     const subj = subject_of(a, ev.session_id);
     if (subj && (ev.op === "effect.dispatch" || ev.op === "task.start" || ev.op === "action.bind")) {
-      started.add(subj);
       if (ev.session_id) {
         const set = unfinished_by_session.get(ev.session_id) ?? new Set();
         set.add(subj);
@@ -115,7 +119,6 @@ export const check_auth07: Checker = (ctx) => {
         (ev.op === "effect.receipt" &&
           (str(a.outcome) === "committed" || str(a.outcome) === "failed" || str(a.outcome) === "rejected")))
     ) {
-      finished.add(subj);
       if (ev.session_id) unfinished_by_session.get(ev.session_id)?.delete(subj);
     }
 
@@ -142,8 +145,6 @@ export const check_auth07: Checker = (ctx) => {
       (ev.op === "effect.receipt" &&
         (str(a.outcome) === "committed" || str(a.outcome) === "failed" || str(a.outcome) === "unknown"))
     ) {
-      // Restart with session_id pairs with all unfinished effects/tasks in that session.
-      // Restart with no unfinished work: create NO subject.
       if (ev.kind === "fault" && (ev.fault === "runtime.restart" || ev.fault === "runtime.crash") && ev.session_id) {
         const unfinished = unfinished_by_session.get(ev.session_id) ?? new Set();
         for (const u of unfinished) {
@@ -154,7 +155,6 @@ export const check_auth07: Checker = (ctx) => {
         continue;
       }
 
-      // Restart/crash without session_id: only create subject when we have an explicit subject attr
       if (ev.kind === "fault" && (ev.fault === "runtime.restart" || ev.fault === "runtime.crash") && !ev.session_id) {
         const subject = subject_of(a, undefined);
         if (!subject) continue;
@@ -215,6 +215,25 @@ export const check_auth07: Checker = (ctx) => {
         continue;
       }
 
+      if (!rec && rule && !KNOWN_RULE_VALUES.has(rule)) {
+        // Unknown value = no published rule for that race
+        if (has_published_rules) {
+          violations.push({
+            text: `Terminal race (${a} vs ${b}) for ${subject} not covered by published terminal_rules (unknown rule value ${rule}).`,
+            witnesses: witnesses.sort((x, y) => x - y),
+          });
+        }
+        continue;
+      }
+
+      if (!rec && rule === "reconcile_required") {
+        violations.push({
+          text: `Terminal race (${a} vs ${b}) for ${subject} requires reconciliation (reconcile_required) but none was observed.`,
+          witnesses: witnesses.sort((x, y) => x - y),
+        });
+        continue;
+      }
+
       const published = events.map((e) => e.published).filter(Boolean) as string[];
       if (published.includes("completed") && published.includes("cancelled") && !rec) {
         violations.push({
@@ -223,7 +242,7 @@ export const check_auth07: Checker = (ctx) => {
         });
       }
 
-      if (rec && rule) {
+      if (rec && rule && rule !== "reconcile_required") {
         const allowed = WIN_RESOLUTION[rule];
         if (allowed && !allowed.some((x) => rec.resolved === x || rec.resolved.startsWith(x))) {
           violations.push({
@@ -272,8 +291,6 @@ export const check_auth07: Checker = (ctx) => {
     ];
   }
 
-  // Supported evidence only for subjects whose terminal reading was really examined:
-  // ≥2 terminal events OR terminal includes restart/crash. Else inconclusive.
   const examined: TerminalEvent[][] = [];
   for (const events of terminals.values()) {
     const examined_contention =

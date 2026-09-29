@@ -1,3 +1,4 @@
+import type { HistoryEvent } from "../history.js";
 import type { Checker } from "./index.js";
 import { attrs, basis, claim_for, finding, join_unique_sentences, num, str, observation_guard } from "./index.js";
 
@@ -9,10 +10,18 @@ function is_restart_class(fault: string | undefined): boolean {
   return fault === "runtime.restart" || fault === "runtime.crash" || fault === "state.restore";
 }
 
-function observe_generation(ev: { kind: string; op?: string; attrs?: Record<string, unknown> }): number | undefined {
+function observe_generation(ev: HistoryEvent): number | undefined {
   if (!(ev.kind === "observe" && ev.op === "generation.observe")) return undefined;
   const a = attrs(ev);
   return num(a.runtime_generation) ?? num(a.generation);
+}
+
+/** Stream key: attrs.runtime_id, else session_id. */
+function stream_of(ev: HistoryEvent): string | undefined {
+  const rid = str(attrs(ev).runtime_id);
+  if (rid) return `runtime:${rid}`;
+  if (ev.session_id) return `session:${ev.session_id}`;
+  return undefined;
 }
 
 /** AUTH-01a — declare generation model G0/G1/G2 (profile-only; no event witnesses) */
@@ -21,6 +30,18 @@ export const check_auth01a: Checker = (ctx) => {
   const cs = claim_for(ctx, inv);
   const model = ctx.profile?.generation_model;
   if (!ctx.profile || model == null) {
+    if (cs === "declared") {
+      return [
+        finding(
+          inv,
+          cs,
+          "underspecified",
+          "AUTH-01a is claimed but the profile declares no generation_model.",
+          [],
+          basis(ctx),
+        ),
+      ];
+    }
     return [finding(inv, "not_declared", "not_declared", "No generation_model declared in profile.", [], basis(ctx))];
   }
   if (model !== "G0" && model !== "G1" && model !== "G2") {
@@ -51,7 +72,15 @@ function generation_derived_note(ctx: Parameters<Checker>[0]): string {
   return "";
 }
 
-/** AUTH-01b — monotonic RuntimeGeneration across restart/crash/restore */
+function observe_maps_to_restart(observe: HistoryEvent, restart: HistoryEvent): boolean {
+  const r_rid = str(attrs(restart).runtime_id);
+  const r_sid = restart.session_id;
+  if (r_rid) return str(attrs(observe).runtime_id) === r_rid;
+  if (r_sid) return observe.session_id === r_sid;
+  return true;
+}
+
+/** AUTH-01b — monotonic RuntimeGeneration across restart/crash/restore (per generation stream) */
 export const check_auth01b: Checker = (ctx) => {
   const inv = "AUTH-01b";
   const cs = claim_for(ctx, inv);
@@ -63,82 +92,86 @@ export const check_auth01b: Checker = (ctx) => {
   );
   if (guard) return guard;
   const events = ctx.events;
-  let last_gen: number | undefined;
-  let last_gen_seq: number | undefined;
   const violations: { text: string; witnesses: number[] }[] = [];
-  /** generation.observe + runtime.restart/crash/restore compared for this finding */
   const compared: number[] = [];
 
+  // Regression only within stream.
+  const last_by_stream = new Map<string, { gen: number; seq: number }>();
   for (const ev of events) {
-    if (ev.kind === "observe" && ev.op === "generation.observe") {
-      const g = num(attrs(ev).runtime_generation) ?? num(attrs(ev).generation);
-      if (g == null) continue;
-      compared.push(ev.seq);
-      if (last_gen != null && g < last_gen) {
-        violations.push({
-          text: `RuntimeGeneration rolled back from ${last_gen} to ${g}.`,
-          witnesses: [last_gen_seq!, ev.seq],
-        });
-      }
-      last_gen = g;
-      last_gen_seq = ev.seq;
+    if (!(ev.kind === "observe" && ev.op === "generation.observe")) continue;
+    const g = observe_generation(ev);
+    if (g == null) continue;
+    const stream = stream_of(ev) ?? `anon:${ev.seq}`;
+    compared.push(ev.seq);
+    const prev = last_by_stream.get(stream);
+    if (prev != null && g < prev.gen) {
+      violations.push({
+        text: `RuntimeGeneration rolled back from ${prev.gen} to ${g}.`,
+        witnesses: [prev.seq, ev.seq],
+      });
     }
+    last_by_stream.set(stream, { gen: g, seq: ev.seq });
   }
 
   for (let i = 0; i < events.length; i++) {
     const fault = events[i]!;
     if (fault.kind !== "fault") continue;
     if (!is_restart_class(fault.fault)) continue;
-    compared.push(fault.seq);
-    const witnesses: number[] = [fault.seq];
 
-    let gen_before: number | undefined;
-    for (let j = i - 1; j >= 0; j--) {
-      const e = events[j]!;
-      if (e.kind === "observe" && e.op === "generation.observe") {
-        gen_before = num(attrs(e).runtime_generation) ?? num(attrs(e).generation);
-        if (gen_before != null) {
-          witnesses.push(e.seq);
-          break;
-        }
-      }
+    const mapped: HistoryEvent[] = [];
+    for (const ev of events) {
+      if (!(ev.kind === "observe" && ev.op === "generation.observe")) continue;
+      if (observe_maps_to_restart(ev, fault)) mapped.push(ev);
     }
 
-    let gen_after: number | undefined;
-    let gen_after_seq: number | undefined;
-    for (let j = i + 1; j < events.length; j++) {
-      const e = events[j]!;
-      if (e.kind === "observe" && e.op === "generation.observe") {
-        gen_after = num(attrs(e).runtime_generation) ?? num(attrs(e).generation);
-        gen_after_seq = e.seq;
-        if (gen_after != null) witnesses.push(e.seq);
+    const restart_has_neither = str(attrs(fault).runtime_id) == null && !fault.session_id;
+    const mapped_streams = new Set<string>();
+    for (const ev of mapped) {
+      const s = stream_of(ev);
+      if (s) mapped_streams.add(s);
+    }
+    if (restart_has_neither && mapped_streams.size > 1) {
+      // unexamined — handled below; still record restart for witness path
+      continue;
+    }
+
+    // Per mapped stream (or a single anonymous stream when observes have no stream key)
+    const streams: Array<string | null> =
+      mapped_streams.size > 0 ? [...mapped_streams] : [null];
+    for (const stream of streams) {
+      let gen_before: number | undefined;
+      let before_seq: number | undefined;
+      for (let j = i - 1; j >= 0; j--) {
+        const e = events[j]!;
+        if (!(e.kind === "observe" && e.op === "generation.observe")) continue;
+        if (!observe_maps_to_restart(e, fault)) continue;
+        if (stream != null && stream_of(e) !== stream) continue;
+        const g = observe_generation(e);
+        if (g == null) continue;
+        gen_before = g;
+        before_seq = e.seq;
         break;
       }
-    }
-
-    if (gen_before != null && gen_after != null && gen_after <= gen_before) {
-      let committed_after = false;
-      for (let j = 0; j < events.length; j++) {
-        if (events[j]!.seq <= (gen_after_seq ?? fault.seq)) continue;
+      let gen_after: number | undefined;
+      let after_seq: number | undefined;
+      for (let j = i + 1; j < events.length; j++) {
         const e = events[j]!;
-        if (e.op === "effect.receipt" && (e.kind === "ok" || e.kind === "info" || e.kind === "observe")) {
-          const outcome = str(attrs(e).outcome);
-          const receipt_gen = num(attrs(e).runtime_generation);
-          if (outcome === "committed" && (receipt_gen == null || receipt_gen <= gen_before)) {
-            witnesses.push(e.seq);
-            committed_after = true;
-            violations.push({
-              text: `After ${fault.fault}, RuntimeGeneration did not increase (${gen_before} -> ${gen_after}) and prior-gen effect committed.`,
-              witnesses: uniq_sort(witnesses),
-            });
-            break;
-          }
-        }
+        if (!(e.kind === "observe" && e.op === "generation.observe")) continue;
+        if (!observe_maps_to_restart(e, fault)) continue;
+        if (stream != null && stream_of(e) !== stream) continue;
+        const g = observe_generation(e);
+        if (g == null) continue;
+        gen_after = g;
+        after_seq = e.seq;
+        break;
       }
-      if (!committed_after) {
+      if (gen_before != null && gen_after != null && gen_after <= gen_before) {
+        const witnesses = uniq_sort(
+          [fault.seq, before_seq!, after_seq!].filter((x): x is number => typeof x === "number"),
+        );
         violations.push({
           text: `After ${fault.fault}, RuntimeGeneration did not strictly increase (${gen_before} -> ${gen_after}).`,
-          witnesses: uniq_sort(witnesses),
+          witnesses,
         });
       }
     }
@@ -151,8 +184,6 @@ export const check_auth01b: Checker = (ctx) => {
     ];
   }
 
-  // A restart-class event is examined only if generation.observe with generation
-  // values exists BOTH before and after it.
   const restart_idxs: number[] = [];
   for (let i = 0; i < events.length; i++) {
     const ev = events[i]!;
@@ -173,23 +204,84 @@ export const check_auth01b: Checker = (ctx) => {
   }
 
   const unexamined: number[] = [];
+  const examined_restart_seqs: number[] = [];
   for (const i of restart_idxs) {
     const fault = events[i]!;
-    let before = false;
-    for (let j = i - 1; j >= 0; j--) {
-      if (observe_generation(events[j]!) != null) {
-        before = true;
-        break;
-      }
+    const mapped: HistoryEvent[] = [];
+    for (const ev of events) {
+      if (!(ev.kind === "observe" && ev.op === "generation.observe")) continue;
+      if (observe_maps_to_restart(ev, fault)) mapped.push(ev);
     }
-    let after = false;
-    for (let j = i + 1; j < events.length; j++) {
-      if (observe_generation(events[j]!) != null) {
-        after = true;
-        break;
-      }
+    const restart_has_neither = str(attrs(fault).runtime_id) == null && !fault.session_id;
+    const mapped_streams = new Set<string>();
+    for (const ev of mapped) {
+      const s = stream_of(ev);
+      if (s) mapped_streams.add(s);
     }
-    if (!(before && after)) unexamined.push(fault.seq);
+    if (restart_has_neither && mapped_streams.size > 1) {
+      unexamined.push(fault.seq);
+      continue;
+    }
+
+    const streams = [...mapped_streams];
+    let any_stream_examined = false;
+    for (const stream of streams) {
+      let before = false;
+      let after = false;
+      for (let j = i - 1; j >= 0; j--) {
+        const e = events[j]!;
+        if (!(e.kind === "observe" && e.op === "generation.observe")) continue;
+        if (!observe_maps_to_restart(e, fault)) continue;
+        if ((stream_of(e) ?? "") !== stream) continue;
+        if (observe_generation(e) != null) {
+          before = true;
+          break;
+        }
+      }
+      for (let j = i + 1; j < events.length; j++) {
+        const e = events[j]!;
+        if (!(e.kind === "observe" && e.op === "generation.observe")) continue;
+        if (!observe_maps_to_restart(e, fault)) continue;
+        if ((stream_of(e) ?? "") !== stream) continue;
+        if (observe_generation(e) != null) {
+          after = true;
+          break;
+        }
+      }
+      if (before && after) any_stream_examined = true;
+    }
+    // Also handle restart that maps to a single stream with no stream key on observes
+    if (streams.length === 0) {
+      let before = false;
+      let after = false;
+      for (let j = i - 1; j >= 0; j--) {
+        const e = events[j]!;
+        if (!observe_maps_to_restart(e, fault)) continue;
+        if (observe_generation(e) != null) {
+          before = true;
+          break;
+        }
+      }
+      for (let j = i + 1; j < events.length; j++) {
+        const e = events[j]!;
+        if (!observe_maps_to_restart(e, fault)) continue;
+        if (observe_generation(e) != null) {
+          after = true;
+          break;
+        }
+      }
+      if (before && after) any_stream_examined = true;
+    }
+
+    if (any_stream_examined) {
+      examined_restart_seqs.push(fault.seq);
+      compared.push(fault.seq);
+      for (const ev of mapped) {
+        if (observe_generation(ev) != null) compared.push(ev.seq);
+      }
+    } else {
+      unexamined.push(fault.seq);
+    }
   }
 
   if (unexamined.length > 0) {
@@ -224,12 +316,10 @@ export const check_auth01c: Checker = (ctx) => {
   const cs = claim_for(ctx, inv);
   const model = ctx.profile?.generation_model;
 
-  // 1. empty history → not_tested
   if (ctx.events.length === 0) {
     return [finding(inv, cs, "not_tested", "Scenario did not run: history is empty.", [], basis(ctx))];
   }
 
-  // 2. generation_model G0 → supported (profile-based)
   if (model === "G0") {
     return [
       finding(
@@ -243,7 +333,6 @@ export const check_auth01c: Checker = (ctx) => {
     ];
   }
 
-  // 3. no generation_model (incl. no profile) → observed_result not_declared
   if (model == null) {
     return [
       finding(
@@ -257,7 +346,6 @@ export const check_auth01c: Checker = (ctx) => {
     ];
   }
 
-  // 4. other generation_model → underspecified
   if (model !== "G1" && model !== "G2") {
     return [
       finding(
@@ -271,7 +359,6 @@ export const check_auth01c: Checker = (ctx) => {
     ];
   }
 
-  // 5. G1/G2 but no generation.observe → inconclusive
   const has_observe = ctx.events.some((e) => e.op === "generation.observe");
   if (!has_observe) {
     return [
@@ -286,17 +373,16 @@ export const check_auth01c: Checker = (ctx) => {
     ];
   }
 
-  // 6. else → issuer vs fenced object compare
   const violations: { text: string; witnesses: number[] }[] = [];
-  const compared: number[] = [];
+  const examined: number[] = [];
   for (const ev of ctx.events) {
-    if (ev.kind === "observe" && ev.op === "generation.observe") {
-      compared.push(ev.seq);
-      const issuer = str(attrs(ev).issuer_id);
-      const runtime = str(attrs(ev).runtime_id) ?? str(attrs(ev).fenced_object_id);
-      if (issuer && runtime && issuer === runtime) {
-        violations.push({ text: `Issuer ${issuer} equals fenced runtime object.`, witnesses: [ev.seq] });
-      }
+    if (!(ev.kind === "observe" && ev.op === "generation.observe")) continue;
+    const issuer = str(attrs(ev).issuer_id);
+    const runtime = str(attrs(ev).runtime_id) ?? str(attrs(ev).fenced_object_id);
+    if (!(issuer && runtime)) continue;
+    examined.push(ev.seq);
+    if (issuer === runtime) {
+      violations.push({ text: `Issuer ${issuer} equals fenced runtime object.`, witnesses: [ev.seq] });
     }
   }
   if (violations.length > 0) {
@@ -305,13 +391,25 @@ export const check_auth01c: Checker = (ctx) => {
       finding(inv, cs, "violation", join_unique_sentences(violations.map((v) => v.text)), witnesses, basis(ctx)),
     ];
   }
+  if (examined.length === 0) {
+    return [
+      finding(
+        inv,
+        cs,
+        "inconclusive",
+        "no generation.observe carries both issuer_id and runtime_id/fenced_object_id; issuer separation not examined",
+        [],
+        basis(ctx),
+      ),
+    ];
+  }
   return [
     finding(
       inv,
       cs,
       "supported",
       "No issuer==fenced-object collision observed for G1+.",
-      uniq_sort(compared),
+      uniq_sort(examined),
       basis(ctx),
     ),
   ];

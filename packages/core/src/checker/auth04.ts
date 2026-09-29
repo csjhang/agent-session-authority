@@ -5,16 +5,15 @@ function uniq_sort(seqs: number[]): number[] {
   return [...new Set(seqs)].sort((a, b) => a - b);
 }
 
+type FenceRecord = {
+  epoch: number;
+  seq: number;
+  holder?: string;
+  superseded: boolean;
+};
+
 /**
- * AUTH-04 — fencing at effect boundary.
- * Stale controller / fence must fail at the effect gateway (receipt rejected),
- * not only in UI/relay.
- * After handoff, receipt/dispatch whose controller is not the current live holder
- * is a violation even when fence_epoch is unchanged.
- * Lower-epoch lease.acquire/handoff must not update the live holder (bump).
- * After handoff, committed receipt missing controller/holder/actor_id cannot
- * count as supported evidence.
- * Supported requires ≥1 outcome=committed receipt positively evaluated.
+ * AUTH-04 — fencing at effect boundary with sticky superseded flag and scope attribution.
  */
 export const check_auth04: Checker = (ctx) => {
   const inv = "AUTH-04";
@@ -27,40 +26,105 @@ export const check_auth04: Checker = (ctx) => {
   );
   if (guard) return guard;
 
-  /** scope_id -> latest valid fence_epoch + live holder */
-  const live_fence = new Map<string, { epoch: number; seq: number; holder?: string }>();
-  let global_epoch: { epoch: number; seq: number; holder?: string } | undefined;
+  const live_fence = new Map<string, FenceRecord>();
+  let global_epoch: FenceRecord | undefined;
   const violations: { text: string; witnesses: number[]; marker?: boolean }[] = [];
-  let handoff_seen = false;
-  let saw_positive_committed = false;
+  let saw_positive_after_change = false;
   const positive_witnesses: number[] = [];
   const missing_controller_witnesses: number[] = [];
+  const unattributed_witnesses: number[] = [];
+  let any_fence = false;
+
+  const mark_superseded = (rec: FenceRecord | undefined) => {
+    if (rec) rec.superseded = true;
+  };
 
   const bump = (scope_id: string | undefined, epoch: number, seq: number, holder?: string) => {
+    any_fence = true;
     if (scope_id) {
       const cur = live_fence.get(scope_id);
-      if (!cur || epoch > cur.epoch) {
-        live_fence.set(scope_id, { epoch, seq, holder: holder ?? cur?.holder });
-      } else if (epoch === cur.epoch) {
-        live_fence.set(scope_id, { epoch, seq, holder: holder ?? cur.holder });
+      if (!cur) {
+        live_fence.set(scope_id, { epoch, seq, holder, superseded: false });
+      } else {
+        const epoch_up = epoch > cur.epoch;
+        const holder_change = holder != null && cur.holder != null && holder !== cur.holder;
+        if (epoch_up || holder_change) mark_superseded(cur);
+        if (epoch_up) {
+          live_fence.set(scope_id, {
+            epoch,
+            seq,
+            holder: holder ?? cur.holder,
+            superseded: cur.superseded,
+          });
+        } else if (epoch === cur.epoch) {
+          if (holder_change) mark_superseded(cur);
+          live_fence.set(scope_id, {
+            epoch,
+            seq,
+            holder: holder ?? cur.holder,
+            superseded: cur.superseded,
+          });
+        }
+        // epoch < cur.epoch: lower-epoch must not update live holder
       }
-      // epoch < cur.epoch: lower-epoch must not update live holder
     }
-    if (!global_epoch || epoch > global_epoch.epoch) {
-      global_epoch = { epoch, seq, holder: holder ?? global_epoch?.holder };
-    } else if (epoch === global_epoch.epoch) {
-      global_epoch = { epoch, seq, holder: holder ?? global_epoch.holder };
+    if (!global_epoch) {
+      global_epoch = { epoch, seq, holder, superseded: false };
+    } else {
+      const epoch_up = epoch > global_epoch.epoch;
+      const holder_change =
+        holder != null && global_epoch.holder != null && holder !== global_epoch.holder;
+      if (epoch_up || holder_change) mark_superseded(global_epoch);
+      if (epoch_up) {
+        global_epoch = {
+          epoch,
+          seq,
+          holder: holder ?? global_epoch.holder,
+          superseded: global_epoch.superseded,
+        };
+      } else if (epoch === global_epoch.epoch) {
+        if (holder_change) mark_superseded(global_epoch);
+        global_epoch = {
+          epoch,
+          seq,
+          holder: holder ?? global_epoch.holder,
+          superseded: global_epoch.superseded,
+        };
+      }
     }
-    // epoch < global: do not update
   };
 
   const set_holder = (scope_id: string | undefined, holder: string, seq: number) => {
+    any_fence = true;
     if (scope_id) {
       const cur = live_fence.get(scope_id);
-      if (cur) live_fence.set(scope_id, { ...cur, holder, seq });
-      else live_fence.set(scope_id, { epoch: global_epoch?.epoch ?? 0, seq, holder });
+      if (cur) {
+        if (cur.holder != null && cur.holder !== holder) mark_superseded(cur);
+        live_fence.set(scope_id, { ...cur, holder, seq });
+      } else {
+        live_fence.set(scope_id, {
+          epoch: global_epoch?.epoch ?? 0,
+          seq,
+          holder,
+          superseded: false,
+        });
+      }
     }
-    if (global_epoch) global_epoch = { ...global_epoch, holder, seq };
+    if (global_epoch) {
+      if (global_epoch.holder != null && global_epoch.holder !== holder) mark_superseded(global_epoch);
+      global_epoch = { ...global_epoch, holder, seq };
+    }
+  };
+
+  /** Attribute receipt/dispatch to a fence record; undefined = unattributed. */
+  const attribute = (scope_id: string | undefined): FenceRecord | undefined | "unattributed" => {
+    if (scope_id && live_fence.has(scope_id)) return live_fence.get(scope_id);
+    if (live_fence.size === 0) return global_epoch;
+    if (!scope_id && live_fence.size === 1) return [...live_fence.values()][0];
+    if (!scope_id && live_fence.size !== 1) return "unattributed";
+    // has scope_id but no matching record, and scope records exist
+    if (scope_id && !live_fence.has(scope_id)) return "unattributed";
+    return "unattributed";
   };
 
   for (const ev of ctx.events) {
@@ -74,10 +138,18 @@ export const check_auth04: Checker = (ctx) => {
     }
 
     if (ev.op === "control.handoff" && (ev.kind === "ok" || ev.kind === "info")) {
-      handoff_seen = true;
       const epoch = num(a.fence_epoch) ?? num(a.new_fence_epoch);
       const scope_id = str(a.scope_id);
       const holder = str(a.to) ?? str(a.holder) ?? str(a.successor) ?? ev.actor_id;
+      // Any control.handoff marks superseded on attributed records
+      if (scope_id && live_fence.has(scope_id)) mark_superseded(live_fence.get(scope_id));
+      else if (live_fence.size === 0 && global_epoch) mark_superseded(global_epoch);
+      else if (!scope_id && live_fence.size === 1) mark_superseded([...live_fence.values()][0]);
+      else {
+        // mark all scope records + global on handoff when ambiguous
+        for (const rec of live_fence.values()) mark_superseded(rec);
+        mark_superseded(global_epoch);
+      }
       if (epoch != null) bump(scope_id, epoch, ev.seq, holder ?? undefined);
       else if (holder) set_holder(scope_id, holder, ev.seq);
     }
@@ -86,9 +158,12 @@ export const check_auth04: Checker = (ctx) => {
       const epoch = num(a.fence_epoch);
       const scope_id = str(a.scope_id);
       const raised = num(a.new_fence_epoch);
-      if (raised != null) bump(scope_id, raised, ev.seq);
-      else if (epoch != null && scope_id) {
+      if (raised != null) {
+        if (scope_id && live_fence.has(scope_id)) mark_superseded(live_fence.get(scope_id));
+        bump(scope_id, raised, ev.seq);
+      } else if (epoch != null && scope_id) {
         if (a.stale === true || a.invalidate_fence === true) {
+          if (live_fence.has(scope_id)) mark_superseded(live_fence.get(scope_id));
           bump(scope_id, epoch + 1, ev.seq);
         }
       }
@@ -97,9 +172,19 @@ export const check_auth04: Checker = (ctx) => {
     if (ev.op === "effect.receipt") {
       const outcome = str(a.outcome);
       const fence_epoch = num(a.fence_epoch);
-      const scope_id = str(a.scope_id) ?? "default";
-      const live = live_fence.get(scope_id) ?? global_epoch;
+      const scope_id = str(a.scope_id); // no default→global
+      const attributed = attribute(scope_id);
       const controller = str(a.controller) ?? str(a.holder) ?? ev.actor_id;
+
+      if (attributed === "unattributed") {
+        if (outcome === "committed" && (any_fence || live_fence.size > 0 || global_epoch)) {
+          unattributed_witnesses.push(ev.seq);
+        }
+        // no compare, not positive evidence
+        continue;
+      }
+
+      const live = attributed;
 
       if (a.stale_fence === true || a.stale_controller === true) {
         if (outcome === "committed") {
@@ -118,25 +203,25 @@ export const check_auth04: Checker = (ctx) => {
         });
       }
 
-      // After handoff: missing controller/holder/actor_id cannot count as supported evidence
+      const handoff_seen = [...live_fence.values()].some((r) => r.superseded) || !!global_epoch?.superseded;
       if (outcome === "committed" && handoff_seen && !controller) {
         missing_controller_witnesses.push(ev.seq);
         continue;
       }
 
-      // After handoff: controller must be current live holder even if epoch unchanged
       if (outcome === "committed" && controller && live?.holder && controller !== live.holder) {
         violations.push({
           text: `Committed effect controller=${controller} is not live holder=${live.holder} after handoff/lease (fence_epoch may be unchanged).`,
           witnesses: [live.seq, ev.seq],
         });
       } else if (outcome === "committed" && controller) {
-        // Positively evaluated committed receipt (controller present; not a wrong-holder miss)
         if (!(fence_epoch != null && live && fence_epoch < live.epoch)) {
           if (!(live?.holder && controller !== live.holder)) {
-            saw_positive_committed = true;
-            positive_witnesses.push(ev.seq);
-            if (live?.seq != null) positive_witnesses.push(live.seq);
+            if (live?.superseded) {
+              saw_positive_after_change = true;
+              positive_witnesses.push(ev.seq);
+              if (live.seq != null) positive_witnesses.push(live.seq);
+            }
           }
         }
       }
@@ -144,8 +229,10 @@ export const check_auth04: Checker = (ctx) => {
 
     if (ev.op === "effect.dispatch") {
       const fence_epoch = num(a.fence_epoch);
-      const scope_id = str(a.scope_id) ?? "default";
-      const live = live_fence.get(scope_id) ?? global_epoch;
+      const scope_id = str(a.scope_id);
+      const attributed = attribute(scope_id);
+      if (attributed === "unattributed") continue;
+      const live = attributed;
       const controller = str(a.controller) ?? str(a.holder) ?? ev.actor_id;
 
       if ((a.stale_fence === true || a.stale_controller === true) && (ev.kind === "ok" || str(a.status) === "committed")) {
@@ -165,7 +252,6 @@ export const check_auth04: Checker = (ctx) => {
         });
       }
 
-      // Dispatch by non-live holder after handoff
       if (
         (ev.kind === "ok" || str(a.status) === "dispatched" || str(a.status) === "committed") &&
         controller &&
@@ -181,26 +267,81 @@ export const check_auth04: Checker = (ctx) => {
     }
   }
 
+  const unattributed_note =
+    unattributed_witnesses.length > 0
+      ? ` Committed receipt(s) whose scope cannot be attributed to a fence record are not evidence; witness_seqs=[${uniq_sort(unattributed_witnesses).join(",")}].`
+      : "";
+
   if (violations.length > 0) {
-    const witnesses = [...new Set(violations.flatMap((v) => v.witnesses))].sort((a, b) => a - b);
+    const witnesses = uniq_sort([
+      ...violations.flatMap((v) => v.witnesses),
+      ...unattributed_witnesses,
+    ]);
     const marker_note = violations.some((v) => v.marker) ? " Includes test-injected marker." : "";
     return [
-      finding(inv, cs, "violation", violations.map((v) => v.text).join(" ") + marker_note, witnesses, basis(ctx)),
+      finding(
+        inv,
+        cs,
+        "violation",
+        violations.map((v) => v.text).join(" ") + marker_note + unattributed_note,
+        witnesses,
+        basis(ctx),
+      ),
     ];
   }
 
-  if (!saw_positive_committed) {
+  // Detect whether any fence change (superseded) was examined
+  const any_superseded =
+    [...live_fence.values()].some((r) => r.superseded) || !!global_epoch?.superseded;
+
+  if (!saw_positive_after_change) {
+    if (!any_superseded) {
+      // positive committed may exist but none after fence change, or no positive at all
+      const missing_note =
+        missing_controller_witnesses.length > 0
+          ? `. Committed receipt(s) missing controller/holder/actor_id after handoff cannot count as supported evidence; witness_seqs=[${uniq_sort(missing_controller_witnesses).join(",")}].`
+          : "";
+      // Order 3: positive but none after fence change → inconclusive no fence change
+      // Order 2: no positive committed
+      // If we had attributed committed that weren't after change, or only unattributed:
+      const has_any_committed = ctx.events.some(
+        (e) => e.op === "effect.receipt" && str(attrs(e).outcome) === "committed",
+      );
+      if (has_any_committed && !any_superseded) {
+        return [
+          finding(
+            inv,
+            cs,
+            "inconclusive",
+            "no fence change examined" + unattributed_note + missing_note,
+            uniq_sort([...unattributed_witnesses, ...missing_controller_witnesses]),
+            basis(ctx),
+          ),
+        ];
+      }
+      return [
+        finding(
+          inv,
+          cs,
+          "inconclusive",
+          "no committed receipt evaluated" + (unattributed_note ? "." + unattributed_note : "") + missing_note,
+          uniq_sort([...unattributed_witnesses, ...missing_controller_witnesses]),
+          basis(ctx),
+        ),
+      ];
+    }
+    // superseded exists but no positive after change
     const missing_note =
       missing_controller_witnesses.length > 0
-        ? `. Committed receipt(s) missing controller/holder/actor_id after handoff cannot count as supported evidence; witness_seqs=[${[...new Set(missing_controller_witnesses)].sort((a, b) => a - b).join(",")}].`
+        ? `. Committed receipt(s) missing controller/holder/actor_id after handoff cannot count as supported evidence; witness_seqs=[${uniq_sort(missing_controller_witnesses).join(",")}].`
         : "";
     return [
       finding(
         inv,
         cs,
         "inconclusive",
-        "no committed receipt evaluated" + missing_note,
-        [...new Set(missing_controller_witnesses)].sort((a, b) => a - b),
+        "no committed receipt evaluated" + (unattributed_note ? "." + unattributed_note : "") + missing_note,
+        uniq_sort([...unattributed_witnesses, ...missing_controller_witnesses]),
         basis(ctx),
       ),
     ];
@@ -211,7 +352,7 @@ export const check_auth04: Checker = (ctx) => {
       inv,
       cs,
       "supported",
-      "No stale fence/controller commit at effect boundary observed.",
+      "No stale fence/controller commit at effect boundary observed." + unattributed_note,
       uniq_sort(positive_witnesses),
       basis(ctx),
     ),

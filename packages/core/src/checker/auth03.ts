@@ -12,28 +12,35 @@ function ts_millis(v: string | undefined): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-/** AUTH-03a — scope determinism; actors must not self-declare conflicting scope */
+/** AUTH-03a — scope determinism; examined only binds matching published mapping */
 export const check_auth03a: Checker = (ctx) => {
   const inv = "AUTH-03a";
   const cs = claim_for(ctx, inv);
-  const guard = observation_guard(ctx, inv, ctx.profile != null, ctx.events.some((e) => e.op === "action.bind" || e.op === "action.propose"));
+  const guard = observation_guard(
+    ctx,
+    inv,
+    ctx.profile != null,
+    ctx.events.some((e) => e.op === "action.bind" || e.op === "action.propose"),
+  );
   if (guard) return guard;
   const violations: { text: string; witnesses: number[] }[] = [];
-  const checked_binds: number[] = [];
+  const examined: number[] = [];
   for (const ev of ctx.events) {
     if (ev.op !== "action.bind" && ev.op !== "action.propose") continue;
-    checked_binds.push(ev.seq);
     const a = attrs(ev);
     const action_type = str(a.action_type);
     const target = str(a.target);
     const self_scope = str(a.scope_id);
     if (!action_type || !target || !self_scope) continue;
     const expected = resolve_scope_id(ctx.profile, action_type, target);
-    if (expected != null && expected !== self_scope) {
-      violations.push({
-        text: `Self-declared scope_id=${self_scope} != profile mapping ${expected} for ${action_type}|${target}.`,
-        witnesses: [ev.seq],
-      });
+    if (expected != null) {
+      examined.push(ev.seq);
+      if (expected !== self_scope) {
+        violations.push({
+          text: `Self-declared scope_id=${self_scope} != profile mapping ${expected} for ${action_type}|${target}.`,
+          witnesses: [ev.seq],
+        });
+      }
     }
     if (a.self_declared_scope === true && expected == null) {
       violations.push({
@@ -55,42 +62,71 @@ export const check_auth03a: Checker = (ctx) => {
     const witnesses = [...new Set(violations.flatMap((v) => v.witnesses))].sort((a, b) => a - b);
     return [finding(inv, cs, "violation", violations.map((v) => v.text).join(" "), witnesses, basis(ctx))];
   }
-  return [finding(inv, cs, "supported", "Scope determinism holds on observed bindings.", uniq_sort(checked_binds), basis(ctx))];
+  if (examined.length === 0) {
+    return [
+      finding(
+        inv,
+        cs,
+        "inconclusive",
+        "no bind with a self-declared scope_id matched a published scope mapping; scope determinism not examined",
+        [],
+        basis(ctx),
+      ),
+    ];
+  }
+  return [
+    finding(inv, cs, "supported", "Scope determinism holds on observed bindings.", uniq_sort(examined), basis(ctx)),
+  ];
 };
 
-/** AUTH-03b — single controller per (scope_id, fence_epoch) */
+/** AUTH-03b — single controller + examined lease contention */
 export const check_auth03b: Checker = (ctx) => {
   const inv = "AUTH-03b";
   const cs = claim_for(ctx, inv);
-  const guard = observation_guard(ctx, inv, ctx.events.some((e) => e.op === "lease.acquire"), ctx.events.some((e) => e.op === "lease.acquire"));
+  const guard = observation_guard(
+    ctx,
+    inv,
+    ctx.events.some((e) => e.op === "lease.acquire"),
+    ctx.events.some((e) => e.op === "lease.acquire"),
+  );
   if (guard) return guard;
   type Lease = { holder: string; seq: number; active: boolean };
   const leases = new Map<string, Lease[]>();
   const key_of = (scope_id: string, fence_epoch: number) => `${scope_id}|${fence_epoch}`;
   const violations: { text: string; witnesses: number[] }[] = [];
   let saw_accepted = false;
-  const accepted_leases: number[] = [];
+  /** per scope_id → list of {holder, seq} from all acquires + handoffs */
+  const holders_by_scope = new Map<string, { holder: string; seq: number }[]>();
+
+  const add_holder = (scope_id: string, holder: string, seq: number) => {
+    const list = holders_by_scope.get(scope_id) ?? [];
+    list.push({ holder, seq });
+    holders_by_scope.set(scope_id, list);
+  };
 
   for (const ev of ctx.events) {
     const a = attrs(ev);
-    if (ev.op === "lease.acquire" && (ev.kind === "ok" || (ev.kind === "info" && a.accepted === true))) {
+    if (ev.op === "lease.acquire") {
       const scope_id = str(a.scope_id);
-      const fence_epoch = num(a.fence_epoch);
       const holder = str(a.holder) ?? ev.actor_id;
-      if (!scope_id || fence_epoch == null || !holder) continue;
-      saw_accepted = true;
-      accepted_leases.push(ev.seq);
-      const k = key_of(scope_id, fence_epoch);
-      const list = leases.get(k) ?? [];
-      const active = list.filter((l) => l.active);
-      if (active.length >= 1 && !active.some((l) => l.holder === holder)) {
-        violations.push({
-          text: `Second ControlLease holder=${holder} while ${active[0]!.holder} active on ${k}.`,
-          witnesses: [active[0]!.seq, ev.seq],
-        });
+      if (scope_id && holder) add_holder(scope_id, holder, ev.seq);
+
+      if (ev.kind === "ok" || (ev.kind === "info" && a.accepted === true)) {
+        const fence_epoch = num(a.fence_epoch);
+        if (!scope_id || fence_epoch == null || !holder) continue;
+        saw_accepted = true;
+        const k = key_of(scope_id, fence_epoch);
+        const list = leases.get(k) ?? [];
+        const active = list.filter((l) => l.active);
+        if (active.length >= 1 && !active.some((l) => l.holder === holder)) {
+          violations.push({
+            text: `Second ControlLease holder=${holder} while ${active[0]!.holder} active on ${k}.`,
+            witnesses: [active[0]!.seq, ev.seq],
+          });
+        }
+        list.push({ holder, seq: ev.seq, active: true });
+        leases.set(k, list);
       }
-      list.push({ holder, seq: ev.seq, active: true });
-      leases.set(k, list);
     }
     if ((ev.op === "lease.release" || ev.op === "lease.revoke") && (ev.kind === "ok" || ev.kind === "info")) {
       const scope_id = str(a.scope_id);
@@ -109,8 +145,9 @@ export const check_auth03b: Checker = (ctx) => {
       const fence_epoch = num(a.fence_epoch) ?? num(a.new_fence_epoch);
       const from = str(a.from) ?? str(a.predecessor) ?? ev.actor_id;
       const to = str(a.to) ?? str(a.holder) ?? str(a.successor);
+      if (scope_id && from) add_holder(scope_id, from, ev.seq);
+      if (scope_id && to) add_holder(scope_id, to, ev.seq);
       if (!scope_id || fence_epoch == null || !to) continue;
-      // Release old holder on this scope+epoch, activate successor
       const k = key_of(scope_id, fence_epoch);
       const list = leases.get(k) ?? [];
       for (const l of list) {
@@ -136,10 +173,34 @@ export const check_auth03b: Checker = (ctx) => {
       ),
     ];
   }
-  return [finding(inv, cs, "supported", "At most one active ControlLease per scope+epoch observed.", uniq_sort(accepted_leases), basis(ctx))];
+
+  const contended_seqs: number[] = [];
+  let any_contention = false;
+  for (const [, entries] of holders_by_scope) {
+    const distinct = new Set(entries.map((e) => e.holder));
+    if (distinct.size >= 2) {
+      any_contention = true;
+      for (const e of entries) contended_seqs.push(e.seq);
+    }
+  }
+  if (!any_contention) {
+    return [
+      finding(inv, cs, "inconclusive", "no lease contention examined", [], basis(ctx)),
+    ];
+  }
+  return [
+    finding(
+      inv,
+      cs,
+      "supported",
+      "At most one active ControlLease per scope+epoch observed; lease contention examined.",
+      uniq_sort(contended_seqs),
+      basis(ctx),
+    ),
+  ];
 };
 
-/** AUTH-03c — action scope must be covered by holder lease */
+/** AUTH-03c — action scope must be covered by holder lease; higher fence_epoch removes others */
 export const check_auth03c: Checker = (ctx) => {
   const inv = "AUTH-03c";
   const cs = claim_for(ctx, inv);
@@ -158,6 +219,7 @@ export const check_auth03c: Checker = (ctx) => {
     expires_at?: string;
   };
   const active = new Map<string, LeaseState>();
+  const max_epoch = new Map<string, number>();
   const violations: { text: string; witnesses: number[] }[] = [];
   let saw_positive_committed = false;
   const positive_witnesses: number[] = [];
@@ -170,11 +232,22 @@ export const check_auth03c: Checker = (ctx) => {
       const scope_id = str(a.scope_id);
       const fence_epoch = num(a.fence_epoch);
       if (!holder || !scope_id || fence_epoch == null) continue;
+
+      const cur_max = max_epoch.get(scope_id);
+      if (cur_max == null || fence_epoch > cur_max) {
+        // Strictly higher epoch removes that scope from all other holders
+        for (const [h, st] of [...active.entries()]) {
+          if (h === holder) continue;
+          st.scopes.delete(scope_id);
+          if (st.scopes.size === 0) active.delete(h);
+        }
+        max_epoch.set(scope_id, fence_epoch);
+      }
+      // Equal/lower does not remove; still update this holder
       const cur = active.get(holder) ?? { holder, scopes: new Set(), seq: ev.seq };
       cur.scopes.add(scope_id);
       cur.seq = ev.seq;
       const expires = str(a.expires_at) ?? str(a.expiry);
-      // Re-acquire without expires_at clears old expires_at
       if (expires) cur.expires_at = expires;
       else delete cur.expires_at;
       active.set(holder, cur);
@@ -193,7 +266,6 @@ export const check_auth03c: Checker = (ctx) => {
       const to = str(a.to) ?? str(a.holder) ?? str(a.successor);
       if (!scope_id || !to) continue;
 
-      // If from/predecessor/actor_id all missing, remove scope from all holders except `to`.
       if (from_attr == null && !ev.actor_id) {
         for (const [holder, old] of [...active.entries()]) {
           if (holder === to) continue;
@@ -218,6 +290,12 @@ export const check_auth03c: Checker = (ctx) => {
       if (expires) neu.expires_at = expires;
       else delete neu.expires_at;
       active.set(to, neu);
+
+      const handoff_epoch = num(a.fence_epoch) ?? num(a.new_fence_epoch);
+      if (handoff_epoch != null) {
+        const cur_max = max_epoch.get(scope_id);
+        if (cur_max == null || handoff_epoch > cur_max) max_epoch.set(scope_id, handoff_epoch);
+      }
     }
     if (ev.op === "effect.receipt") {
       const outcome = str(a.outcome);
@@ -236,13 +314,11 @@ export const check_auth03c: Checker = (ctx) => {
         });
         continue;
       }
-      // Lease has expires_at but receipt missing/unparseable ts → cannot judge expiry.
       if (lease.expires_at && expires_ms != null && receipt_ms == null) {
         missing_ts_witnesses.push(ev.seq);
         continue;
       }
-      const expired =
-        expires_ms != null && receipt_ms != null && receipt_ms > expires_ms;
+      const expired = expires_ms != null && receipt_ms != null && receipt_ms > expires_ms;
       if (expired) {
         violations.push({
           text: `Committed effect scope_id=${scope_id} past lease expires_at=${lease.expires_at} for holder=${actor}.`,
@@ -275,7 +351,16 @@ export const check_auth03c: Checker = (ctx) => {
       ),
     ];
   }
-  return [finding(inv, cs, "supported", "Committed effects stayed within holder lease scopes.", uniq_sort(positive_witnesses), basis(ctx))];
+  return [
+    finding(
+      inv,
+      cs,
+      "supported",
+      "Committed effects stayed within holder lease scopes.",
+      uniq_sort(positive_witnesses),
+      basis(ctx),
+    ),
+  ];
 };
 
 export const check_auth03: Checker = (ctx) => [

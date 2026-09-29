@@ -59,26 +59,26 @@
     "file": "corpus/acp-shaped/a1-reask-after-restart.jsonl",
     "invariant": "AUTH-03a",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/acp-shaped/a1-reask-after-restart.jsonl",
     "invariant": "AUTH-03a",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
-  },
-  {
-    "file": "corpus/acp-shaped/a1-reask-after-restart.jsonl",
-    "invariant": "AUTH-03b",
-    "test_basis": "research_profile",
     "observed_result": "inconclusive",
     "result": "inconclusive"
   },
   {
     "file": "corpus/acp-shaped/a1-reask-after-restart.jsonl",
     "invariant": "AUTH-03b",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a1-reask-after-restart.jsonl",
+    "invariant": "AUTH-03b",
     "test_basis": "synthetic_fixture",
     "observed_result": "inconclusive",
     "result": "inconclusive"
@@ -143,15 +143,15 @@
     "file": "corpus/acp-shaped/a1-reask-after-restart.jsonl",
     "invariant": "AUTH-07",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/acp-shaped/a1-reask-after-restart.jsonl",
     "invariant": "AUTH-07",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/acp-shaped/a1-reask-after-restart.jsonl",
@@ -227,26 +227,26 @@
     "file": "corpus/acp-shaped/a2-stale-grant-no-reask.jsonl",
     "invariant": "AUTH-03a",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/acp-shaped/a2-stale-grant-no-reask.jsonl",
     "invariant": "AUTH-03a",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
-  },
-  {
-    "file": "corpus/acp-shaped/a2-stale-grant-no-reask.jsonl",
-    "invariant": "AUTH-03b",
-    "test_basis": "research_profile",
     "observed_result": "inconclusive",
     "result": "inconclusive"
   },
   {
     "file": "corpus/acp-shaped/a2-stale-grant-no-reask.jsonl",
     "invariant": "AUTH-03b",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a2-stale-grant-no-reask.jsonl",
+    "invariant": "AUTH-03b",
     "test_basis": "synthetic_fixture",
     "observed_result": "inconclusive",
     "result": "inconclusive"
@@ -311,15 +311,15 @@
     "file": "corpus/acp-shaped/a2-stale-grant-no-reask.jsonl",
     "invariant": "AUTH-07",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/acp-shaped/a2-stale-grant-no-reask.jsonl",
     "invariant": "AUTH-07",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/acp-shaped/a2-stale-grant-no-reask.jsonl",
@@ -395,26 +395,26 @@
     "file": "corpus/acp-shaped/a3-deny-then-committed.jsonl",
     "invariant": "AUTH-03a",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/acp-shaped/a3-deny-then-committed.jsonl",
     "invariant": "AUTH-03a",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
-  },
-  {
-    "file": "corpus/acp-shaped/a3-deny-then-committed.jsonl",
-    "invariant": "AUTH-03b",
-    "test_basis": "research_profile",
     "observed_result": "inconclusive",
     "result": "inconclusive"
   },
   {
     "file": "corpus/acp-shaped/a3-deny-then-committed.jsonl",
     "invariant": "AUTH-03b",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a3-deny-then-committed.jsonl",
+    "invariant": "AUTH-03b",
     "test_basis": "synthetic_fixture",
     "observed_result": "inconclusive",
     "result": "inconclusive"
@@ -731,26 +731,26 @@
     "file": "corpus/acp-shaped/a5-unknown-only.jsonl",
     "invariant": "AUTH-03a",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/acp-shaped/a5-unknown-only.jsonl",
     "invariant": "AUTH-03a",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
-  },
-  {
-    "file": "corpus/acp-shaped/a5-unknown-only.jsonl",
-    "invariant": "AUTH-03b",
-    "test_basis": "research_profile",
     "observed_result": "inconclusive",
     "result": "inconclusive"
   },
   {
     "file": "corpus/acp-shaped/a5-unknown-only.jsonl",
     "invariant": "AUTH-03b",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a5-unknown-only.jsonl",
+    "invariant": "AUTH-03b",
     "test_basis": "synthetic_fixture",
     "observed_result": "inconclusive",
     "result": "inconclusive"
@@ -899,26 +899,26 @@
     "file": "corpus/acp-shaped/a6-orphan-only.jsonl",
     "invariant": "AUTH-03a",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/acp-shaped/a6-orphan-only.jsonl",
     "invariant": "AUTH-03a",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
-  },
-  {
-    "file": "corpus/acp-shaped/a6-orphan-only.jsonl",
-    "invariant": "AUTH-03b",
-    "test_basis": "research_profile",
     "observed_result": "inconclusive",
     "result": "inconclusive"
   },
   {
     "file": "corpus/acp-shaped/a6-orphan-only.jsonl",
     "invariant": "AUTH-03b",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a6-orphan-only.jsonl",
+    "invariant": "AUTH-03b",
     "test_basis": "synthetic_fixture",
     "observed_result": "inconclusive",
     "result": "inconclusive"
@@ -983,15 +983,15 @@
     "file": "corpus/acp-shaped/a6-orphan-only.jsonl",
     "invariant": "AUTH-07",
     "test_basis": "research_profile",
-    "observed_result": "supported",
+    "observed_result": "violation",
     "result": "not_declared"
   },
   {
     "file": "corpus/acp-shaped/a6-orphan-only.jsonl",
     "invariant": "AUTH-07",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
+    "observed_result": "violation",
+    "result": "violation"
   },
   {
     "file": "corpus/acp-shaped/a6-orphan-only.jsonl",
@@ -1067,26 +1067,26 @@
     "file": "corpus/acp-shaped/a7-deny-restart-reask-same-action.jsonl",
     "invariant": "AUTH-03a",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/acp-shaped/a7-deny-restart-reask-same-action.jsonl",
     "invariant": "AUTH-03a",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
-  },
-  {
-    "file": "corpus/acp-shaped/a7-deny-restart-reask-same-action.jsonl",
-    "invariant": "AUTH-03b",
-    "test_basis": "research_profile",
     "observed_result": "inconclusive",
     "result": "inconclusive"
   },
   {
     "file": "corpus/acp-shaped/a7-deny-restart-reask-same-action.jsonl",
     "invariant": "AUTH-03b",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a7-deny-restart-reask-same-action.jsonl",
+    "invariant": "AUTH-03b",
     "test_basis": "synthetic_fixture",
     "observed_result": "inconclusive",
     "result": "inconclusive"
@@ -1176,6 +1176,174 @@
     "result": "not_tested"
   },
   {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-01a",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-01a",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-01b",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-01b",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-01c",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-01c",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-02",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-02",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-03a",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-03a",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-03b",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-03b",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-03c",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-03c",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-04",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-04",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-05",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-05",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-06",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-06",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-07",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-07",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-08",
+    "test_basis": "research_profile",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth01/pass-two-runtimes.jsonl",
+    "invariant": "AUTH-08",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
     "file": "corpus/auth01/pass.jsonl",
     "invariant": "AUTH-01a",
     "test_basis": "research_profile",
@@ -1249,15 +1417,15 @@
     "file": "corpus/auth01/pass.jsonl",
     "invariant": "AUTH-03b",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth01/pass.jsonl",
     "invariant": "AUTH-03b",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth01/pass.jsonl",
@@ -1277,15 +1445,15 @@
     "file": "corpus/auth01/pass.jsonl",
     "invariant": "AUTH-04",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth01/pass.jsonl",
     "invariant": "AUTH-04",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth01/pass.jsonl",
@@ -1571,26 +1739,26 @@
     "file": "corpus/auth02/pass-with-unlinked.jsonl",
     "invariant": "AUTH-03a",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth02/pass-with-unlinked.jsonl",
     "invariant": "AUTH-03a",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
-  },
-  {
-    "file": "corpus/auth02/pass-with-unlinked.jsonl",
-    "invariant": "AUTH-03b",
-    "test_basis": "research_profile",
     "observed_result": "inconclusive",
     "result": "inconclusive"
   },
   {
     "file": "corpus/auth02/pass-with-unlinked.jsonl",
     "invariant": "AUTH-03b",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/pass-with-unlinked.jsonl",
+    "invariant": "AUTH-03b",
     "test_basis": "synthetic_fixture",
     "observed_result": "inconclusive",
     "result": "inconclusive"
@@ -1753,88 +1921,88 @@
     "file": "corpus/auth02/pass.jsonl",
     "invariant": "AUTH-03b",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
-  },
-  {
-    "file": "corpus/auth02/pass.jsonl",
-    "invariant": "AUTH-03b",
-    "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
-  },
-  {
-    "file": "corpus/auth02/pass.jsonl",
-    "invariant": "AUTH-03c",
-    "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
-  },
-  {
-    "file": "corpus/auth02/pass.jsonl",
-    "invariant": "AUTH-03c",
-    "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
-  },
-  {
-    "file": "corpus/auth02/pass.jsonl",
-    "invariant": "AUTH-04",
-    "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
-  },
-  {
-    "file": "corpus/auth02/pass.jsonl",
-    "invariant": "AUTH-04",
-    "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
-  },
-  {
-    "file": "corpus/auth02/pass.jsonl",
-    "invariant": "AUTH-05",
-    "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
-  },
-  {
-    "file": "corpus/auth02/pass.jsonl",
-    "invariant": "AUTH-05",
-    "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
-  },
-  {
-    "file": "corpus/auth02/pass.jsonl",
-    "invariant": "AUTH-06",
-    "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
-  },
-  {
-    "file": "corpus/auth02/pass.jsonl",
-    "invariant": "AUTH-06",
-    "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
-  },
-  {
-    "file": "corpus/auth02/pass.jsonl",
-    "invariant": "AUTH-07",
-    "test_basis": "research_profile",
     "observed_result": "inconclusive",
     "result": "inconclusive"
   },
   {
     "file": "corpus/auth02/pass.jsonl",
-    "invariant": "AUTH-07",
+    "invariant": "AUTH-03b",
     "test_basis": "synthetic_fixture",
     "observed_result": "inconclusive",
     "result": "inconclusive"
   },
   {
     "file": "corpus/auth02/pass.jsonl",
+    "invariant": "AUTH-03c",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth02/pass.jsonl",
+    "invariant": "AUTH-03c",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/pass.jsonl",
+    "invariant": "AUTH-04",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/pass.jsonl",
+    "invariant": "AUTH-04",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/pass.jsonl",
+    "invariant": "AUTH-05",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth02/pass.jsonl",
+    "invariant": "AUTH-05",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/pass.jsonl",
+    "invariant": "AUTH-06",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth02/pass.jsonl",
+    "invariant": "AUTH-06",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/pass.jsonl",
+    "invariant": "AUTH-07",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/pass.jsonl",
+    "invariant": "AUTH-07",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/pass.jsonl",
     "invariant": "AUTH-08",
     "test_basis": "research_profile",
     "observed_result": "not_tested",
@@ -1907,26 +2075,26 @@
     "file": "corpus/auth02/violate-markerfree.jsonl",
     "invariant": "AUTH-03a",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth02/violate-markerfree.jsonl",
     "invariant": "AUTH-03a",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
-  },
-  {
-    "file": "corpus/auth02/violate-markerfree.jsonl",
-    "invariant": "AUTH-03b",
-    "test_basis": "research_profile",
     "observed_result": "inconclusive",
     "result": "inconclusive"
   },
   {
     "file": "corpus/auth02/violate-markerfree.jsonl",
     "invariant": "AUTH-03b",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/violate-markerfree.jsonl",
+    "invariant": "AUTH-03b",
     "test_basis": "synthetic_fixture",
     "observed_result": "inconclusive",
     "result": "inconclusive"
@@ -2075,15 +2243,15 @@
     "file": "corpus/auth02/violate-once-grant-reused.jsonl",
     "invariant": "AUTH-03a",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth02/violate-once-grant-reused.jsonl",
     "invariant": "AUTH-03a",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth02/violate-once-grant-reused.jsonl",
@@ -2243,15 +2411,15 @@
     "file": "corpus/auth02/violate.jsonl",
     "invariant": "AUTH-03a",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth02/violate.jsonl",
     "invariant": "AUTH-03a",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth02/violate.jsonl",
@@ -2425,15 +2593,15 @@
     "file": "corpus/auth03/inconclusive-missing-receipt-ts.jsonl",
     "invariant": "AUTH-03b",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "supported"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth03/inconclusive-missing-receipt-ts.jsonl",
     "invariant": "AUTH-03b",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth03/inconclusive-missing-receipt-ts.jsonl",
@@ -2453,15 +2621,15 @@
     "file": "corpus/auth03/inconclusive-missing-receipt-ts.jsonl",
     "invariant": "AUTH-04",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth03/inconclusive-missing-receipt-ts.jsonl",
     "invariant": "AUTH-04",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth03/inconclusive-missing-receipt-ts.jsonl",
@@ -2514,6 +2682,174 @@
   },
   {
     "file": "corpus/auth03/inconclusive-missing-receipt-ts.jsonl",
+    "invariant": "AUTH-08",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-01a",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-01a",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-01b",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-01b",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-01c",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-01c",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-02",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-02",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-03a",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-03a",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-03b",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-03b",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-03c",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-03c",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-04",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-04",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-05",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-05",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-06",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-06",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-07",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-07",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
+    "invariant": "AUTH-08",
+    "test_basis": "research_profile",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth03/pass-contended.jsonl",
     "invariant": "AUTH-08",
     "test_basis": "synthetic_fixture",
     "observed_result": "not_tested",
@@ -2593,15 +2929,15 @@
     "file": "corpus/auth03/pass.jsonl",
     "invariant": "AUTH-03b",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "supported"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth03/pass.jsonl",
     "invariant": "AUTH-03b",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth03/pass.jsonl",
@@ -2621,15 +2957,15 @@
     "file": "corpus/auth03/pass.jsonl",
     "invariant": "AUTH-04",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth03/pass.jsonl",
     "invariant": "AUTH-04",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth03/pass.jsonl",
@@ -3125,15 +3461,15 @@
     "file": "corpus/auth03/violate.jsonl",
     "invariant": "AUTH-04",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth03/violate.jsonl",
     "invariant": "AUTH-04",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth03/violate.jsonl",
@@ -3360,6 +3696,174 @@
     "result": "not_tested"
   },
   {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-01a",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-01a",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-01b",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-01b",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-01c",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-01c",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-02",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-02",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-03a",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-03a",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-03b",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-03b",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-03c",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-03c",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-04",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-04",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-05",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-05",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-06",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-06",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-07",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-07",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-08",
+    "test_basis": "research_profile",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-no-fence-change.jsonl",
+    "invariant": "AUTH-08",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
     "file": "corpus/auth04/inconclusive-rejected-only.jsonl",
     "invariant": "AUTH-01a",
     "test_basis": "research_profile",
@@ -3433,15 +3937,15 @@
     "file": "corpus/auth04/inconclusive-rejected-only.jsonl",
     "invariant": "AUTH-03b",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth04/inconclusive-rejected-only.jsonl",
     "invariant": "AUTH-03b",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth04/inconclusive-rejected-only.jsonl",
@@ -3522,6 +4026,174 @@
   },
   {
     "file": "corpus/auth04/inconclusive-rejected-only.jsonl",
+    "invariant": "AUTH-08",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-01a",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-01a",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-01b",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-01b",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-01c",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-01c",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-02",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-02",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-03a",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-03a",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-03b",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-03b",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-03c",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-03c",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-04",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-04",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-05",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-05",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-06",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-06",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-07",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-07",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
+    "invariant": "AUTH-08",
+    "test_basis": "research_profile",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-unattributed-scope.jsonl",
     "invariant": "AUTH-08",
     "test_basis": "synthetic_fixture",
     "observed_result": "not_tested",
@@ -4273,15 +4945,15 @@
     "file": "corpus/auth05/pass.jsonl",
     "invariant": "AUTH-03b",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth05/pass.jsonl",
     "invariant": "AUTH-03b",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth05/pass.jsonl",
@@ -4301,15 +4973,15 @@
     "file": "corpus/auth05/pass.jsonl",
     "invariant": "AUTH-04",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth05/pass.jsonl",
     "invariant": "AUTH-04",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth05/pass.jsonl",
@@ -4441,15 +5113,15 @@
     "file": "corpus/auth05/violate-markerfree.jsonl",
     "invariant": "AUTH-03b",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth05/violate-markerfree.jsonl",
     "invariant": "AUTH-03b",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth05/violate-markerfree.jsonl",
@@ -4609,15 +5281,15 @@
     "file": "corpus/auth05/violate.jsonl",
     "invariant": "AUTH-03b",
     "test_basis": "research_profile",
-    "observed_result": "supported",
-    "result": "not_declared"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth05/violate.jsonl",
     "invariant": "AUTH-03b",
     "test_basis": "synthetic_fixture",
-    "observed_result": "supported",
-    "result": "supported"
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
   },
   {
     "file": "corpus/auth05/violate.jsonl",
@@ -5376,6 +6048,174 @@
     "result": "not_tested"
   },
   {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-01a",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-01a",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-01b",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-01b",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-01c",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-01c",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-02",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-02",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-03a",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-03a",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-03b",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-03b",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-03c",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-03c",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-04",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-04",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-05",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-05",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-06",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-06",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-07",
+    "test_basis": "research_profile",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-07",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-08",
+    "test_basis": "research_profile",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth07/violate-late-commit-after-restart.jsonl",
+    "invariant": "AUTH-08",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
     "file": "corpus/auth07/violate-markerfree.jsonl",
     "invariant": "AUTH-01a",
     "test_basis": "research_profile",
@@ -5538,6 +6378,174 @@
   },
   {
     "file": "corpus/auth07/violate-markerfree.jsonl",
+    "invariant": "AUTH-08",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-01a",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-01a",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-01b",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-01b",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-01c",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-01c",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-02",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-02",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-03a",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-03a",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-03b",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-03b",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-03c",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-03c",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-04",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-04",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-05",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-05",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-06",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-06",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-07",
+    "test_basis": "research_profile",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-07",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
+    "invariant": "AUTH-08",
+    "test_basis": "research_profile",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth07/violate-reconcile-required-missing.jsonl",
     "invariant": "AUTH-08",
     "test_basis": "synthetic_fixture",
     "observed_result": "not_tested",
