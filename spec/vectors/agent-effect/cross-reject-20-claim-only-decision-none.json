@@ -1,0 +1,35 @@
+{
+  "id": "cross-reject-20-claim-only-decision-none",
+  "expect": "reject",
+  "kind": "cross_record",
+  "rules": [
+    1
+  ],
+  "description": "Single legacy committed record with approval_decision=none and approval_id=a1 (no issuance) → unauthorized_effect",
+  "records": [
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "e1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 1,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "stream_id": "boundary/fs-gateway",
+      "outcome": "committed",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000000",
+      "approval_decision": "none",
+      "approval_id": "a1",
+      "external_reference": "file:///tmp/w.txt"
+    }
+  ],
+  "expected": {
+    "ok": false,
+    "violation_codes": [
+      "unauthorized_effect"
+    ],
+    "report_codes": [],
+    "gap_streams": [],
+    "unknown_effect_ids": []
+  }
+}
