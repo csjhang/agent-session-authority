@@ -123,7 +123,12 @@ function isDecision(f: AgentEffectFields): boolean {
   return isGrant(f) || isDeny(f);
 }
 
-/** True when approval/decision A is at-or-before committed effect C (same record counts). */
+/**
+ * True when approval/decision A is at-or-before committed effect C (same record counts).
+ * Same-stream order uses sequence_number. Cross-stream order falls back to ts_unix_nano
+ * as a *reference* clock only — the profile treats ts as non-causal; do not treat this
+ * ordering as proof of happened-before across streams.
+ */
 function isPriorOrSame(a: IndexedRecord, c: IndexedRecord): boolean {
   if (a.index === c.index) return true;
   if (a.fields.stream_id === c.fields.stream_id) {
@@ -443,21 +448,26 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
       }
     }
 
+    // Adjacent differences only — never walk every integer from min..max
+    // (a jump like 1 → 1e12 would hang or OOM).
     const seqs = [...seqCounts.keys()].sort((a, b) => a - b);
-    if (seqs.length >= 2) {
+    const MAX_ENUMERATED_MISSING = 4096;
+    for (let i = 1; i < seqs.length; i++) {
+      const prev = seqs[i - 1]!;
+      const next = seqs[i]!;
+      if (next - prev <= 1) continue;
+      const span = next - prev - 1;
       const missing: number[] = [];
-      for (let s = seqs[0]!; s <= seqs[seqs.length - 1]!; s++) {
-        if (!seqCounts.has(s)) missing.push(s);
+      if (span <= MAX_ENUMERATED_MISSING) {
+        for (let s = prev + 1; s < next; s++) missing.push(s);
       }
-      if (missing.length > 0) {
-        gaps.push({
-          code: "sequence_gap",
-          stream_id: streamId,
-          missing,
-          from: seqs[0]!,
-          to: seqs[seqs.length - 1]!,
-        });
-      }
+      gaps.push({
+        code: "sequence_gap",
+        stream_id: streamId,
+        missing,
+        from: prev,
+        to: next,
+      });
     }
 
     // Rule 4a: fence_epoch must not go backwards within stream (by sequence_number).

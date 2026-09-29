@@ -161,13 +161,18 @@ Given a **set** of `AgentEffectRecord` objects (JSONL lines or a JSON array), th
    - same `approval_id` used by multiple different `effect_id`s among committed records → `approval_reused_across_effects`;
    - more than one `outcome=committed` for the same `effect_id` → `duplicate_commit`.
 6. **Unknown is first-class** — `outcome=unknown` is listed in a separate `unknowns` report. It is **not** treated as committed (does not require approval) and **not** treated as failed.
-7. **Sequence integrity** — within one `stream_id`, a duplicate `sequence_number` is a hard violation (`duplicate_sequence`). Missing numbers between the observed min and max are reported as `sequence_gap` soft reports (they do **not** flip `ok` to false).
+7. **Sequence integrity** — within one `stream_id`, a duplicate `sequence_number` is a hard violation (`duplicate_sequence`). Gaps are detected by **adjacent differences** only (sort unique sequence numbers; report when `next - prev > 1`). The verifier does **not** walk every integer from the observed min to max (large jumps would hang or exhaust memory). Each gap is a soft `sequence_gap` report (does **not** flip `ok` to false). When the gap span is small, `missing` may list the absent numbers; for huge spans only `from`/`to` are reliable.
+
+### Ordering limitation (cross-stream)
+
+Within one `stream_id`, prior/later decisions use `sequence_number`. Across different streams, the offline verifier falls back to comparing `ts_unix_nano`. That is a **reference clock only**: the field table already says `ts` / wall-clock hints are **not** causal order. Cross-stream “prior” checks based on timestamps therefore carry the same limitation — they are a practical tie-break for offline fixtures, not a happened-before proof across producers.
 
 ### Boundary (what this does *not* prove)
 
 - The verifier only proves that the **records are mutually consistent** with these rules.
 - It does **not** prove that any external side effect really happened (FS write, API call, ticket, …).
 - It does **not** verify signatures, hash chains, checkpoints, or key rotation — those belong to the signingprocessor / OTEP custody layer. Integrity keys remain excluded from the single-record hashed form; this cross-record pass does not add them.
+- Cross-stream ordering via `ts_unix_nano` does **not** prove causal order (see Ordering limitation above).
 
 ### Placement note
 

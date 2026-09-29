@@ -51,3 +51,8 @@ Core checkers operate on fault-probe `HistoryEvent` streams (`approval.grant`, `
 ## Gap reports (rule 7)
 
 `cross-report-07-sequence-gap.json` expects `ok: true` with a `sequence_gap` entry. Gaps are labeled and reported; they are not hard violations.
+
+## Cross-record limits
+
+- Sequence gaps use **adjacent differences** only (no min→max integer walk).
+- Cross-stream prior/later falls back to `ts_unix_nano` as a reference clock only — not causal order. See the Cross-record section in the attribute draft.
