@@ -54,6 +54,7 @@ Optional but useful (warn-or-allow if present with wrong type):
 | `scope_id` | string | **SHOULD** | Lease / action scope. |
 | `action_type` / `target` | string | **SHOULD** | Human-debug; digest remains authoritative. |
 | `policy_version` | string | **MAY** | Binding policy version. |
+| `record_kind` | string enum | **MAY** | `"effect"` (default when omitted) \| `"approval"`. Sink `grant()` issuance emits `"approval"` so verifiers can distinguish approval records from effect attempts that landed as `outcome=unknown`. |
 
 ### Integrity / envelope fields (not authority content)
 
@@ -89,6 +90,12 @@ Inspired by OTEP audit case C (integrity fields must not sit inside the bytes be
 - any key matching `/^integrity(\.|_)/` (prefix guard for extensions)
 
 Witness data must not appear inside the bytes being witnessed. If a collector later co-signs, producer `previous_*` links stay stable only when integrity keys stay out of the hashed form.
+
+**Record hash vs chain hash (mock sink / local ledger):**
+
+- **Record hash** = `sha256(JCS(hashed form))`. Link fields (`previous_evidence_hash`, `signature`, `integrity*`) are excluded so key-order and co-sign envelopes do not change the record hash.
+- **Chain hash** = `sha256(previous_chain_hash_bytes || record_hash_bytes)` over UTF-8 of the hex strings, where the first record’s previous is the **empty string**. The receipt’s `previous_evidence_hash` stores the prior record’s **chain hash** (not its record hash); `lastEvidenceHash` is the latest chain hash.
+- `verify_chain(ledger)` recomputes from the start and reports the first broken link (pointer mismatch).
 
 ### Validation rules (offline verifier)
 
@@ -152,7 +159,7 @@ Given a **set** of `AgentEffectRecord` objects (JSONL lines or a JSON array), th
 **Indexing:** approvals are keyed by `approval_id`, not by `effect_id`. A committed effect’s referenced `approval_id` must resolve to an **issuance** (a prior `approval_decision=grant` for that id whose `outcome` is not `committed`). Self-declared approval fields on a committed record are only a **claim** of use, not independent issuance evidence for generation binding — including when another effect’s committed record self-declares the same `approval_id`.
 
 1. **Committed needs approval** — every `outcome=committed` must resolve to a prior grant for its `approval_id` (`approval_decision=grant` + non-empty `approval_id`). If the commit omits approval fields, the verifier may recover an `approval_id` only from prior grant/deny decisions on the **same** `effect_id` (so commit-after-revoke is visible). Otherwise → `unauthorized_effect`.
-2. **Action digest consistency** — all records sharing an `effect_id` must carry the same `action_digest`; the approval-bound digest must equal the committed effect’s digest.
+2. **Action digest consistency** — among **committed effects** and **approval records** (`record_kind=approval`, or legacy non-committed decision issuances without `record_kind`) sharing an `effect_id`, digests must match; the approval-bound digest must equal the committed effect’s digest. A `rejected`/`failed` record with a different digest is a soft report `rejected_digest_variant` (does **not** flip `ok`) — the honest “sink rejected digest reuse” case.
 3. **Generation binding** — the approval’s **issuance generation** must equal the landing effect’s `runtime_generation`. Issuance generation is taken from `approval_runtime_generation` when present; otherwise from a **separate** issuance record’s `approval_runtime_generation` or `runtime_generation`. Reusing an approval across generations → `cross_generation_reuse`. If neither `approval_runtime_generation` nor a separate issuance record exists → soft report `approval_generation_unverifiable` (does **not** fail `ok`). Same-record self-declaration alone is not enough to decide generation.
 4. **Fence monotonicity** — within one `stream_id`, `fence_epoch` must not go backwards when ordered by `sequence_number`. A committed effect’s `fence_epoch` must not be lower than its approval’s `fence_epoch`.
 5. **Unauthorized / revoked / reuse / duplicate commit** —
@@ -160,7 +167,7 @@ Given a **set** of `AgentEffectRecord` objects (JSONL lines or a JSON array), th
    - **latest prior decision wins** for the same `approval_id` (not earliest): if the latest decision before the effect is `deny`, a subsequent commit → `revoked_approval_used`;
    - same `approval_id` used by multiple different `effect_id`s among committed records → `approval_reused_across_effects`;
    - more than one `outcome=committed` for the same `effect_id` → `duplicate_commit`.
-6. **Unknown is first-class** — `outcome=unknown` is listed in a separate `unknowns` report. It is **not** treated as committed (does not require approval) and **not** treated as failed.
+6. **Unknown is first-class** — `outcome=unknown` with `record_kind` absent or `"effect"` is listed in a separate `unknowns` report. Records with `record_kind=approval` are **not** listed there (they are issuance, not stranded effects). Unknown is **not** treated as committed (does not require approval) and **not** treated as failed.
 7. **Sequence integrity** — within one `stream_id`, a duplicate `sequence_number` is a hard violation (`duplicate_sequence`). Gaps are detected by **adjacent differences** only (sort unique sequence numbers; report when `next - prev > 1`). The verifier does **not** walk every integer from the observed min to max (large jumps would hang or exhaust memory). Each gap is a soft `sequence_gap` report (does **not** flip `ok` to false). When the gap span is small, `missing` may list the absent numbers; for huge spans only `from`/`to` are reliable.
 
 ### Ordering limitation (cross-stream)

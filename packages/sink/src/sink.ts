@@ -10,6 +10,7 @@ import type {
   FenceRequest,
   FenceResult,
   GrantRequest,
+  IssuedGrant,
   ObservationEntry,
   SinkSnapshot,
 } from "./types.js";
@@ -18,7 +19,7 @@ function now_iso(): string {
   return new Date().toISOString();
 }
 
-/** Keys excluded from evidence hashed form (spec/agent-effect-attributes.md). */
+/** Keys excluded from record-hash hashed form (link/co-sign fields stay out). */
 const HASH_EXCLUDE = new Set(["previousEvidenceHash", "signature"]);
 
 function strip_for_hash(receipt: EffectReceipt): Record<string, unknown> {
@@ -32,11 +33,62 @@ function strip_for_hash(receipt: EffectReceipt): Record<string, unknown> {
   return out;
 }
 
-/** Evidence hash of one receipt (JCS of stripped form). Independent of key order. */
+/**
+ * Record hash = sha256(JCS(form excluding previousEvidenceHash/signature/integrity*)).
+ * Independent of key order and of chain link fields.
+ */
 export function hash_receipt(receipt: EffectReceipt): string {
   const h = createHash("sha256");
   h.update(canonicalize(strip_for_hash(receipt)));
   return h.digest("hex");
+}
+
+/**
+ * Chain hash = sha256(previous_chain_hash || record_hash) over UTF-8 bytes.
+ * First previous is the empty string.
+ */
+export function chain_hash(previousChainHash: string, recordHash: string): string {
+  const h = createHash("sha256");
+  h.update(previousChainHash, "utf8");
+  h.update(recordHash, "utf8");
+  return h.digest("hex");
+}
+
+export interface VerifyChainResult {
+  ok: boolean;
+  /** 0-based index of first broken link when ok=false. */
+  breakAt?: number;
+  /** Final chain hash after a full walk (even when ok=false, hash of prefix through break). */
+  finalChainHash: string | null;
+  reason?: string;
+}
+
+/**
+ * Recompute the evidence chain from the start; report the first break.
+ * previousEvidenceHash on receipt i must equal the chain hash of receipt i-1
+ * (null/absent on the first record; formula uses "" for the first previous).
+ */
+export function verify_chain(ledger: readonly EffectReceipt[]): VerifyChainResult {
+  let prevChain = "";
+  let lastComputed: string | null = null;
+  for (let i = 0; i < ledger.length; i++) {
+    const rec = ledger[i]!;
+    const expectedPrev = prevChain === "" ? null : prevChain;
+    const gotPrev = rec.previousEvidenceHash ?? null;
+    if (gotPrev !== expectedPrev) {
+      return {
+        ok: false,
+        breakAt: i,
+        finalChainHash: lastComputed,
+        reason: `previousEvidenceHash mismatch at ${i}`,
+      };
+    }
+    const rh = hash_receipt(rec);
+    const ch = chain_hash(prevChain, rh);
+    lastComputed = ch;
+    prevChain = ch;
+  }
+  return { ok: true, finalChainHash: lastComputed };
 }
 
 function iso_to_unix_nano(iso: string): string {
@@ -61,6 +113,12 @@ export interface MockEffectSinkOptions {
 /**
  * In-process mock effect sink: ledger + fault inject + snapshot/restore.
  * Observation log is intentionally NOT rolled back by restore().
+ *
+ * Fence/holder policy (enforce): changing a scope holder via fence() auto-increments
+ * fenceEpoch when the request does not already raise it.
+ *
+ * restore() policy: if snapshot.enforce !== this instance's enforce flag → throw
+ * (does not apply a mismatched snapshot).
  */
 export class MockEffectSink {
   private commitCount = 0;
@@ -69,6 +127,10 @@ export class MockEffectSink {
   private committedIds = new Map<string, EffectReceipt>();
   /** approval_id → effectId that committed with it. */
   private usedApprovals = new Map<string, string>();
+  /** approval_id → effectId reserved before await (released if no commit). */
+  private reservedApprovals = new Map<string, string>();
+  /** approval_id → full grant() history (latest wins). */
+  private grantHistory = new Map<string, IssuedGrant[]>();
   private faultMode: FaultMode = "none";
   private delayMs = 0;
   private defaultRuntimeGeneration: number;
@@ -137,6 +199,17 @@ export class MockEffectSink {
     return Object.fromEntries(this.holders.entries());
   }
 
+  getLastEvidenceHash(): string | null {
+    return this.lastEvidenceHash;
+  }
+
+  /** Latest issued grant for approval_id, if any. */
+  getLatestGrant(approvalId: string): IssuedGrant | undefined {
+    const hist = this.grantHistory.get(approvalId);
+    if (!hist || hist.length === 0) return undefined;
+    return hist[hist.length - 1];
+  }
+
   exportLedger(): EffectReceipt[] {
     return this.ledger.map((r) => ({ ...r }));
   }
@@ -170,6 +243,7 @@ export class MockEffectSink {
         rec.approval_runtime_generation = r.approvalRuntimeGeneration;
       }
       if (r.signature !== undefined) rec.signature = r.signature;
+      if (r.recordKind !== undefined) rec.record_kind = r.recordKind;
       return rec;
     });
   }
@@ -190,8 +264,21 @@ export class MockEffectSink {
     };
   }
 
-  /** Restore sink state. Observation log is preserved (not rolled back). */
+  /**
+   * Restore sink state. Observation log is preserved (not rolled back).
+   * Throws if snapshot.enforce !== this.enforce (restore policy: hard error).
+   */
   restore(snap: SinkSnapshot): void {
+    const snapEnforce = snap.enforce ?? false;
+    if (snapEnforce !== this.enforce) {
+      const msg = `restore enforce mismatch: snapshot=${snapEnforce} instance=${this.enforce}`;
+      this.observe("sink.restore_reject", {
+        reason: "enforce_mismatch",
+        snapshotEnforce: snapEnforce,
+        instanceEnforce: this.enforce,
+      });
+      throw new Error(msg);
+    }
     this.commitCount = snap.commitCount;
     this.ledger = snap.ledger.map((r) => ({ ...r }));
     this.pending = new Map(Object.entries(snap.pending).map(([k, v]) => [k, { ...v }]));
@@ -204,6 +291,8 @@ export class MockEffectSink {
         this.usedApprovals.set(r.approvalId, r.effectId);
       }
     }
+    this.reservedApprovals.clear();
+    this.rebuildGrantHistoryFromLedger();
     this.faultMode = snap.faultMode;
     this.delayMs = snap.delayMs;
     this.defaultRuntimeGeneration = snap.defaultRuntimeGeneration;
@@ -221,43 +310,73 @@ export class MockEffectSink {
     });
   }
 
+  private rebuildGrantHistoryFromLedger(): void {
+    this.grantHistory.clear();
+    for (const r of this.ledger) {
+      if (r.recordKind !== "approval") continue;
+      if (!r.approvalId || (r.approvalDecision !== "grant" && r.approvalDecision !== "deny")) {
+        continue;
+      }
+      const issued: IssuedGrant = {
+        approvalId: r.approvalId,
+        effectId: r.effectId,
+        actionDigest: r.actionDigest,
+        decision: r.approvalDecision,
+        runtimeGeneration: r.approvalRuntimeGeneration ?? r.runtimeGeneration,
+        fenceEpoch: r.fenceEpoch,
+        observedAt: r.observedAt,
+      };
+      const list = this.grantHistory.get(r.approvalId) ?? [];
+      list.push(issued);
+      this.grantHistory.set(r.approvalId, list);
+    }
+  }
+
   /**
    * Advance fenceEpoch, runtimeGeneration, and/or change a scope's holder.
-   * Only increment (or equal) allowed; decrement → rejected.
+   * Validates all fields first; applies only if every check passes (atomic).
+   *
+   * When enforce=true and holder changes: auto-increment fenceEpoch unless the
+   * request already sets a strictly larger fenceEpoch.
    */
   fence(req: FenceRequest): FenceResult {
+    const curFence = this.defaultFenceEpoch;
+    const curGen = this.defaultRuntimeGeneration;
+
+    if (typeof req.fenceEpoch === "number" && req.fenceEpoch < curFence) {
+      this.observe("sink.fence_reject", {
+        reason: "fence_decrement",
+        requested: req.fenceEpoch,
+        current: curFence,
+      });
+      return {
+        ok: false,
+        reason: "fence_decrement",
+        fenceEpoch: curFence,
+        runtimeGeneration: curGen,
+        holders: this.getHolders(),
+      };
+    }
+    if (typeof req.runtimeGeneration === "number" && req.runtimeGeneration < curGen) {
+      this.observe("sink.fence_reject", {
+        reason: "generation_decrement",
+        requested: req.runtimeGeneration,
+        current: curGen,
+      });
+      return {
+        ok: false,
+        reason: "generation_decrement",
+        fenceEpoch: curFence,
+        runtimeGeneration: curGen,
+        holders: this.getHolders(),
+      };
+    }
+
+    // All checks passed — apply.
     if (typeof req.fenceEpoch === "number") {
-      if (req.fenceEpoch < this.defaultFenceEpoch) {
-        this.observe("sink.fence_reject", {
-          reason: "fence_decrement",
-          requested: req.fenceEpoch,
-          current: this.defaultFenceEpoch,
-        });
-        return {
-          ok: false,
-          reason: "fence_decrement",
-          fenceEpoch: this.defaultFenceEpoch,
-          runtimeGeneration: this.defaultRuntimeGeneration,
-          holders: this.getHolders(),
-        };
-      }
       this.defaultFenceEpoch = req.fenceEpoch;
     }
     if (typeof req.runtimeGeneration === "number") {
-      if (req.runtimeGeneration < this.defaultRuntimeGeneration) {
-        this.observe("sink.fence_reject", {
-          reason: "generation_decrement",
-          requested: req.runtimeGeneration,
-          current: this.defaultRuntimeGeneration,
-        });
-        return {
-          ok: false,
-          reason: "generation_decrement",
-          fenceEpoch: this.defaultFenceEpoch,
-          runtimeGeneration: this.defaultRuntimeGeneration,
-          holders: this.getHolders(),
-        };
-      }
       this.defaultRuntimeGeneration = req.runtimeGeneration;
     }
     if (typeof req.scopeId === "string" && typeof req.holder === "string") {
@@ -268,6 +387,15 @@ export class MockEffectSink {
         previousHolder: prev ?? null,
         holder: req.holder,
       });
+      // Enforce policy: holder change auto-increments fenceEpoch when request
+      // did not already raise it above the pre-request value.
+      if (this.enforce) {
+        const raisedInRequest =
+          typeof req.fenceEpoch === "number" && req.fenceEpoch > curFence;
+        if (!raisedInRequest) {
+          this.defaultFenceEpoch = Math.max(this.defaultFenceEpoch, curFence) + 1;
+        }
+      }
     }
     this.observe("sink.fence", {
       fenceEpoch: this.defaultFenceEpoch,
@@ -284,7 +412,8 @@ export class MockEffectSink {
   }
 
   /**
-   * Record an approval grant/deny issuance (outcome=unknown) for agent-effect export.
+   * Record an approval grant/deny issuance (outcome=unknown, record_kind=approval)
+   * for agent-effect export and enforce lookup.
    */
   grant(req: GrantRequest): AcceptResult {
     if (!req.effectId || !req.actionDigest || !req.approvalId) {
@@ -295,13 +424,15 @@ export class MockEffectSink {
       };
     }
     const decision = req.decision ?? "grant";
+    const runtimeGeneration = req.runtimeGeneration ?? this.defaultRuntimeGeneration;
+    const fenceEpoch = req.fenceEpoch ?? this.defaultFenceEpoch;
     const receipt = this.appendLedger(
       this.buildReceipt(
         {
           effectId: req.effectId,
           actionDigest: req.actionDigest,
-          runtimeGeneration: req.runtimeGeneration,
-          fenceEpoch: req.fenceEpoch,
+          runtimeGeneration,
+          fenceEpoch,
           boundaryId: req.boundaryId,
           controller: req.controller,
           scopeId: req.scopeId,
@@ -310,10 +441,23 @@ export class MockEffectSink {
         {
           approvalId: req.approvalId,
           approvalDecision: decision,
-          approvalRuntimeGeneration: req.runtimeGeneration ?? this.defaultRuntimeGeneration,
+          approvalRuntimeGeneration: runtimeGeneration,
+          recordKind: "approval",
         },
       ),
     );
+    const issued: IssuedGrant = {
+      approvalId: req.approvalId,
+      effectId: req.effectId,
+      actionDigest: req.actionDigest,
+      decision,
+      runtimeGeneration,
+      fenceEpoch,
+      observedAt: receipt.observedAt,
+    };
+    const hist = this.grantHistory.get(req.approvalId) ?? [];
+    hist.push(issued);
+    this.grantHistory.set(req.approvalId, hist);
     this.observe("sink.grant", {
       effectId: req.effectId,
       approvalId: req.approvalId,
@@ -338,6 +482,7 @@ export class MockEffectSink {
       approvalId?: string;
       approvalDecision?: "grant" | "deny" | "none";
       approvalRuntimeGeneration?: number;
+      recordKind?: "effect" | "approval";
     },
   ): EffectReceipt {
     const observedAt = this.clock();
@@ -362,18 +507,22 @@ export class MockEffectSink {
     if (approval?.approvalRuntimeGeneration !== undefined) {
       receipt.approvalRuntimeGeneration = approval.approvalRuntimeGeneration;
     }
+    if (approval?.recordKind !== undefined) receipt.recordKind = approval.recordKind;
     return receipt;
   }
 
   private appendLedger(receipt: EffectReceipt): EffectReceipt {
     const sealed = { ...receipt };
     this.ledger.push(sealed);
-    this.lastEvidenceHash = hash_receipt(sealed);
+    const recordHash = hash_receipt(sealed);
+    const prev = this.lastEvidenceHash ?? "";
+    this.lastEvidenceHash = chain_hash(prev, recordHash);
     if (sealed.outcome === "committed") {
       this.commitCount += 1;
       this.committedIds.set(sealed.effectId, sealed);
       if (sealed.approvalId) {
         this.usedApprovals.set(sealed.approvalId, sealed.effectId);
+        this.reservedApprovals.delete(sealed.approvalId);
       }
     }
     this.observe("sink.ledger_append", {
@@ -392,82 +541,94 @@ export class MockEffectSink {
       approvalDecision?: "grant" | "deny" | "none";
       approvalRuntimeGeneration?: number;
     },
+    detail?: Record<string, unknown>,
   ): AcceptResult {
     const rejected = this.appendLedger(this.buildReceipt(req, "rejected", approval));
-    return { accepted: false, receipt: rejected, reason };
+    return { accepted: false, receipt: rejected, reason, ...(detail ? { detail } : {}) };
   }
 
-  private enforceChecks(req: AcceptRequest): AcceptResult | null {
+  /**
+   * Enforce checks. Returns a reject AcceptResult, or { reserveApprovalId } when
+   * checks pass and an approval_id was reserved, or null when enforce is off.
+   */
+  private enforceChecks(
+    req: AcceptRequest,
+  ): AcceptResult | { ok: true; reserveApprovalId?: string } | null {
     if (!this.enforce) return null;
 
-    const reqFence = req.fenceEpoch ?? this.defaultFenceEpoch;
+    const missing: string[] = [];
+    if (typeof req.fenceEpoch !== "number") missing.push("fenceEpoch");
+    if (typeof req.runtimeGeneration !== "number") missing.push("runtimeGeneration");
+    if (typeof req.controller !== "string" || req.controller.length === 0) {
+      missing.push("controller");
+    }
+    if (typeof req.scopeId !== "string" || req.scopeId.length === 0) {
+      missing.push("scopeId");
+    }
+    if (missing.length > 0) {
+      return this.reject(req, "missing_authority_fields", undefined, { missing });
+    }
+
+    const reqFence = req.fenceEpoch!;
     if (reqFence < this.defaultFenceEpoch) {
       return this.reject(req, "stale_fence");
     }
 
-    const reqGen = req.runtimeGeneration ?? this.defaultRuntimeGeneration;
+    const reqGen = req.runtimeGeneration!;
     if (reqGen !== this.defaultRuntimeGeneration) {
       return this.reject(req, "generation_mismatch");
     }
 
-    if (req.scopeId) {
-      const holder = this.holders.get(req.scopeId);
-      if (holder !== undefined && req.controller !== holder) {
-        return this.reject(req, "not_holder");
-      }
+    const scopeId = req.scopeId!;
+    if (!this.holders.has(scopeId)) {
+      return this.reject(req, "unknown_scope");
+    }
+    const holder = this.holders.get(scopeId)!;
+    if (req.controller !== holder) {
+      return this.reject(req, "not_holder");
     }
 
-    if (!req.approval) {
+    if (!req.approval || typeof req.approval.approval_id !== "string" || !req.approval.approval_id) {
       return this.reject(req, "missing_approval");
     }
-    const appr = req.approval;
-    if (appr.decision !== "grant") {
-      return this.reject(
-        req,
-        "approval_denied",
-        {
-          approvalId: appr.approval_id,
-          approvalDecision: appr.decision,
-          approvalRuntimeGeneration: appr.runtime_generation,
-        },
-      );
+    const approvalId = req.approval.approval_id;
+    const issued = this.getLatestGrant(approvalId);
+    if (!issued) {
+      return this.reject(req, "unknown_approval", { approvalId });
     }
-    if (appr.action_digest !== req.actionDigest) {
-      return this.reject(
-        req,
-        "approval_digest_mismatch",
-        {
-          approvalId: appr.approval_id,
-          approvalDecision: appr.decision,
-          approvalRuntimeGeneration: appr.runtime_generation,
-        },
-      );
+    if (issued.decision !== "grant") {
+      return this.reject(req, "approval_denied", {
+        approvalId,
+        approvalDecision: issued.decision,
+        approvalRuntimeGeneration: issued.runtimeGeneration,
+      });
     }
-    if (appr.runtime_generation !== this.defaultRuntimeGeneration) {
-      return this.reject(
-        req,
-        "approval_generation_mismatch",
-        {
-          approvalId: appr.approval_id,
-          approvalDecision: appr.decision,
-          approvalRuntimeGeneration: appr.runtime_generation,
-        },
-      );
+    if (issued.actionDigest !== req.actionDigest) {
+      return this.reject(req, "approval_digest_mismatch", {
+        approvalId,
+        approvalDecision: issued.decision,
+        approvalRuntimeGeneration: issued.runtimeGeneration,
+      });
     }
-    const priorUse = this.usedApprovals.get(appr.approval_id);
-    if (priorUse !== undefined && priorUse !== req.effectId) {
-      return this.reject(
-        req,
-        "approval_reused",
-        {
-          approvalId: appr.approval_id,
-          approvalDecision: appr.decision,
-          approvalRuntimeGeneration: appr.runtime_generation,
-        },
-      );
+    if (issued.runtimeGeneration !== this.defaultRuntimeGeneration) {
+      return this.reject(req, "approval_generation_mismatch", {
+        approvalId,
+        approvalDecision: issued.decision,
+        approvalRuntimeGeneration: issued.runtimeGeneration,
+      });
+    }
+    const heldBy =
+      this.usedApprovals.get(approvalId) ?? this.reservedApprovals.get(approvalId);
+    if (heldBy !== undefined && heldBy !== req.effectId) {
+      return this.reject(req, "approval_reused", {
+        approvalId,
+        approvalDecision: issued.decision,
+        approvalRuntimeGeneration: issued.runtimeGeneration,
+      });
     }
 
-    return null;
+    // Reserve before any await (caller applies).
+    return { ok: true, reserveApprovalId: approvalId };
   }
 
   /**
@@ -494,6 +655,13 @@ export class MockEffectSink {
     }
   }
 
+  private releaseReservation(approvalId: string | undefined, effectId: string): void {
+    if (!approvalId) return;
+    if (this.reservedApprovals.get(approvalId) === effectId) {
+      this.reservedApprovals.delete(approvalId);
+    }
+  }
+
   private async acceptLocked(req: AcceptRequest): Promise<AcceptResult> {
     this.observe("sink.accept_request", {
       effectId: req.effectId,
@@ -511,7 +679,6 @@ export class MockEffectSink {
         return this.reject(req, "digest_mismatch");
       }
       this.observe("sink.resend_hit", { effectId: req.effectId });
-      // Pull from pending and clear after lost_reply resend.
       if (this.pending.has(req.effectId)) {
         const fromPending = this.pending.get(req.effectId)!;
         this.pending.delete(req.effectId);
@@ -528,44 +695,80 @@ export class MockEffectSink {
     }
 
     const enforced = this.enforceChecks(req);
-    if (enforced) return enforced;
-
-    if (this.faultMode === "timeout") {
-      this.observe("sink.timeout", { effectId: req.effectId });
-      return { accepted: false, receipt: null, reason: "injected timeout" };
+    if (enforced && !("ok" in enforced && enforced.ok === true)) {
+      return enforced as AcceptResult;
+    }
+    const reserveApprovalId =
+      enforced && "ok" in enforced ? enforced.reserveApprovalId : undefined;
+    if (reserveApprovalId) {
+      this.reservedApprovals.set(reserveApprovalId, req.effectId);
     }
 
-    if (this.faultMode === "delay" && this.delayMs > 0) {
-      await new Promise((r) => setTimeout(r, this.delayMs));
-    }
+    try {
+      if (this.faultMode === "timeout") {
+        this.observe("sink.timeout", { effectId: req.effectId });
+        this.releaseReservation(reserveApprovalId, req.effectId);
+        return { accepted: false, receipt: null, reason: "injected timeout" };
+      }
 
-    const outcome: EffectOutcome = req.forceOutcome ?? "committed";
-    const approvalMeta = req.approval
-      ? {
-          approvalId: req.approval.approval_id,
-          approvalDecision: req.approval.decision,
-          approvalRuntimeGeneration: req.approval.runtime_generation,
+      if (this.faultMode === "delay" && this.delayMs > 0) {
+        await new Promise((r) => setTimeout(r, this.delayMs));
+      }
+
+      // Re-check reservation lost to a concurrent winner (should not happen if
+      // reserve was set atomically, but keep defensive).
+      if (reserveApprovalId) {
+        const holder =
+          this.usedApprovals.get(reserveApprovalId) ??
+          this.reservedApprovals.get(reserveApprovalId);
+        if (holder !== undefined && holder !== req.effectId) {
+          return this.reject(req, "approval_reused", {
+            approvalId: reserveApprovalId,
+          });
         }
-      : undefined;
-    const receipt = this.appendLedger(this.buildReceipt(req, outcome, approvalMeta));
+      }
 
-    if (this.faultMode === "lost_reply") {
-      this.pending.set(req.effectId, receipt);
-      this.observe("sink.lost_reply", { effectId: req.effectId });
-      return { accepted: true, receipt: null, suppressed: true };
+      const outcome: EffectOutcome = req.forceOutcome ?? "committed";
+      const issued = reserveApprovalId ? this.getLatestGrant(reserveApprovalId) : undefined;
+      const approvalMeta = reserveApprovalId
+        ? {
+            approvalId: reserveApprovalId,
+            approvalDecision: (issued?.decision ?? "grant") as "grant" | "deny" | "none",
+            approvalRuntimeGeneration: issued?.runtimeGeneration ?? this.defaultRuntimeGeneration,
+          }
+        : req.approval
+          ? {
+              approvalId: req.approval.approval_id,
+              approvalDecision: req.approval.decision,
+              approvalRuntimeGeneration: req.approval.runtime_generation,
+            }
+          : undefined;
+      const receipt = this.appendLedger(this.buildReceipt(req, outcome, approvalMeta));
+
+      if (outcome !== "committed") {
+        this.releaseReservation(reserveApprovalId, req.effectId);
+      }
+
+      if (this.faultMode === "lost_reply") {
+        this.pending.set(req.effectId, receipt);
+        this.observe("sink.lost_reply", { effectId: req.effectId });
+        return { accepted: true, receipt: null, suppressed: true };
+      }
+
+      if (this.faultMode === "resend") {
+        this.observe("sink.resend_mode_first", { effectId: req.effectId });
+        this.faultMode = "none";
+        return { accepted: true, receipt: null, suppressed: true };
+      }
+
+      return {
+        accepted: outcome === "committed" || outcome === "failed",
+        receipt,
+        ...(outcome === "rejected" ? { reason: "outcome_rejected" } : {}),
+      };
+    } catch (e) {
+      this.releaseReservation(reserveApprovalId, req.effectId);
+      throw e;
     }
-
-    if (this.faultMode === "resend") {
-      this.observe("sink.resend_mode_first", { effectId: req.effectId });
-      this.faultMode = "none";
-      return { accepted: true, receipt: null, suppressed: true };
-    }
-
-    // outcome=rejected → accepted:false (HTTP 400). failed stays accepted for processed attempts.
-    return {
-      accepted: outcome === "committed" || outcome === "failed",
-      receipt,
-      ...(outcome === "rejected" ? { reason: "outcome_rejected" } : {}),
-    };
   }
 }

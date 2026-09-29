@@ -1,6 +1,8 @@
 /** Minimal EffectReceipt fields from Session Authority Profile v0.2. */
 export type EffectOutcome = "committed" | "rejected" | "failed" | "unknown";
 
+export type RecordKind = "effect" | "approval";
+
 export interface EffectReceipt {
   effectId: string;
   actionDigest: string;
@@ -22,16 +24,25 @@ export interface EffectReceipt {
   approvalDecision?: "grant" | "deny" | "none";
   /** Generation when the referenced approval was issued (wire: approval_runtime_generation). */
   approvalRuntimeGeneration?: number;
+  /**
+   * Wire: record_kind. "approval" for sink grant() issuance; default/omitted = "effect".
+   */
+  recordKind?: RecordKind;
 }
 
 export type FaultMode = "none" | "timeout" | "resend" | "lost_reply" | "delay";
 
-/** Optional approval binding carried on AcceptRequest when enforce is on. */
+/**
+ * Approval binding on AcceptRequest when enforce is on.
+ * Only `approval_id` is authoritative on the request; digest/generation/decision
+ * are taken from the sink's grant() issuance records.
+ */
 export interface ApprovalBinding {
   approval_id: string;
-  action_digest: string;
-  runtime_generation: number;
-  decision: "grant" | "deny" | "none";
+  /** Ignored under enforce (looked up from grant records). Kept optional for callers. */
+  action_digest?: string;
+  runtime_generation?: number;
+  decision?: "grant" | "deny" | "none";
 }
 
 export interface AcceptRequest {
@@ -44,7 +55,7 @@ export interface AcceptRequest {
   scopeId?: string;
   /** Optional explicit outcome override for tests. */
   forceOutcome?: EffectOutcome;
-  /** Approval binding; required when sink enforce=true. */
+  /** Approval binding; required when sink enforce=true. Carries approval_id only. */
   approval?: ApprovalBinding;
 }
 
@@ -52,6 +63,8 @@ export interface AcceptResult {
   accepted: boolean;
   receipt: EffectReceipt | null;
   reason?: string;
+  /** Structured detail for reasons such as missing_authority_fields. */
+  detail?: Record<string, unknown>;
   /** When faultMode=lost_reply, receipt is computed but not returned. */
   suppressed?: boolean;
   /** Duplicate of prior committed receipt on resend. */
@@ -127,4 +140,17 @@ export interface AgentEffectRecord {
   approval_runtime_generation?: number;
   previous_evidence_hash?: string | null;
   signature?: string;
+  /** Optional; default "effect". Sink grant() emits "approval". */
+  record_kind?: RecordKind;
+}
+
+/** One grant()/deny issuance stored by the sink (keyed by approval_id). */
+export interface IssuedGrant {
+  approvalId: string;
+  effectId: string;
+  actionDigest: string;
+  decision: "grant" | "deny";
+  runtimeGeneration: number;
+  fenceEpoch: number;
+  observedAt: string;
 }

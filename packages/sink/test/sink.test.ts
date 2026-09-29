@@ -4,8 +4,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   MockEffectSink,
+  chain_hash,
   hash_receipt,
   start_sink_server,
+  verify_chain,
   type EffectReceipt,
 } from "../src/index.js";
 
@@ -143,12 +145,13 @@ describe("PR-2: enforce mode (default OFF)", () => {
       runtimeGeneration: 3,
       holders: { scope_a: "alice" },
     });
-    const grant = {
-      approval_id: "appr_x",
-      action_digest: "d1",
-      runtime_generation: 3,
-      decision: "grant" as const,
-    };
+    sink.grant({
+      effectId: "e_stale",
+      actionDigest: "d1",
+      approvalId: "appr_x",
+      decision: "grant",
+      runtimeGeneration: 3,
+    });
     const stale = await sink.accept({
       effectId: "e_stale",
       actionDigest: "d1",
@@ -156,11 +159,18 @@ describe("PR-2: enforce mode (default OFF)", () => {
       runtimeGeneration: 3,
       controller: "alice",
       scopeId: "scope_a",
-      approval: grant,
+      approval: { approval_id: "appr_x" },
     });
     expect(stale.accepted).toBe(false);
     expect(stale.reason).toBe("stale_fence");
 
+    sink.grant({
+      effectId: "e_gen",
+      actionDigest: "d1",
+      approvalId: "appr_gen",
+      decision: "grant",
+      runtimeGeneration: 3,
+    });
     const gen = await sink.accept({
       effectId: "e_gen",
       actionDigest: "d1",
@@ -168,11 +178,18 @@ describe("PR-2: enforce mode (default OFF)", () => {
       runtimeGeneration: 2,
       controller: "alice",
       scopeId: "scope_a",
-      approval: { ...grant, runtime_generation: 2 },
+      approval: { approval_id: "appr_gen" },
     });
     expect(gen.accepted).toBe(false);
     expect(gen.reason).toBe("generation_mismatch");
 
+    sink.grant({
+      effectId: "e_nh",
+      actionDigest: "d1",
+      approvalId: "appr_nh",
+      decision: "grant",
+      runtimeGeneration: 3,
+    });
     const nh = await sink.accept({
       effectId: "e_nh",
       actionDigest: "d1",
@@ -180,7 +197,7 @@ describe("PR-2: enforce mode (default OFF)", () => {
       runtimeGeneration: 3,
       controller: "bob",
       scopeId: "scope_a",
-      approval: grant,
+      approval: { approval_id: "appr_nh" },
     });
     expect(nh.accepted).toBe(false);
     expect(nh.reason).toBe("not_holder");
@@ -203,6 +220,13 @@ describe("PR-2: enforce mode (default OFF)", () => {
     expect(sink.getFenceEpoch()).toBe(2);
     expect(sink.getHolders().scope_a).toBe("bob");
 
+    sink.grant({
+      effectId: "e_handoff",
+      actionDigest: "d1",
+      approvalId: "appr_h",
+      decision: "grant",
+      runtimeGeneration: 2,
+    });
     const old = await sink.accept({
       effectId: "e_handoff",
       actionDigest: "d1",
@@ -210,12 +234,7 @@ describe("PR-2: enforce mode (default OFF)", () => {
       runtimeGeneration: 2,
       controller: "alice",
       scopeId: "scope_a",
-      approval: {
-        approval_id: "appr_h",
-        action_digest: "d1",
-        runtime_generation: 2,
-        decision: "grant",
-      },
+      approval: { approval_id: "appr_h" },
     });
     expect(old.accepted).toBe(false);
     expect(old.reason).toBe("not_holder");
@@ -240,7 +259,7 @@ describe("PR-2: enforce mode (default OFF)", () => {
   });
 });
 
-describe("PR-2: enforce approval binding", () => {
+describe("PR-2: enforce approval from grant records", () => {
   function enforced() {
     return new MockEffectSink({
       enforce: true,
@@ -250,88 +269,113 @@ describe("PR-2: enforce approval binding", () => {
     });
   }
 
-  it("missing_approval / approval_denied / digest / generation / reused", async () => {
+  const base = {
+    fenceEpoch: 1,
+    runtimeGeneration: 1,
+    controller: "c1",
+    scopeId: "s",
+  };
+
+  it("missing_approval / unknown_approval / digest / generation / reused via grant records", async () => {
     const sink = enforced();
-    const base = {
-      fenceEpoch: 1,
-      runtimeGeneration: 1,
-      controller: "c1",
-      scopeId: "s",
-    };
 
     const missing = await sink.accept({ effectId: "e_m", actionDigest: "d", ...base });
     expect(missing.reason).toBe("missing_approval");
 
-    const denied = await sink.accept({
-      effectId: "e_d",
+    const never = await sink.accept({
+      effectId: "e_never",
       actionDigest: "d",
       ...base,
-      approval: {
-        approval_id: "a1",
-        action_digest: "d",
-        runtime_generation: 1,
-        decision: "deny",
-      },
+      approval: { approval_id: "never_issued" },
     });
-    expect(denied.reason).toBe("approval_denied");
+    expect(never.reason).toBe("unknown_approval");
+    expect(never.accepted).toBe(false);
 
+    sink.grant({
+      effectId: "e_ad",
+      actionDigest: "other",
+      approvalId: "a2",
+      decision: "grant",
+      runtimeGeneration: 1,
+    });
     const dig = await sink.accept({
       effectId: "e_ad",
       actionDigest: "d",
       ...base,
-      approval: {
-        approval_id: "a2",
-        action_digest: "other",
-        runtime_generation: 1,
-        decision: "grant",
-      },
+      approval: { approval_id: "a2" },
     });
     expect(dig.reason).toBe("approval_digest_mismatch");
 
+    sink.grant({
+      effectId: "e_ag",
+      actionDigest: "d",
+      approvalId: "a3",
+      decision: "grant",
+      runtimeGeneration: 0,
+    });
     const gen = await sink.accept({
       effectId: "e_ag",
       actionDigest: "d",
       ...base,
-      approval: {
-        approval_id: "a3",
-        action_digest: "d",
-        runtime_generation: 0,
-        decision: "grant",
-      },
+      approval: { approval_id: "a3" },
     });
     expect(gen.reason).toBe("approval_generation_mismatch");
 
+    sink.grant({
+      effectId: "e_ok",
+      actionDigest: "d",
+      approvalId: "a_shared",
+      decision: "grant",
+      runtimeGeneration: 1,
+    });
     const first = await sink.accept({
       effectId: "e_ok",
       actionDigest: "d",
       ...base,
-      approval: {
-        approval_id: "a_shared",
-        action_digest: "d",
-        runtime_generation: 1,
-        decision: "grant",
-      },
+      approval: { approval_id: "a_shared" },
     });
     expect(first.accepted).toBe(true);
     expect(first.receipt?.approvalId).toBe("a_shared");
 
+    sink.grant({
+      effectId: "e_other",
+      actionDigest: "d2",
+      approvalId: "a_shared",
+      decision: "grant",
+      runtimeGeneration: 1,
+    });
+    // latest grant for a_shared now has digest d2, but approval already used by e_ok
     const reused = await sink.accept({
       effectId: "e_other",
       actionDigest: "d2",
       ...base,
-      approval: {
-        approval_id: "a_shared",
-        action_digest: "d2",
-        runtime_generation: 1,
-        decision: "grant",
-      },
+      approval: { approval_id: "a_shared" },
     });
     expect(reused.reason).toBe("approval_reused");
   });
+
+  it("grant() recorded deny then accept → approval_denied (ignores request decision claim)", async () => {
+    const sink = enforced();
+    sink.grant({
+      effectId: "e_deny",
+      actionDigest: "d",
+      approvalId: "a_deny",
+      decision: "deny",
+      runtimeGeneration: 1,
+    });
+    const denied = await sink.accept({
+      effectId: "e_deny",
+      actionDigest: "d",
+      ...base,
+      approval: { approval_id: "a_deny", decision: "grant" },
+    });
+    expect(denied.accepted).toBe(false);
+    expect(denied.reason).toBe("approval_denied");
+  });
 });
 
-describe("PR-2: evidence hash (JCS)", () => {
-  it("same receipt different key order → same hash; previousEvidenceHash excluded but chains", () => {
+describe("PR-2: evidence hash chain (JCS + chain hash)", () => {
+  it("record hash is key-order independent; previousEvidenceHash excluded from record hash", () => {
     const base: EffectReceipt = {
       effectId: "e1",
       actionDigest: "d1",
@@ -361,24 +405,206 @@ describe("PR-2: evidence hash (JCS)", () => {
       previousEvidenceHash: "deadbeef",
     };
     expect(hash_receipt(withPrev)).toBe(hash_receipt(base));
+  });
 
-    // Chain into next: next.previousEvidenceHash = this hash; next's own hash differs by other fields.
-    const h1 = hash_receipt(base);
-    const next: EffectReceipt = {
-      ...base,
-      effectId: "e2",
-      previousEvidenceHash: h1,
+  it("tamper: alter record 1 content and patch record 2 pointer → verify_chain fails; final chain hash changes", async () => {
+    const sink = new MockEffectSink({
+      clock: (() => {
+        let n = 0;
+        return () => {
+          n += 1;
+          return new Date(Date.UTC(2026, 8, 29, 0, 0, n)).toISOString();
+        };
+      })(),
+    });
+    await sink.accept({ effectId: "e1", actionDigest: "d1" });
+    await sink.accept({ effectId: "e2", actionDigest: "d2" });
+    const ledger = sink.exportLedger();
+    expect(ledger).toHaveLength(2);
+    const original = verify_chain(ledger);
+    expect(original.ok).toBe(true);
+    expect(original.finalChainHash).toBe(sink.getLastEvidenceHash());
+
+    // Tamper record 1 content and patch record 2's previousEvidenceHash to the
+    // new *record* hash (wrong link — should be chain hash), simulating a botched cover-up.
+    const tampered = ledger.map((r) => ({ ...r }));
+    tampered[0]!.actionDigest = "TAMPERED";
+    const forgedRecordHash = hash_receipt(tampered[0]!);
+    tampered[1]!.previousEvidenceHash = forgedRecordHash;
+
+    const v = verify_chain(tampered);
+    expect(v.ok).toBe(false);
+    expect(v.breakAt === 0 || v.breakAt === 1).toBe(true);
+
+    // Recompute what the final chain hash would be if links were "fixed" to chain hashes:
+    const rh0 = hash_receipt(tampered[0]!);
+    const ch0 = chain_hash("", rh0);
+    const rh1 = hash_receipt({ ...tampered[1]!, previousEvidenceHash: ch0 });
+    const ch1 = chain_hash(ch0, rh1);
+    expect(ch1).not.toBe(original.finalChainHash);
+  });
+});
+
+describe("PR-2: enforce must not fail-open", () => {
+  it("missing fenceEpoch/runtimeGeneration/controller/scopeId → missing_authority_fields", async () => {
+    const sink = new MockEffectSink({
+      enforce: true,
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      holders: { s: "c1" },
+    });
+    sink.grant({
+      effectId: "e_miss",
+      actionDigest: "d",
+      approvalId: "a_miss",
+      decision: "grant",
+      runtimeGeneration: 1,
+    });
+    const r = await sink.accept({
+      effectId: "e_miss",
+      actionDigest: "d",
+      approval: { approval_id: "a_miss" },
+      // omit fenceEpoch, runtimeGeneration, controller, scopeId
+    });
+    expect(r.accepted).toBe(false);
+    expect(r.reason).toBe("missing_authority_fields");
+    expect(r.detail?.missing).toEqual(
+      expect.arrayContaining(["fenceEpoch", "runtimeGeneration", "controller", "scopeId"]),
+    );
+    expect(sink.getCommitCount()).toBe(0);
+  });
+
+  it("scopeId not in holders → unknown_scope", async () => {
+    const sink = new MockEffectSink({
+      enforce: true,
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      holders: { s: "c1" },
+    });
+    sink.grant({
+      effectId: "e_us",
+      actionDigest: "d",
+      approvalId: "a_us",
+      decision: "grant",
+      runtimeGeneration: 1,
+    });
+    const r = await sink.accept({
+      effectId: "e_us",
+      actionDigest: "d",
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      controller: "c1",
+      scopeId: "unknown_scope_id",
+      approval: { approval_id: "a_us" },
+    });
+    expect(r.accepted).toBe(false);
+    expect(r.reason).toBe("unknown_scope");
+  });
+
+  it("after handoff, old controller omitting scopeId/fenceEpoch → rejected not committed", async () => {
+    const sink = new MockEffectSink({
+      enforce: true,
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      holders: { scope_a: "alice" },
+    });
+    sink.fence({
+      fenceEpoch: 2,
+      runtimeGeneration: 2,
+      scopeId: "scope_a",
+      holder: "bob",
+    });
+    sink.grant({
+      effectId: "e_omit",
+      actionDigest: "d1",
+      approvalId: "appr_omit",
+      decision: "grant",
+      runtimeGeneration: 2,
+    });
+    const old = await sink.accept({
+      effectId: "e_omit",
+      actionDigest: "d1",
+      runtimeGeneration: 2,
+      controller: "alice",
+      // omit scopeId and fenceEpoch
+      approval: { approval_id: "appr_omit" },
+    });
+    expect(old.accepted).toBe(false);
+    expect(old.reason).toBe("missing_authority_fields");
+    expect(old.detail?.missing).toEqual(expect.arrayContaining(["fenceEpoch", "scopeId"]));
+    expect(old.receipt?.outcome).toBe("rejected");
+    expect(sink.getCommitCount()).toBe(0);
+  });
+});
+
+describe("PR-2: cross-effect approval race", () => {
+  it("delay mode, two different effectIds same approval → one committed, other approval_reused", async () => {
+    const sink2 = new MockEffectSink({
+      enforce: true,
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      holders: { s: "c1" },
+      faultMode: "delay",
+      delayMs: 50,
+    });
+    sink2.grant({
+      effectId: "placeholder",
+      actionDigest: "d_shared",
+      approvalId: "appr_race",
+      decision: "grant",
+      runtimeGeneration: 1,
+    });
+    const base = {
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      controller: "c1",
+      scopeId: "s",
+      approval: { approval_id: "appr_race" },
     };
-    const nextAlt: EffectReceipt = {
-      ...base,
-      effectId: "e2",
-      previousEvidenceHash: "ffffffffffffffff",
-    };
-    // Changing previousEvidenceHash alone does not change this record's hash.
-    expect(hash_receipt(next)).toBe(hash_receipt(nextAlt));
-    // But the chain pointer is still carried on the receipt for the next link.
-    expect(next.previousEvidenceHash).toBe(h1);
-    expect(next.previousEvidenceHash).not.toBe(nextAlt.previousEvidenceHash);
+    const [a, b] = await Promise.all([
+      sink2.accept({ effectId: "race_a", actionDigest: "d_shared", ...base }),
+      sink2.accept({ effectId: "race_b", actionDigest: "d_shared", ...base }),
+    ]);
+    expect(sink2.getCommitCount()).toBe(1);
+    const ok = [a, b].filter((r) => r.accepted && r.receipt?.outcome === "committed");
+    const bad = [a, b].filter((r) => !r.accepted);
+    expect(ok.length).toBe(1);
+    expect(bad.length).toBe(1);
+    expect(bad[0]!.reason).toBe("approval_reused");
+  });
+});
+
+describe("PR-2: fence() atomic + holder auto-increment", () => {
+  it("{fenceEpoch:9, runtimeGeneration: smaller} → ok:false, fenceEpoch unchanged", () => {
+    const sink = new MockEffectSink({ fenceEpoch: 5, runtimeGeneration: 3 });
+    const r = sink.fence({ fenceEpoch: 9, runtimeGeneration: 1 });
+    expect(r.ok).toBe(false);
+    expect(r.reason).toBe("generation_decrement");
+    expect(sink.getFenceEpoch()).toBe(5);
+    expect(sink.getRuntimeGeneration()).toBe(3);
+  });
+
+  it("enforce: holder change without larger fenceEpoch auto-increments fenceEpoch", () => {
+    const sink = new MockEffectSink({
+      enforce: true,
+      fenceEpoch: 4,
+      runtimeGeneration: 1,
+      holders: { s: "alice" },
+    });
+    const r = sink.fence({ scopeId: "s", holder: "bob" });
+    expect(r.ok).toBe(true);
+    expect(sink.getHolders().s).toBe("bob");
+    expect(sink.getFenceEpoch()).toBe(5);
+  });
+});
+
+describe("PR-2: restore() enforce mismatch throws", () => {
+  it("restore snapshot with different enforce → error", async () => {
+    const sinkOff = new MockEffectSink({ enforce: false });
+    const snap = sinkOff.snapshot();
+    expect(snap.enforce).toBe(false);
+    const sinkOn = new MockEffectSink({ enforce: true, holders: { s: "c" } });
+    expect(() => sinkOn.restore(snap)).toThrow(/enforce mismatch/);
   });
 });
 
@@ -458,6 +684,7 @@ describe("PR-2: export asa.agent-effect/0.1", () => {
     expect(g.accepted).toBe(true);
     expect(g.receipt?.outcome).toBe("unknown");
     expect(g.receipt?.approvalId).toBe("appr-1");
+    expect(g.receipt?.recordKind).toBe("approval");
 
     const c = await sink.accept({
       effectId: "eff-1",
@@ -466,12 +693,7 @@ describe("PR-2: export asa.agent-effect/0.1", () => {
       fenceEpoch: 1,
       controller: "alice",
       scopeId: "scope_a",
-      approval: {
-        approval_id: "appr-1",
-        action_digest: "sha256:deadbeef",
-        runtime_generation: 1,
-        decision: "grant",
-      },
+      approval: { approval_id: "appr-1" },
     });
     expect(c.accepted).toBe(true);
     expect(c.receipt?.outcome).toBe("committed");
@@ -492,14 +714,10 @@ describe("PR-2: export asa.agent-effect/0.1", () => {
       fenceEpoch: 2,
       controller: "alice",
       scopeId: "scope_a",
-      approval: {
-        approval_id: "appr-2",
-        action_digest: "sha256:cafe",
-        runtime_generation: 2,
-        decision: "grant",
-      },
+      approval: { approval_id: "appr-2" },
     });
     expect(old.accepted).toBe(false);
+    // unknown_approval (never granted) or not_holder — holder checked before approval
     expect(old.reason).toBe("not_holder");
     expect(old.receipt?.outcome).toBe("rejected");
 
@@ -507,6 +725,7 @@ describe("PR-2: export asa.agent-effect/0.1", () => {
     expect(records.every((r) => r.schema_version === "asa.agent-effect/0.1")).toBe(true);
     expect(records[0]!.stream_id).toBe("boundary/fs-gateway");
     expect(records.map((r) => r.sequence_number)).toEqual([1, 2, 3]);
+    expect(records[0]!.record_kind).toBe("approval");
     expect(records[1]!.approval_id).toBe("appr-1");
     expect(records[1]!.approval_runtime_generation).toBe(1);
 
@@ -515,10 +734,13 @@ describe("PR-2: export asa.agent-effect/0.1", () => {
     const verifyCrossRecords = mod.verifyCrossRecords as (recs: unknown[]) => {
       ok: boolean;
       violations: { code: string }[];
+      unknowns: { effect_id: string }[];
     };
 
     const ok = verifyCrossRecords(records);
     expect(ok.ok).toBe(true);
+    // approval record_kind should not appear in unknowns list
+    expect(ok.unknowns.map((u) => u.effect_id)).not.toContain("eff-1");
 
     const corrupted = records.map((r, i) =>
       i === 1 ? { ...r, runtime_generation: 99 } : { ...r },
@@ -527,7 +749,6 @@ describe("PR-2: export asa.agent-effect/0.1", () => {
     expect(bad.ok).toBe(false);
     expect(bad.violations.some((v) => v.code === "cross_generation_reuse")).toBe(true);
 
-    // HTTP JSONL export
     const srv = await start_sink_server(sink);
     try {
       const res = await fetch(`${srv.url}/ledger?format=agent-effect`);
@@ -540,6 +761,7 @@ describe("PR-2: export asa.agent-effect/0.1", () => {
         .map((l) => JSON.parse(l));
       expect(lines).toHaveLength(3);
       expect(lines[0].schema_version).toBe("asa.agent-effect/0.1");
+      expect(lines[0].record_kind).toBe("approval");
     } finally {
       await srv.close();
     }
@@ -549,7 +771,6 @@ describe("PR-2: export asa.agent-effect/0.1", () => {
 describe("PR-2: jcs re-export still works for vectors", () => {
   it("spec jcs re-exports canonicalize from core", async () => {
     const jcsPath = join(repoRoot, "spec/vectors/agent-effect/jcs.ts");
-    // file exists and is a re-export
     const src = readFileSync(jcsPath, "utf8");
     expect(src).toMatch(/packages\/core\/src\/jcs/);
     const { canonicalize } = await import(pathToFileURL(jcsPath).href);

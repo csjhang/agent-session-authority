@@ -1,0 +1,69 @@
+{
+  "id": "cross-pass-08-rejected-digest-variant",
+  "expect": "report",
+  "kind": "cross_record",
+  "rules": [
+    2
+  ],
+  "description": "Sink honestly rejects digest reuse: committed keeps digest A; rejected attempt with same effect_id and digest B → ok=true with rejected_digest_variant soft report (does not flip ok)",
+  "records": [
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "eff-1",
+      "action_digest": "sha256:aaaa",
+      "runtime_generation": 2,
+      "fence_epoch": 7,
+      "boundary_id": "fs-gateway",
+      "outcome": "unknown",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000000",
+      "session_id": "s1",
+      "controller": "runtime_a",
+      "approval_decision": "grant",
+      "approval_id": "appr-8",
+      "record_kind": "approval"
+    },
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "eff-1",
+      "action_digest": "sha256:aaaa",
+      "runtime_generation": 2,
+      "fence_epoch": 7,
+      "boundary_id": "fs-gateway",
+      "outcome": "committed",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 2,
+      "ts_unix_nano": "1759107601000000000",
+      "session_id": "s1",
+      "controller": "runtime_a",
+      "approval_decision": "grant",
+      "approval_id": "appr-8",
+      "approval_runtime_generation": 2,
+      "external_reference": "file:///tmp/w.txt"
+    },
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "eff-1",
+      "action_digest": "sha256:bbbb",
+      "runtime_generation": 2,
+      "fence_epoch": 7,
+      "boundary_id": "fs-gateway",
+      "outcome": "rejected",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 3,
+      "ts_unix_nano": "1759107602000000000",
+      "session_id": "s1",
+      "controller": "runtime_a"
+    }
+  ],
+  "expected": {
+    "ok": true,
+    "violation_codes": [],
+    "report_codes": [
+      "rejected_digest_variant"
+    ],
+    "gap_streams": [],
+    "unknown_effect_ids": []
+  }
+}
