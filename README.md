@@ -31,7 +31,7 @@ Published reports:
 ### Next probe posture
 
 1. **Option-offer survey** — which permission kinds are actually offered vs listed in the ACP kind enum (Hermes / OpenClaw / …; cheap first pass). See [`findings/option-offer-survey.md`](findings/option-offer-survey.md).
-2. Minimal **offline effect-receipt format + verifier** (not hosted audit storage).
+2. Minimal **offline effect-receipt format + verifier** (not hosted audit storage) — draft: [`spec/agent-effect-attributes.md`](spec/agent-effect-attributes.md) + JCS vectors under [`spec/vectors/agent-effect/`](spec/vectors/agent-effect/).
 3. New public issue for allow/reject option asymmetry only after a quick multi-tool check that `reject_always` is missing beyond Write.
 
 ## Reproduce live ACP scenarios
@@ -68,7 +68,7 @@ pnpm fixture:acp-mux
 
 ## What we measure
 
-Profile **v0.2** AUTH scenarios (AUTH-01…08) over a shared history JSONL + `asa check`. Labels include `supported`, `not_declared`, `violation`, `inconclusive`, `underspecified`, and `not_tested` (`not_tested` ≠ `not_declared`). Optional `ts_unix_nano` is a **decimal string** (not a JSON number) so values above `2^53-1` are not rounded by JS parsers — see [`spec/history-format.md`](spec/history-format.md).
+Profile **v0.2** AUTH scenarios (AUTH-01…08) over a shared history JSONL + `asa check`. Labels include `supported`, `not_declared`, `violation`, `inconclusive`, `underspecified`, and `not_tested` (`not_tested` ≠ `not_declared`). Optional `ts_unix_nano` is a **decimal string** (not a JSON number) so values above `2^53-1` are not rounded by JS parsers — see [`spec/history-format.md`](spec/history-format.md). Draft effect-boundary authority fields (JCS hashed form): [`spec/agent-effect-attributes.md`](spec/agent-effect-attributes.md).
 
 Build order: history → checker → mock sink → adapters.
 
@@ -94,6 +94,7 @@ Lean mock-sink only — no Temporal, no managed relay. See `docker/README.md`.
 Index: [`findings/README.md`](findings/README.md)
 
 - [`findings/option-offer-survey.md`](findings/option-offer-survey.md) — option-offer survey (Hermes / OpenClaw; Claude ACP contrast)
+- [`spec/agent-effect-attributes.md`](spec/agent-effect-attributes.md) — draft agent-effect authority attributes + offline JCS vectors (research profile)
 - [`findings/2026-09-week3/writeup.md`](findings/2026-09-week3/writeup.md)
 - [`findings/2026-09-week3/results-table.md`](findings/2026-09-week3/results-table.md)
 - Targets: `targets/claude-agent-acp/`, `targets/vscode-agent-host/`, `targets/ably/`, `targets/acp-mux/`

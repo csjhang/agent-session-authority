@@ -15,8 +15,9 @@ Short map of published notes for the Session Authority Fault Probe. Folder names
 | Stage 3 comparison table | [`2026-09-week3/results-table.md`](2026-09-week3/results-table.md) |
 | Closed outbound issue | [claude-agent-acp#1094](https://github.com/agentclientprotocol/claude-agent-acp/issues/1094) (closed) |
 | Option-offer survey (Hermes / OpenClaw; Claude ACP contrast) | [`option-offer-survey.md`](option-offer-survey.md) |
+| Agent-effect attributes draft (JCS vectors; research profile) | [`../spec/agent-effect-attributes.md`](../spec/agent-effect-attributes.md) |
 
-Generation re-ask on pin 0.75.1 is paused. Next probe posture: **option-offer survey** (which permission kinds are actually offered vs listed in the ACP kind enum), then a minimal offline effect-receipt format + verifier — not more silent-across-generation coverage until that survey lands. Survey notes: [`option-offer-survey.md`](option-offer-survey.md).
+Generation re-ask on pin 0.75.1 is paused. Next probe posture: **option-offer survey** (which permission kinds are actually offered vs listed in the ACP kind enum), then a minimal offline effect-receipt format + verifier ([`spec/agent-effect-attributes.md`](../spec/agent-effect-attributes.md) draft + vectors) — not more silent-across-generation coverage until that survey lands. Survey notes: [`option-offer-survey.md`](option-offer-survey.md).
 
 ## By stage / folder
 

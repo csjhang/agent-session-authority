@@ -1,0 +1,41 @@
+{
+  "id": "reject-03-integrity-in-hashed-form",
+  "expect": "reject",
+  "reject_code": "integrity_in_hashed_form",
+  "description": "Claimed hashed_form still contains signature — OTEP case C lesson (witness data not in witnessed bytes)",
+  "record": {
+    "schema_version": "asa.agent-effect/0.1",
+    "effect_id": "eff-bad",
+    "action_digest": "sha256:deadbeef",
+    "runtime_generation": 2,
+    "fence_epoch": 7,
+    "boundary_id": "fs-gateway",
+    "outcome": "committed",
+    "external_reference": "file:///tmp/witness.txt",
+    "stream_id": "boundary/fs-gateway",
+    "sequence_number": 1,
+    "ts": "2026-09-29T01:00:00.000Z",
+    "ts_unix_nano": "1759107600000000000",
+    "session_id": "s1",
+    "controller": "runtime_a",
+    "signature": "BASE64_NOT_IN_HASH",
+    "previous_evidence_hash": null
+  },
+  "hashed_form": {
+    "schema_version": "asa.agent-effect/0.1",
+    "effect_id": "eff-bad",
+    "action_digest": "sha256:deadbeef",
+    "runtime_generation": 2,
+    "fence_epoch": 7,
+    "boundary_id": "fs-gateway",
+    "outcome": "committed",
+    "external_reference": "file:///tmp/witness.txt",
+    "stream_id": "boundary/fs-gateway",
+    "sequence_number": 1,
+    "ts": "2026-09-29T01:00:00.000Z",
+    "ts_unix_nano": "1759107600000000000",
+    "session_id": "s1",
+    "controller": "runtime_a",
+    "signature": "SHOULD_NOT_BE_HERE"
+  }
+}
