@@ -54,6 +54,17 @@ Principle: the fenced object must not be the fence-token issuer.
 
 `not_tested` != `not_declared`. Capability vectors only — no A0–A3 grade.
 
+`result` is the claim-rewritten grade; `observed_result` is the checker's raw conclusion. Under `research_profile` / `vendor_claim`, undeclared invariants are **not graded**: `observed_result` `supported` or `violation` rewrites to `result=not_declared` (witnesses and observed outcome kept in explanation). `inconclusive` / `not_tested` are not rewritten. `synthetic_fixture` never rewrites. See `spec/history-format.md` Checker output shape.
+
+## Claim matching
+
+A profile `claimed_invariants` entry marks an invariant `declared` only if:
+
+- the claimed id **exactly equals** the invariant id, or
+- the claimed id is a parent (`AUTH-01` or `AUTH-03`) and the invariant is that id plus **one lowercase letter** (e.g. `AUTH-01` covers `AUTH-01a` / `AUTH-01b` / `AUTH-01c`).
+
+No prefix matching and no case folding. `AUTH-08` is a known invariant (vendors may claim it) even though it has no checker yet. Claimed ids that are neither known invariants nor parents appear in report `unknown_claims`.
+
 ## Vocabulary
 
 ControlLease, RuntimeGeneration, ActionBinding, ActionDigest, ApprovalDecision, FenceToken/FenceEpoch, EffectId, EffectReceipt.

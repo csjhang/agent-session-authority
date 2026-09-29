@@ -51,8 +51,10 @@ describe("reliability judgment premises", () => {
       { warn_unknown_vocab: false },
     );
     const violate = run_checkers(violate_events, null, assessment).find((x) => x.invariant === "AUTH-06")!;
-    expect(violate.result).toBe("violation");
+    expect(violate.result).toBe("not_declared");
+    expect(violate.observed_result).toBe("violation");
     expect(violate.witness_seqs).toEqual(expect.arrayContaining([2]));
+    expect(violate.explanation).toMatch(/Observed violation/);
 
     const clean = parse_history_jsonl(
       "{\"seq\":1,\"kind\":\"ok\",\"op\":\"effect.dispatch\",\"attrs\":{\"effect_id\":\"e1\",\"status\":\"dispatched\"}}",

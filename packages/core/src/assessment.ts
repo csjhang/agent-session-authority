@@ -22,7 +22,10 @@ export interface AuthorityAssessment {
 export interface CheckFinding {
   invariant: string;
   claim_status: import("./declaration.js").ClaimStatus;
+  /** Claim-rewritten grade (may differ from observed_result). */
   result: ResultLabel;
+  /** Checker's raw conclusion before claim rewrite; always filled honestly. */
+  observed_result: ResultLabel;
   witness_seqs: number[];
   explanation: string;
   reproducible: boolean;

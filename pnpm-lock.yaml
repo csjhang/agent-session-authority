@@ -22,6 +22,10 @@ importers:
         version: 2.1.9(@types/node@22.20.1)
 
   packages/adapters/ably:
+    dependencies:
+      '@asa/core':
+        specifier: workspace:*
+        version: link:../../core
     devDependencies:
       '@types/node':
         specifier: ^22.10.1
@@ -41,6 +45,9 @@ importers:
       '@agentclientprotocol/claude-agent-acp':
         specifier: 0.75.1
         version: 0.75.1(@anthropic-ai/sdk@0.124.0(zod@4.5.4))(@modelcontextprotocol/sdk@1.30.0(zod@4.5.4))
+      '@asa/core':
+        specifier: workspace:*
+        version: link:../../core
     devDependencies:
       '@types/node':
         specifier: ^22.10.1
@@ -56,6 +63,10 @@ importers:
         version: 2.1.9(@types/node@22.20.1)
 
   packages/adapters/acp-mux:
+    dependencies:
+      '@asa/core':
+        specifier: workspace:*
+        version: link:../../core
     devDependencies:
       '@types/node':
         specifier: ^22.10.1
@@ -71,6 +82,10 @@ importers:
         version: 2.1.9(@types/node@22.20.1)
 
   packages/adapters/ahp:
+    dependencies:
+      '@asa/core':
+        specifier: workspace:*
+        version: link:../../core
     devDependencies:
       '@types/node':
         specifier: ^22.10.1

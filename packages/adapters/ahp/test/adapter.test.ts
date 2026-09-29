@@ -6,3 +6,33 @@ describe("@asa/adapter-ahp fixture", () => {
   it("LIVE without AHP_WS_URL fails closed", async () => { await expect(collect_history({ mode: "live", env: {} })).rejects.toThrow(/AHP_WS_URL/); });
   it("digests are deterministic", () => { const a = ahp_events_to_history(new MockAhpPeer().run_fixture_scenario()); const b = ahp_events_to_history(new MockAhpPeer().run_fixture_scenario()); expect(a.find((e) => e.op === "action.bind")?.attrs?.action_digest).toBe(b.find((e) => e.op === "action.bind")?.attrs?.action_digest); });
 });
+
+describe("PR-5 action_digest collision + consistency", () => {
+  it("Aa vs BB input field collision regression: digests must differ", () => {
+    const sid = "ahp-col";
+    const events = [
+      { type: "tool_confirmation_request" as const, sessionId: sid, requestId: "r-aa", toolName: "Write", input: { path: "/ws/a.txt", content: "Aa" } },
+      { type: "tool_confirmation_request" as const, sessionId: sid, requestId: "r-bb", toolName: "Write", input: { path: "/ws/a.txt", content: "BB" } },
+    ];
+    const history = ahp_events_to_history(events);
+    const binds = history.filter((e) => e.op === "action.bind");
+    expect(binds).toHaveLength(2);
+    expect(binds[0]!.attrs!.action_digest).not.toBe(binds[1]!.attrs!.action_digest);
+  });
+
+  it("every action.bind action_digest matches core action_digest of bind attrs", async () => {
+    const { action_digest } = await import("@asa/core");
+    const history = ahp_events_to_history(new MockAhpPeer().run_fixture_scenario());
+    for (const e of history.filter((x) => x.op === "action.bind")) {
+      const a = e.attrs!;
+      expect(a.action_digest).toBe(
+        action_digest({
+          action_type: String(a.action_type),
+          target: String(a.target),
+          args: a.args,
+          policy_version: (a.policy_version as string | null | undefined) ?? null,
+        }),
+      );
+    }
+  });
+});
