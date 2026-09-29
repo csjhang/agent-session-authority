@@ -842,3 +842,100 @@ describe("acp-shaped corpus regeneration", () => {
     }
   });
 });
+
+describe("PR-5 action_digest collision + consistency + AUTH-02 subtype", () => {
+  it("Aa vs BB input field collision regression: digests must differ", () => {
+    const events = [
+      {
+        type: "permission_request" as const,
+        sessionId: "s-col",
+        requestId: "r-aa",
+        toolName: "Write",
+        toolCallId: "tc-aa",
+        input: { file_path: "/ws/a.txt", content: "Aa" },
+      },
+      {
+        type: "permission_request" as const,
+        sessionId: "s-col",
+        requestId: "r-bb",
+        toolName: "Write",
+        toolCallId: "tc-bb",
+        input: { file_path: "/ws/a.txt", content: "BB" },
+      },
+    ];
+    const history = acp_events_to_history(events, { session_cwd: "/ws" });
+    const binds = history.filter((e) => e.op === "action.bind");
+    expect(binds).toHaveLength(2);
+    const d0 = binds[0]!.attrs!.action_digest as string;
+    const d1 = binds[1]!.attrs!.action_digest as string;
+    expect(d0).not.toBe(d1);
+  });
+
+  it("every action.bind action_digest matches core action_digest of bind attrs", async () => {
+    const { action_digest } = await import("@asa/core");
+    const history = acp_events_to_history(new MockAcpPeer().run_fixture_scenario(), { session_cwd: "/ws" });
+    for (const e of history.filter((x) => x.op === "action.bind")) {
+      const a = e.attrs!;
+      expect(a.action_digest).toBe(
+        action_digest({
+          action_type: String(a.action_type),
+          target: String(a.target),
+          args: a.args,
+          policy_version: (a.policy_version as string | null | undefined) ?? null,
+        }),
+      );
+    }
+  });
+
+  it("deny Aa then unanswered BB then receipt → AUTH-02 committed_without_grant not committed_after_deny", async () => {
+    const { run_checkers, default_assessment } = await import("@asa/core");
+    const events = [
+      {
+        type: "permission_request" as const,
+        sessionId: "s-sub",
+        requestId: "r1",
+        toolName: "Write",
+        toolCallId: "tc1",
+        input: { file_path: "/ws/a.txt", content: "Aa" },
+      },
+      {
+        type: "permission_response" as const,
+        sessionId: "s-sub",
+        requestId: "r1",
+        decision: "deny" as const,
+      },
+      {
+        type: "permission_request" as const,
+        sessionId: "s-sub",
+        requestId: "r2",
+        toolName: "Write",
+        toolCallId: "tc2",
+        input: { file_path: "/ws/a.txt", content: "BB" },
+      },
+      {
+        type: "session_update" as const,
+        sessionId: "s-sub",
+        update: {
+          kind: "effect_receipt",
+          sink: "fixture_fs",
+          path: "/ws/a.txt",
+          present: true,
+          matched: true,
+          expected: "BB",
+          content: "BB",
+        },
+      },
+    ];
+    const history = acp_events_to_history(events, { session_cwd: "/ws" });
+    const binds = history.filter((e) => e.op === "action.bind");
+    expect(binds[0]!.attrs!.action_digest).not.toBe(binds[1]!.attrs!.action_digest);
+    const assessment = default_assessment();
+    assessment.test_basis = "synthetic_fixture";
+    const f = run_checkers(history as never, { profile_version: "0.2", claimed_invariants: ["AUTH-02"] }, assessment).find(
+      (x) => x.invariant === "AUTH-02",
+    )!;
+    expect(f.result).toBe("violation");
+    expect(f.explanation).toMatch(/committed_without_grant/);
+    expect(f.explanation).not.toMatch(/committed_after_deny/);
+  });
+});

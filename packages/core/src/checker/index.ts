@@ -3,6 +3,25 @@ import type { AuthorityProfile, ClaimStatus } from "../declaration.js";
 import { claimed_set } from "../declaration.js";
 import type { AuthorityAssessment, CheckFinding, ResultLabel, TestBasis } from "../assessment.js";
 
+/** Spec invariants vendors may claim (AUTH-08 has no checker but is in the profile). */
+export const KNOWN_INVARIANTS = [
+  "AUTH-01a",
+  "AUTH-01b",
+  "AUTH-01c",
+  "AUTH-02",
+  "AUTH-03a",
+  "AUTH-03b",
+  "AUTH-03c",
+  "AUTH-04",
+  "AUTH-05",
+  "AUTH-06",
+  "AUTH-07",
+  "AUTH-08",
+] as const;
+
+/** Parent ids that cover lettered children (AUTH-01 → 01a/b/c). */
+export const INVARIANT_PARENTS = ["AUTH-01", "AUTH-03"] as const;
+
 export interface CheckerContext {
   events: HistoryEvent[];
   profile: AuthorityProfile | null;
@@ -15,19 +34,20 @@ export function basis(ctx: CheckerContext): TestBasis {
   return ctx.assessment.test_basis ?? "synthetic_fixture";
 }
 
+/**
+ * Exact match, or parent covers children (AUTH-01 → AUTH-01a/b/c).
+ * No prefix matching, no case folding.
+ */
 export function claim_for(ctx: CheckerContext, invariant: string): ClaimStatus {
   const claims = claimed_set(ctx.profile);
   if (!ctx.profile) return "not_declared";
   if (claims.size === 0) return "not_declared";
-  const prefixes = [invariant, invariant.split(".")[0] ?? invariant];
-  for (const p of prefixes) {
-    if (claims.has(p)) return "declared";
-  }
-  // AUTH-01a/b/c match AUTH-01 claim
-  const parent = invariant.replace(/[a-c]$/, "");
-  if (parent !== invariant && claims.has(parent)) return "declared";
-  if ([...claims].some((c) => invariant.startsWith(c) || c.startsWith(invariant))) {
-    return "declared";
+  if (claims.has(invariant)) return "declared";
+  for (const parent of INVARIANT_PARENTS) {
+    if (claims.has(parent) && invariant.length === parent.length + 1) {
+      const suffix = invariant.slice(parent.length);
+      if (invariant.startsWith(parent) && /^[a-z]$/.test(suffix)) return "declared";
+    }
   }
   return "not_declared";
 }
@@ -40,23 +60,38 @@ export function finding(
   witness_seqs: number[] = [],
   test_basis: TestBasis = "synthetic_fixture",
 ): CheckFinding {
-  // claim_status is an independent axis; do not manufacture declarations.
+  const observed_result = result;
   let final_result = result;
+  let final_explanation = explanation;
+
+  // out_of_scope: nothing produces it today; skipped (see PR body).
+
   if (result === "not_tested") {
     final_result = "not_tested";
-  } else if (claim_status === "not_declared" && result === "supported") {
-    // synthetic fixtures may still show supported behavior without a vendor claim
-    if (test_basis === "synthetic_fixture") final_result = result;
-    else final_result = "not_declared";
   } else if (claim_status === "underspecified" && result !== "violation") {
     final_result = "underspecified";
+  } else if (
+    claim_status === "not_declared" &&
+    (test_basis === "research_profile" || test_basis === "vendor_claim")
+  ) {
+    if (result === "supported" || result === "violation") {
+      final_result = "not_declared";
+      final_explanation =
+        `not graded: ${invariant} is not in claimed_invariants (test_basis=${test_basis}). ` +
+        `Observed ${observed_result}: ${explanation}`;
+    }
+    // inconclusive / not_tested: do not rewrite
   }
+  // synthetic_fixture: result = observed (unchanged)
+  // research_profile/vendor_claim + declared: result = observed
+
   return {
     invariant,
     claim_status,
     result: final_result,
+    observed_result,
     witness_seqs,
-    explanation,
+    explanation: final_explanation,
     reproducible: true,
     test_basis,
   };

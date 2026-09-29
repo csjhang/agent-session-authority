@@ -1,6 +1,6 @@
+import { action_digest } from "@asa/core";
 import type { AhpPeerEvent } from "./mock_peer.js";
 export interface HistoryEventLite { seq: number; ts?: string; ts_unix_nano?: string; kind: "invoke" | "ok" | "fail" | "info" | "observe" | "fault"; op?: string; session_id?: string; actor_id?: string; attrs?: Record<string, unknown>; note?: string; }
-function digest_of(toolName: string, input: Record<string, unknown>): string { const canonical = JSON.stringify({ toolName, input }); let h = 0; for (let i = 0; i < canonical.length; i++) h = (h * 31 + canonical.charCodeAt(i)) >>> 0; return `ahp_${toolName}_${h.toString(16)}`; }
 /** Decimal-string unix nano from Date.now() ms (ms * 1e6; not true ns resolution). */
 function format_unix_nano_decimal(epoch_ms: number = Date.now()): string {
   return String(BigInt(Math.trunc(epoch_ms)) * 1_000_000n);
@@ -14,7 +14,14 @@ export function ahp_events_to_history(events: readonly AhpPeerEvent[]): HistoryE
     if (ev.type === "client_subscribe") next({ kind: "observe", op: "session.attach", session_id: ev.sessionId, actor_id: ev.clientId, attrs: { client_id: ev.clientId, server_seq: ev.serverSeq }, note: "ahp multi-client subscribe" });
     else if (ev.type === "state_envelope") next({ kind: "observe", op: "session.attach", session_id: ev.sessionId, attrs: { server_seq: ev.serverSeq, action: ev.action, origin_client_id: ev.originClientId }, note: "ahp serverSeq envelope" });
     else if (ev.type === "turn_ownership") next({ kind: "observe", op: "lease.observe", session_id: ev.sessionId, actor_id: ev.ownerClientId, attrs: { turn_id: ev.turnId, owner_client_id: ev.ownerClientId, semantics: "weak_mutex_turn_ownership" }, note: "AHP turn ownership is weak mutex; not ControlLease with expiry/fencing" });
-    else if (ev.type === "tool_confirmation_request") { const action_digest = digest_of(ev.toolName, ev.input); next({ kind: "ok", op: "action.bind", session_id: ev.sessionId, actor_id: "agent", attrs: { action_type: `tool.${ev.toolName}`, target: ev.toolName, args: ev.input, action_digest, runtime_generation: 1, policy_version: "ahp-tool-confirmation", nonce: ev.requestId, synthesized: true } }); next({ kind: "invoke", op: "approval.request", session_id: ev.sessionId, actor_id: "agent", attrs: { action_digest, request_id: ev.requestId, tool_name: ev.toolName } }); }
+    else if (ev.type === "tool_confirmation_request") {
+      const action_type = `tool.${ev.toolName}`;
+      const target = ev.toolName;
+      const policy_version = "ahp-tool-confirmation";
+      const digest = action_digest({ action_type, target, args: ev.input, policy_version });
+      next({ kind: "ok", op: "action.bind", session_id: ev.sessionId, actor_id: "agent", attrs: { action_type, target, args: ev.input, action_digest: digest, runtime_generation: 1, policy_version, nonce: ev.requestId, synthesized: true } });
+      next({ kind: "invoke", op: "approval.request", session_id: ev.sessionId, actor_id: "agent", attrs: { action_digest: digest, request_id: ev.requestId, tool_name: ev.toolName } });
+    }
     else if (ev.type === "tool_confirmation_response") { if (ev.ignored) next({ kind: "observe", op: "approval.deny", session_id: ev.sessionId, actor_id: ev.responderClientId, attrs: { request_id: ev.requestId, ignored: true, reason: "first_wins_already_resolved" }, note: "late confirmation ignored (AHP in-process first-wins)" }); else next({ kind: "ok", op: ev.decision === "allow" ? "approval.grant" : "approval.deny", session_id: ev.sessionId, actor_id: ev.responderClientId, attrs: { approver: ev.responderClientId, decision: ev.decision === "allow" ? "grant" : "deny", request_id: ev.requestId, first_wins: ev.firstWins, fence_epoch: 1, note: "fence_epoch synthesized; AHP has no FenceToken" } }); }
     else if (ev.type === "host_process_death") next({ kind: "fault", op: "runtime.restart", session_id: ev.sessionId, attrs: { in_progress_turn_id: ev.inProgressTurnId, generation_bumped: false, fencing_defined: false }, note: ev.note });
     else if (ev.type === "session_closed") next({ kind: "ok", op: "session.detach", session_id: ev.sessionId, attrs: { reason: ev.reason ?? "closed" } });

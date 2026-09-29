@@ -120,22 +120,40 @@ When writing new events, prefer setting both `ts` (ISO-8601 wall-clock hint) and
 
 ## Checker output shape
 
-Each finding keeps **two independent axes**:
+Each finding keeps **two independent axes** (`claim_status` and `observed_result`). `result` is the **claim-rewritten grade** derived from those axes (plus `test_basis`).
 
 | Field | Values | Meaning |
 | --- | --- | --- |
 | `invariant` | e.g. `AUTH-01b` | Which invariant |
 | `claim_status` | `declared` \| `not_declared` \| `out_of_scope` \| `underspecified` | What the **profile** claims |
-| `result` | `supported` \| `not_declared` \| `violation` \| `inconclusive` \| `underspecified` \| `not_tested` | What the **checker** concluded |
-| `witness_seqs` | number[] | Counterexample / support evidence seqs |
-| `explanation` | string | Human-readable reason |
+| `observed_result` | `supported` \| `not_declared` \| `violation` \| `inconclusive` \| `underspecified` \| `not_tested` | Checker's **raw** conclusion before claim rewrite |
+| `result` | same labels | Claim-rewritten grade (may equal `observed_result`) |
+| `witness_seqs` | number[] | Counterexample / support evidence seqs (unchanged by rewrite) |
+| `explanation` | string | Human-readable reason (rewritten findings use a fixed prefix; see below) |
 | `reproducible` | boolean | Whether the finding is reproducible from the corpus |
 | `test_basis` | `vendor_claim` \| `research_profile` \| `synthetic_fixture` | Evidence basis |
 
+### Claim rewrite rules (`finding()`)
+
+| `test_basis` | `claim_status` | `observed_result` | `result` |
+| --- | --- | --- | --- |
+| `synthetic_fixture` | any | any | = `observed_result` (no rewrite) |
+| `research_profile` or `vendor_claim` | `declared` | any | = `observed_result` |
+| `research_profile` or `vendor_claim` | `not_declared` | `supported` or `violation` | `not_declared` (not graded; keep witnesses; explanation = `not graded: <invariant> is not in claimed_invariants (test_basis=<test_basis>). Observed <observed_result>: <original>`) |
+| `research_profile` or `vendor_claim` | `not_declared` | `inconclusive` | `inconclusive` (evidence insufficiency — do not rewrite) |
+| `research_profile` or `vendor_claim` | `not_declared` | `not_tested` | `not_tested` |
+| any | `underspecified` | not `violation` | `underspecified` |
+| any | `underspecified` | `violation` | `violation` |
+| — | `out_of_scope` | — | nothing produces it today |
+
+Undeclared invariants are **not graded**: both supported and violation rewrite to `not_declared` under research/vendor bases; the observed outcome stays in `observed_result` and the explanation.
+
 Report also exposes:
 
-- `capability_vector`: map invariant → **`result`**
+- `capability_vector`: map invariant → **`result`** (claim-rewritten)
+- `observed_vector`: map invariant → **`observed_result`**
 - `claim_status_vector`: map invariant → **`claim_status`**
+- `unknown_claims`: `claimed_invariants` ids that are neither in `KNOWN_INVARIANTS` nor `INVARIANT_PARENTS` (verbatim, including `""`)
 
 ### `not_tested` vs `not_declared` (must not conflate)
 
@@ -145,6 +163,6 @@ Report also exposes:
 | Source | Checker stub / runner | `AuthorityProfile.claimed_invariants` |
 | Can co-occur? | **Yes** | |
 
-Never treat `not_tested` as “the target doesn’t claim this.” Use `claim_status` for declaration and `result` for measurement.
+Never treat `not_tested` as “the target doesn’t claim this.” Use `claim_status` for declaration, `observed_result` for raw measurement, and `result` for the claim-rewritten grade.
 
-Top-level report fields: `target`, `profile_version`, `test_basis`, `findings`, `capability_vector`, `claim_status_vector`.
+Top-level report fields: `target`, `profile_version`, `test_basis`, `findings`, `capability_vector`, `observed_vector`, `claim_status_vector`, `unknown_claims`.

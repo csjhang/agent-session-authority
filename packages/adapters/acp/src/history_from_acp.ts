@@ -1,4 +1,5 @@
 import path from "node:path";
+import { action_digest } from "@asa/core";
 import type { AcpPeerEvent } from "./mock_peer.js";
 
 /** Minimal history event shape (mirrors packages/core without importing it). */
@@ -19,13 +20,6 @@ export interface HistoryEventLite {
 /** Decimal-string unix nano from Date.now() ms (ms * 1e6; not true ns resolution). */
 function format_unix_nano_decimal(epoch_ms: number = Date.now()): string {
   return String(BigInt(Math.trunc(epoch_ms)) * 1_000_000n);
-}
-
-function digest_of(toolName: string, input: Record<string, unknown>): string {
-  const canonical = JSON.stringify({ toolName, input });
-  let h = 0;
-  for (let i = 0; i < canonical.length; i++) h = (h * 31 + canonical.charCodeAt(i)) >>> 0;
-  return `acp_${toolName}_${h.toString(16)}`;
 }
 
 function session_id_of(events: readonly AcpPeerEvent[]): string | undefined {
@@ -476,10 +470,17 @@ export function acp_events_to_history(
     }
 
     if (ev.type === "permission_request") {
-      const action_digest = digest_of(ev.toolName, ev.input);
       const { target, target_kind } = bind_target(ev.toolName, ev.input, session_cwd);
+      const action_type = `tool.${ev.toolName}`;
+      const policy_version = "acp-permission-ext";
+      const digest = action_digest({
+        action_type,
+        target,
+        args: ev.input,
+        policy_version,
+      });
       pending_by_request.set(ev.requestId, {
-        action_digest,
+        action_digest: digest,
         tool_call_id: ev.toolCallId,
         tool_name: ev.toolName,
         runtime_generation,
@@ -491,14 +492,14 @@ export function acp_events_to_history(
           session_id: ev.sessionId,
           actor_id: "agent",
           attrs: {
-            action_type: `tool.${ev.toolName}`,
+            action_type,
             target,
             target_kind,
             args: ev.input,
             tool_call_id: ev.toolCallId,
-            action_digest,
+            action_digest: digest,
             runtime_generation,
-            policy_version: "acp-permission-ext",
+            policy_version,
             nonce: ev.requestId,
             ...(ev.options !== undefined ? { offered_options: ev.options } : {}),
           },
@@ -513,7 +514,7 @@ export function acp_events_to_history(
           actor_id: "agent",
           attrs: {
             tool_call_id: ev.toolCallId,
-            action_digest,
+            action_digest: digest,
             request_id: ev.requestId,
             tool_name: ev.toolName,
             runtime_generation,
