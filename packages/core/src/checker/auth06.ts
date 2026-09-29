@@ -1,6 +1,10 @@
 import type { Checker } from "./index.js";
 import { attrs, basis, claim_for, finding, str, observation_guard } from "./index.js";
 
+function uniq_sort(seqs: number[]): number[] {
+  return [...new Set(seqs)].sort((a, b) => a - b);
+}
+
 /**
  * AUTH-06 — no implicit success without trusted EffectReceipt.
  * Only outcome=committed receipts may support later committed/completed/success
@@ -19,8 +23,10 @@ export const check_auth06: Checker = (ctx) => {
 
   /** effect_id -> only committed receipts count as supporting evidence */
   const committed_receipts = new Set<string>();
+  const committed_receipt_seqs = new Map<string, number>();
   const violations: { text: string; witnesses: number[] }[] = [];
   let saw_committed_receipt = false;
+  const support_witnesses: number[] = [];
 
   for (const ev of ctx.events) {
     const a = attrs(ev);
@@ -29,7 +35,9 @@ export const check_auth06: Checker = (ctx) => {
       const outcome = str(a.outcome);
       if (effect_id && outcome === "committed") {
         committed_receipts.add(effect_id);
+        committed_receipt_seqs.set(effect_id, ev.seq);
         saw_committed_receipt = true;
+        support_witnesses.push(ev.seq);
       }
       // unknown/rejected/failed intentionally do NOT populate committed_receipts
       continue;
@@ -47,6 +55,11 @@ export const check_auth06: Checker = (ctx) => {
               `. kind=${ev.kind} (fail!=info).`,
             witnesses: [ev.seq],
           });
+        } else {
+          // success-state backed by committed receipt
+          support_witnesses.push(ev.seq);
+          const rseq = committed_receipt_seqs.get(effect_id);
+          if (rseq != null) support_witnesses.push(rseq);
         }
       }
     }
@@ -59,6 +72,10 @@ export const check_auth06: Checker = (ctx) => {
             text: `Implicit success without committed EffectReceipt at seq=${ev.seq}.`,
             witnesses: [ev.seq],
           });
+        } else if (ev.op !== "effect.dispatch" && ev.op !== "effect.query") {
+          support_witnesses.push(ev.seq);
+          const rseq = committed_receipt_seqs.get(effect_id);
+          if (rseq != null) support_witnesses.push(rseq);
         }
       }
     }
@@ -88,7 +105,7 @@ export const check_auth06: Checker = (ctx) => {
       cs,
       "supported",
       "No implicit success without committed EffectReceipt; fail!=info respected.",
-      [],
+      uniq_sort(support_witnesses),
       basis(ctx),
     ),
   ];

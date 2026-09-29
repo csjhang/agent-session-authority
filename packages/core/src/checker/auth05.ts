@@ -1,6 +1,10 @@
 import type { Checker } from "./index.js";
 import { attrs, basis, claim_for, finding, str, observation_guard } from "./index.js";
 
+function uniq_sort(seqs: number[]): number[] {
+  return [...new Set(seqs)].sort((a, b) => a - b);
+}
+
 /**
  * AUTH-05 — approval is not control; control is not blanket approval.
  * Do not rely on self-reported role; derive from whether the actor has granted
@@ -24,6 +28,7 @@ export const check_auth05: Checker = (ctx) => {
   /** Actors who held a lease before ever granting (independent controller). */
   const independent_controllers = new Set<string>();
   const violations: { text: string; witnesses: number[]; marker?: boolean }[] = [];
+  const evaluated: number[] = [];
 
   for (const ev of ctx.events) {
     const a = attrs(ev);
@@ -31,6 +36,7 @@ export const check_auth05: Checker = (ctx) => {
     if (ev.op === "lease.acquire" && (ev.kind === "ok" || (ev.kind === "info" && a.accepted === true))) {
       const holder = str(a.holder) ?? ev.actor_id;
       if (!holder) continue;
+      evaluated.push(ev.seq);
 
       if (a.granted_because_approver === true) {
         violations.push({
@@ -62,6 +68,7 @@ export const check_auth05: Checker = (ctx) => {
     }
 
     if (ev.op === "approval.grant" && (ev.kind === "ok" || ev.kind === "info")) {
+      evaluated.push(ev.seq);
       const approver = str(a.approver) ?? ev.actor_id;
       if (approver) {
         grantors.add(approver);
@@ -78,6 +85,7 @@ export const check_auth05: Checker = (ctx) => {
     }
 
     if (ev.op === "effect.dispatch" && (ev.kind === "ok" || ev.kind === "invoke" || ev.kind === "info")) {
+      evaluated.push(ev.seq);
       const actor = ev.actor_id ?? str(a.actor_id);
       if (!actor) continue;
 
@@ -117,6 +125,6 @@ export const check_auth05: Checker = (ctx) => {
   );
   if (evidence_guard) return evidence_guard;
   return [
-    finding(inv, cs, "supported", "No conflation of approval and control observed.", [], basis(ctx)),
+    finding(inv, cs, "supported", "No conflation of approval and control observed.", uniq_sort(evaluated), basis(ctx)),
   ];
 };

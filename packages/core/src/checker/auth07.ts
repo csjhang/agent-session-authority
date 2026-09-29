@@ -1,6 +1,10 @@
 import type { Checker } from "./index.js";
 import { attrs, basis, claim_for, finding, str, observation_guard } from "./index.js";
 
+function uniq_sort(seqs: number[]): number[] {
+  return [...new Set(seqs)].sort((a, b) => a - b);
+}
+
 type TerminalKind = "cancel" | "complete" | "timeout" | "restart" | "failed" | "unknown";
 
 interface TerminalEvent {
@@ -263,6 +267,9 @@ export const check_auth07: Checker = (ctx) => {
     ];
   }
 
+  const terminal_witnesses = uniq_sort(
+    [...terminals.values()].flatMap((events) => events.map((e) => e.seq)),
+  );
   return [
     finding(
       inv,
@@ -271,7 +278,7 @@ export const check_auth07: Checker = (ctx) => {
       has_published_rules
         ? "Terminal races resolved via published rules and/or reconciliation."
         : "No ambiguous/wrong terminal race observed.",
-      [],
+      terminal_witnesses,
       basis(ctx),
     ),
   ];

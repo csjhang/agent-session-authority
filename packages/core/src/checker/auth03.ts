@@ -2,6 +2,10 @@ import type { Checker } from "./index.js";
 import { attrs, basis, claim_for, finding, num, str, observation_guard } from "./index.js";
 import { resolve_scope_id } from "../declaration.js";
 
+function uniq_sort(seqs: number[]): number[] {
+  return [...new Set(seqs)].sort((a, b) => a - b);
+}
+
 function ts_millis(v: string | undefined): number | undefined {
   if (!v) return undefined;
   const n = Date.parse(v);
@@ -15,8 +19,10 @@ export const check_auth03a: Checker = (ctx) => {
   const guard = observation_guard(ctx, inv, ctx.profile != null, ctx.events.some((e) => e.op === "action.bind" || e.op === "action.propose"));
   if (guard) return guard;
   const violations: { text: string; witnesses: number[] }[] = [];
+  const checked_binds: number[] = [];
   for (const ev of ctx.events) {
     if (ev.op !== "action.bind" && ev.op !== "action.propose") continue;
+    checked_binds.push(ev.seq);
     const a = attrs(ev);
     const action_type = str(a.action_type);
     const target = str(a.target);
@@ -49,7 +55,7 @@ export const check_auth03a: Checker = (ctx) => {
     const witnesses = [...new Set(violations.flatMap((v) => v.witnesses))].sort((a, b) => a - b);
     return [finding(inv, cs, "violation", violations.map((v) => v.text).join(" "), witnesses, basis(ctx))];
   }
-  return [finding(inv, cs, "supported", "Scope determinism holds on observed bindings.", [], basis(ctx))];
+  return [finding(inv, cs, "supported", "Scope determinism holds on observed bindings.", uniq_sort(checked_binds), basis(ctx))];
 };
 
 /** AUTH-03b — single controller per (scope_id, fence_epoch) */
@@ -63,6 +69,7 @@ export const check_auth03b: Checker = (ctx) => {
   const key_of = (scope_id: string, fence_epoch: number) => `${scope_id}|${fence_epoch}`;
   const violations: { text: string; witnesses: number[] }[] = [];
   let saw_accepted = false;
+  const accepted_leases: number[] = [];
 
   for (const ev of ctx.events) {
     const a = attrs(ev);
@@ -72,6 +79,7 @@ export const check_auth03b: Checker = (ctx) => {
       const holder = str(a.holder) ?? ev.actor_id;
       if (!scope_id || fence_epoch == null || !holder) continue;
       saw_accepted = true;
+      accepted_leases.push(ev.seq);
       const k = key_of(scope_id, fence_epoch);
       const list = leases.get(k) ?? [];
       const active = list.filter((l) => l.active);
@@ -128,7 +136,7 @@ export const check_auth03b: Checker = (ctx) => {
       ),
     ];
   }
-  return [finding(inv, cs, "supported", "At most one active ControlLease per scope+epoch observed.", [], basis(ctx))];
+  return [finding(inv, cs, "supported", "At most one active ControlLease per scope+epoch observed.", uniq_sort(accepted_leases), basis(ctx))];
 };
 
 /** AUTH-03c — action scope must be covered by holder lease */
@@ -152,6 +160,7 @@ export const check_auth03c: Checker = (ctx) => {
   const active = new Map<string, LeaseState>();
   const violations: { text: string; witnesses: number[] }[] = [];
   let saw_positive_committed = false;
+  const positive_witnesses: number[] = [];
   const missing_ts_witnesses: number[] = [];
 
   for (const ev of ctx.events) {
@@ -241,6 +250,8 @@ export const check_auth03c: Checker = (ctx) => {
         });
       } else {
         saw_positive_committed = true;
+        positive_witnesses.push(ev.seq);
+        if (lease?.seq != null) positive_witnesses.push(lease.seq);
       }
     }
   }
@@ -264,7 +275,7 @@ export const check_auth03c: Checker = (ctx) => {
       ),
     ];
   }
-  return [finding(inv, cs, "supported", "Committed effects stayed within holder lease scopes.", [], basis(ctx))];
+  return [finding(inv, cs, "supported", "Committed effects stayed within holder lease scopes.", uniq_sort(positive_witnesses), basis(ctx))];
 };
 
 export const check_auth03: Checker = (ctx) => [

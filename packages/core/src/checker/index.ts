@@ -92,7 +92,8 @@ export function finding(
     observed_result,
     witness_seqs,
     explanation: final_explanation,
-    reproducible: true,
+    // Unexecuted (not_tested) findings are not reproducible; others are.
+    reproducible: observed_result !== "not_tested",
     test_basis,
   };
 }

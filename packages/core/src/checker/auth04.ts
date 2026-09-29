@@ -1,6 +1,10 @@
 import type { Checker } from "./index.js";
 import { attrs, basis, claim_for, finding, num, str, observation_guard } from "./index.js";
 
+function uniq_sort(seqs: number[]): number[] {
+  return [...new Set(seqs)].sort((a, b) => a - b);
+}
+
 /**
  * AUTH-04 — fencing at effect boundary.
  * Stale controller / fence must fail at the effect gateway (receipt rejected),
@@ -29,6 +33,7 @@ export const check_auth04: Checker = (ctx) => {
   const violations: { text: string; witnesses: number[]; marker?: boolean }[] = [];
   let handoff_seen = false;
   let saw_positive_committed = false;
+  const positive_witnesses: number[] = [];
   const missing_controller_witnesses: number[] = [];
 
   const bump = (scope_id: string | undefined, epoch: number, seq: number, holder?: string) => {
@@ -130,6 +135,8 @@ export const check_auth04: Checker = (ctx) => {
         if (!(fence_epoch != null && live && fence_epoch < live.epoch)) {
           if (!(live?.holder && controller !== live.holder)) {
             saw_positive_committed = true;
+            positive_witnesses.push(ev.seq);
+            if (live?.seq != null) positive_witnesses.push(live.seq);
           }
         }
       }
@@ -205,7 +212,7 @@ export const check_auth04: Checker = (ctx) => {
       cs,
       "supported",
       "No stale fence/controller commit at effect boundary observed.",
-      [],
+      uniq_sort(positive_witnesses),
       basis(ctx),
     ),
   ];

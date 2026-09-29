@@ -1,7 +1,11 @@
 import type { Checker } from "./index.js";
 import { attrs, basis, claim_for, finding, num, str, observation_guard } from "./index.js";
 
-/** AUTH-01a — declare generation model G0/G1/G2 */
+function uniq_sort(seqs: number[]): number[] {
+  return [...new Set(seqs)].sort((a, b) => a - b);
+}
+
+/** AUTH-01a — declare generation model G0/G1/G2 (profile-only; no event witnesses) */
 export const check_auth01a: Checker = (ctx) => {
   const inv = "AUTH-01a";
   const cs = claim_for(ctx, inv);
@@ -12,7 +16,16 @@ export const check_auth01a: Checker = (ctx) => {
   if (model !== "G0" && model !== "G1" && model !== "G2") {
     return [finding(inv, "underspecified", "underspecified", `generation_model ${String(model)} is not G0/G1/G2.`, [], basis(ctx))];
   }
-  return [finding(inv, cs, "supported", `Declared generation_model=${model}.`, [], basis(ctx))];
+  return [
+    finding(
+      inv,
+      cs,
+      "supported",
+      `Declared generation_model=${model} (based on profile).`,
+      [],
+      basis(ctx),
+    ),
+  ];
 };
 
 function generation_derived_note(ctx: Parameters<Checker>[0]): string {
@@ -38,11 +51,14 @@ export const check_auth01b: Checker = (ctx) => {
   let last_gen: number | undefined;
   let last_gen_seq: number | undefined;
   const violations: { text: string; witnesses: number[] }[] = [];
+  /** generation.observe + runtime.restart/crash/restore compared for this finding */
+  const compared: number[] = [];
 
   for (const ev of events) {
     if (ev.kind === "observe" && ev.op === "generation.observe") {
       const g = num(attrs(ev).runtime_generation) ?? num(attrs(ev).generation);
       if (g == null) continue;
+      compared.push(ev.seq);
       if (last_gen != null && g < last_gen) {
         violations.push({
           text: `RuntimeGeneration rolled back from ${last_gen} to ${g}.`,
@@ -58,6 +74,7 @@ export const check_auth01b: Checker = (ctx) => {
     const fault = events[i]!;
     if (fault.kind !== "fault") continue;
     if (fault.fault !== "runtime.restart" && fault.fault !== "runtime.crash" && fault.fault !== "state.restore") continue;
+    compared.push(fault.seq);
     const witnesses: number[] = [fault.seq];
 
     let gen_before: number | undefined;
@@ -94,7 +111,7 @@ export const check_auth01b: Checker = (ctx) => {
             committed_after = true;
             violations.push({
               text: `After ${fault.fault}, RuntimeGeneration did not increase (${gen_before} -> ${gen_after}) and prior-gen effect committed.`,
-              witnesses: [...new Set(witnesses)].sort((a, b) => a - b),
+              witnesses: uniq_sort(witnesses),
             });
             break;
           }
@@ -103,14 +120,14 @@ export const check_auth01b: Checker = (ctx) => {
       if (!committed_after) {
         violations.push({
           text: `After ${fault.fault}, RuntimeGeneration did not strictly increase (${gen_before} -> ${gen_after}).`,
-          witnesses: [...new Set(witnesses)].sort((a, b) => a - b),
+          witnesses: uniq_sort(witnesses),
         });
       }
     }
   }
 
   if (violations.length > 0) {
-    const witnesses = [...new Set(violations.flatMap((v) => v.witnesses))].sort((a, b) => a - b);
+    const witnesses = uniq_sort(violations.flatMap((v) => v.witnesses));
     return [finding(inv, cs, "violation", violations.map((v) => v.text).join(" "), witnesses, basis(ctx))];
   }
 
@@ -118,7 +135,16 @@ export const check_auth01b: Checker = (ctx) => {
     return [finding(inv, cs, "not_declared", "Invariant not declared by target profile.", [], basis(ctx))];
   }
   const derived = generation_derived_note(ctx);
-  return [finding(inv, cs, "supported", "No generation monotonicity violation observed." + derived, [], basis(ctx))];
+  return [
+    finding(
+      inv,
+      cs,
+      "supported",
+      "No generation monotonicity violation observed." + derived,
+      uniq_sort(compared),
+      basis(ctx),
+    ),
+  ];
 };
 
 /** AUTH-01c — G1+ issuer separation from fenced object */
@@ -129,15 +155,26 @@ export const check_auth01c: Checker = (ctx) => {
   if (guard) return guard;
   const model = ctx.profile?.generation_model;
   if (model === "G0") {
-    return [finding(inv, cs, "supported", "G0 self-issued model; issuer separation not required.", [], basis(ctx))];
+    return [
+      finding(
+        inv,
+        cs,
+        "supported",
+        "G0 self-issued model; issuer separation not required (based on profile).",
+        [],
+        basis(ctx),
+      ),
+    ];
   }
   if (model !== "G1" && model !== "G2") {
     if (!ctx.profile) return [finding(inv, "not_declared", "not_declared", "No profile/generation_model to evaluate issuer separation.", [], basis(ctx))];
     return [finding(inv, "underspecified", "underspecified", "generation_model missing or not G1/G2.", [], basis(ctx))];
   }
   const violations: { text: string; witnesses: number[] }[] = [];
+  const compared: number[] = [];
   for (const ev of ctx.events) {
     if (ev.kind === "observe" && ev.op === "generation.observe") {
+      compared.push(ev.seq);
       const issuer = str(attrs(ev).issuer_id);
       const runtime = str(attrs(ev).runtime_id) ?? str(attrs(ev).fenced_object_id);
       if (issuer && runtime && issuer === runtime) {
@@ -146,10 +183,19 @@ export const check_auth01c: Checker = (ctx) => {
     }
   }
   if (violations.length > 0) {
-    const witnesses = [...new Set(violations.flatMap((v) => v.witnesses))].sort((a, b) => a - b);
+    const witnesses = uniq_sort(violations.flatMap((v) => v.witnesses));
     return [finding(inv, cs, "violation", violations.map((v) => v.text).join(" "), witnesses, basis(ctx))];
   }
-  return [finding(inv, cs, "supported", "No issuer==fenced-object collision observed for G1+.", [], basis(ctx))];
+  return [
+    finding(
+      inv,
+      cs,
+      "supported",
+      "No issuer==fenced-object collision observed for G1+.",
+      uniq_sort(compared),
+      basis(ctx),
+    ),
+  ];
 };
 
 export const check_auth01: Checker = (ctx) => [
