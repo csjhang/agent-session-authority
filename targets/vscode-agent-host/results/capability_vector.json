@@ -22,7 +22,28 @@
     "AUTH-07": "not_tested",
     "AUTH-08": "not_tested"
   },
+  "capability_basis": null,
   "capability_sources": {},
+  "observed_vector": {
+    "AUTH-01a": "not_tested",
+    "AUTH-01b": "not_tested",
+    "AUTH-01c": "not_tested",
+    "AUTH-02": "not_tested",
+    "AUTH-03a": "not_tested",
+    "AUTH-03b": "not_tested",
+    "AUTH-03c": "not_tested",
+    "AUTH-04": "not_tested",
+    "AUTH-05": "not_tested",
+    "AUTH-06": "not_tested",
+    "AUTH-07": "not_tested",
+    "AUTH-08": "not_tested"
+  },
+  "capability_exclusions": {},
+  "live_runs": {
+    "included": [],
+    "excluded": [],
+    "disagreements": []
+  },
   "fixture_vector": {
     "AUTH-01a": "not_declared",
     "AUTH-01b": "inconclusive",
@@ -78,5 +99,5 @@
   },
   "history_artifact": "targets/vscode-agent-host/results/history-fixture.jsonl",
   "generated_by": "scripts/generate-capability-vectors.ts",
-  "generated_at": "2026-09-29"
+  "generated_at": "2026-09-30"
 }

@@ -64,7 +64,8 @@ function generation_derived_note(ctx: Parameters<Checker>[0]): string {
     const a = attrs(ev);
     const fp = (a.field_provenance as Record<string, unknown> | undefined) ?? {};
     const issuer = str(a.issuer_id) ?? "";
-    if (fp.runtime_generation === "derived" || issuer.endsWith("_adapter_")) {
+    // Adapter issuers are named <name>_adapter_<mode> (e.g. acp_adapter_live).
+    if (fp.runtime_generation === "derived" || issuer.includes("_adapter_")) {
       return " Note: generation derived by probe, not target-native.";
     }
   }

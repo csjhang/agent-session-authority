@@ -81,6 +81,23 @@ Exit codes:
 
 `--json` prints only the `build_report` JSON on stdout (no text report). Default stdout is the text report only; use `--json` for JSON.
 
+## Capability vectors
+
+`pnpm generate:capability-vectors` rewrites `targets/<target>/results/capability_vector.json`.
+
+- `fixture_vector` — `asa check` on the committed fixture history (adapter + checker self-consistency). Never target capability.
+- `capability_vector` — target capability from live runs only, claim-rewritten under `capability_basis` (`null` until a live run is included). claude-agent-acp has no vendor profile and uses `research_profile`, so an observed `supported` / `violation` is shown as `not_declared` (not graded); see `observed_vector` for the raw result.
+- `observed_vector` — aggregated live `observed_result` per invariant.
+- `capability_sources` — repo-relative live `history.jsonl` paths behind every non-`not_tested` label.
+- `live_runs` — included runs (with per-run observed results), excluded runs (with reasons) and disagreements.
+
+Live aggregation (claude-agent-acp, `targets/claude-agent-acp/results/live-runs/<scenario>/<run-id>/`):
+
+1. A run counts only if `run.json` has `run_valid: true` and `package_version_observed: "0.75.1"` and `history.jsonl` parses; anything else is listed under `live_runs.excluded` with reasons.
+2. Within a scenario every run must agree. A disagreement is listed in `live_runs.disagreements` exactly as observed — never a majority vote.
+3. Across scenarios: a consistent `violation` anywhere wins; otherwise any disagreement makes the invariant `inconclusive`; otherwise a consistent `supported`; otherwise `inconclusive`.
+4. `capability_exclusions` lists invariants never promoted from these live runs: AUTH-01a (profile-only), AUTH-01b / AUTH-01c (generation is counted by the adapter itself), AUTH-06 (the adapter does not map the agent's success claims), AUTH-08 (no checker).
+
 ## Stage map
 
 - **Stage 1:** history JSONL, `asa check`, AUTH checkers and corpora; Dogwood generation notes under `findings/`

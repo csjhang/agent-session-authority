@@ -277,19 +277,29 @@ describe("capability_vector generation", () => {
       const cap = g.capability_vector as Record<string, string>;
       expect(g.checker_explanation).toBeTruthy();
 
-      // Non-not_tested capability labels must cite a real non-fixture history source.
-      const sources = (g.capability_sources ?? {}) as Record<string, string>;
+      // Non-not_tested capability labels must cite real non-fixture live history sources.
+      const sources = g.capability_sources;
       expect(sources).toBeTruthy();
+      expect(Object.keys(g.observed_vector).sort()).toEqual(Object.keys(cap).sort());
       for (const [k, v] of Object.entries(cap)) {
-        if (v === "not_tested") continue;
-        const src = sources[k];
-        expect(src, `${g.target}:${k} missing capability_sources`).toBeTruthy();
-        const base = path.basename(src!);
-        expect(base.toLowerCase().includes("fixture"), `${g.target}:${k} source is fixture: ${src}`).toBe(
-          false,
-        );
-        const abs = path.isAbsolute(src!) ? src! : path.join(repo_root, src!);
-        expect(fs.existsSync(abs), `${g.target}:${k} source missing: ${abs}`).toBe(true);
+        if (v === "not_tested") {
+          expect(sources[k], `${g.target}:${k} not_tested must not cite sources`).toBeUndefined();
+          continue;
+        }
+        const list = sources[k];
+        expect(Array.isArray(list) && list.length > 0, `${g.target}:${k} missing capability_sources`).toBe(true);
+        for (const src of list!) {
+          const segments = src.split(/[\\/]/);
+          expect(segments.some((seg) => seg.toLowerCase().includes("fixture")), `${g.target}:${k} source is fixture: ${src}`).toBe(
+            false,
+          );
+          const abs = path.isAbsolute(src) ? src : path.join(repo_root, src);
+          expect(fs.existsSync(abs), `${g.target}:${k} source missing: ${abs}`).toBe(true);
+        }
+      }
+      // Excluded invariants are never promoted.
+      for (const k of Object.keys(g.capability_exclusions)) {
+        expect(cap[k], `${g.target}:${k} is excluded but promoted`).toBe("not_tested");
       }
     }
   });
