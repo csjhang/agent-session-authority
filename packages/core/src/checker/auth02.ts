@@ -45,21 +45,54 @@ function changed_fields(approved: BindingSnap, current: BindingSnap): string[] {
   return out;
 }
 
+type Decision = {
+  seq: number;
+  kind: "grant" | "deny";
+  snap: BindingSnap;
+  runtime_generation?: number;
+};
+
+type ViolationNote = { text: string; witnesses: number[]; marker?: boolean };
+
 /**
  * AUTH-02 — action-bound approval.
- * Approval binds a canonical ActionBinding digest; changing target/args/
- * policyVersion/generation/nonce/expiry invalidates the old approval.
+ *
+ * For each outcome=committed effect.receipt:
+ * 1. With action_digest: find latest approval.grant/approval.deny before this
+ *    receipt with the same action_digest (approval.record never counts).
+ *    - none → committed_without_grant
+ *    - latest deny → committed_after_deny
+ *    - latest grant but grant.runtime_generation ≠ receipt.runtime_generation
+ *      → cross_generation_grant
+ *    - else this receipt counts as supported evidence
+ * 2. No action_digest (binding=unlinked) → receipt only inconclusive
+ * 3. Overall: any violation → violation; else ≥1 supported evidence → supported;
+ *    else (no committed or all unlinked) → inconclusive
+ * 4. Prerequisite: any effect.receipt is enough to evaluate
+ * 5. Existing binding-field compares (target, args, policy_version, nonce, expiry,
+ *    runtime_generation) still apply.
  */
 export const check_auth02: Checker = (ctx) => {
   const inv = "AUTH-02";
   const cs = claim_for(ctx, inv);
-  const guard = observation_guard(ctx, inv, ctx.events.some((e) => e.op === "action.bind" || e.op === "action.propose") && ctx.events.some((e) => e.op === "approval.grant"), ctx.events.some((e) => e.op === "effect.dispatch" || e.op === "effect.receipt"));
+  const has_receipt = ctx.events.some((e) => e.op === "effect.receipt");
+  const guard = observation_guard(ctx, inv, has_receipt, has_receipt);
   if (guard) return guard;
 
   /** digest -> first binding snapshot that defined it */
   const bindings = new Map<string, BindingSnap>();
-  /** digest -> approval grant seq + snapshot at grant time */
-  const approvals = new Map<string, { seq: number; snap: BindingSnap }>();
+  /** Chronological grant/deny decisions (approval.record excluded). */
+  const decisions: Decision[] = [];
+  const violations: ViolationNote[] = [];
+  const supported_witnesses: number[] = [];
+  const inconclusive_witnesses: number[] = [];
+  let saw_supported = false;
+  let saw_committed = false;
+  let saw_unlinked_only = true;
+
+  const push_violation = (text: string, witnesses: number[], marker = false) => {
+    violations.push({ text, witnesses, marker });
+  };
 
   for (const ev of ctx.events) {
     const a = attrs(ev);
@@ -72,30 +105,18 @@ export const check_auth02: Checker = (ctx) => {
       if (prev) {
         const delta = changed_fields(prev, snap);
         if (delta.length > 0) {
-          // Same digest used for different binding fields — digest collision / rebound
-          const approved = approvals.get(digest);
+          const approved = [...decisions].reverse().find((d) => d.kind === "grant" && d.snap.action_digest === digest);
           if (approved) {
-            return [
-              finding(
-                inv,
-                cs,
-                "violation",
-                `ActionBinding fields changed after approval (${delta.join(",")}) while reusing action_digest=${digest}.`,
-                [prev.seq, approved.seq, ev.seq],
-                basis(ctx),
-              ),
-            ];
-          }
-          return [
-            finding(
-              inv,
-              cs,
-              "violation",
+            push_violation(
+              `ActionBinding fields changed after approval (${delta.join(",")}) while reusing action_digest=${digest}.`,
+              [prev.seq, approved.seq, ev.seq],
+            );
+          } else {
+            push_violation(
               `action_digest=${digest} rebound with changed fields (${delta.join(",")}).`,
               [prev.seq, ev.seq],
-              basis(ctx),
-            ),
-          ];
+            );
+          }
         }
       } else {
         bindings.set(digest, snap);
@@ -106,76 +127,199 @@ export const check_auth02: Checker = (ctx) => {
       const digest = str(a.action_digest);
       if (!digest) continue;
       const base = bindings.get(digest) ?? snap_from_attrs(ev.seq, digest, a);
-      // Approval attrs may carry binding fields explicitly
       const snap = snap_from_attrs(ev.seq, digest, { ...base, ...a, action_digest: digest });
-      approvals.set(digest, { seq: ev.seq, snap: { ...base, ...snap, action_digest: digest } });
+      decisions.push({
+        seq: ev.seq,
+        kind: "grant",
+        snap: { ...base, ...snap, action_digest: digest },
+        runtime_generation: num(a.runtime_generation) ?? snap.runtime_generation,
+      });
     }
+
+    if (ev.op === "approval.deny" && (ev.kind === "ok" || ev.kind === "info" || ev.kind === "fail")) {
+      const digest = str(a.action_digest);
+      if (!digest) continue;
+      const base = bindings.get(digest) ?? snap_from_attrs(ev.seq, digest, a);
+      const snap = snap_from_attrs(ev.seq, digest, { ...base, ...a, action_digest: digest });
+      decisions.push({
+        seq: ev.seq,
+        kind: "deny",
+        snap: { ...base, ...snap, action_digest: digest },
+        runtime_generation: num(a.runtime_generation) ?? snap.runtime_generation,
+      });
+    }
+
+    // approval.record intentionally ignored for grant/deny matching
 
     if (ev.op === "effect.receipt" || ev.op === "effect.dispatch") {
       const outcome = str(a.outcome) ?? str(a.status);
       const digest = str(a.action_digest);
-      if (!digest) continue;
-      const approved = approvals.get(digest);
-      if (!approved) continue;
+      const is_committed_receipt = ev.op === "effect.receipt" && outcome === "committed";
 
-      const current = snap_from_attrs(ev.seq, digest, a);
-      const delta = changed_fields(approved.snap, current);
-
-      // Explicit stale-approval reuse marker
+      // Marker-only paths (kept for existing corpora)
       if (a.reuse_stale_approval === true && (outcome === "committed" || outcome === "success" || outcome === "completed" || ev.op === "effect.receipt")) {
-        return [
-          finding(
-            inv,
-            cs,
-            "violation",
-            `Committed/dispatched effect reused stale approval for action_digest=${digest}.`,
-            [approved.seq, ev.seq],
-            basis(ctx),
-          ),
-        ];
+        const approved = digest
+          ? [...decisions].reverse().find((d) => d.kind === "grant" && d.snap.action_digest === digest)
+          : undefined;
+        push_violation(
+          `test-injected marker reuse_stale_approval: committed/dispatched effect reused stale approval` +
+            (digest ? ` for action_digest=${digest}` : "") +
+            `.`,
+          [approved?.seq, ev.seq].filter((x): x is number => typeof x === "number"),
+          true,
+        );
+      }
+      if (ev.op === "effect.receipt" && outcome === "committed" && a.binding_changed_after_approval === true) {
+        const approved = digest
+          ? [...decisions].reverse().find((d) => d.kind === "grant" && d.snap.action_digest === digest)
+          : undefined;
+        push_violation(
+          `test-injected marker binding_changed_after_approval with committed receipt` +
+            (digest ? ` for action_digest=${digest}` : "") +
+            `.`,
+          [approved?.seq, ev.seq].filter((x): x is number => typeof x === "number"),
+          true,
+        );
       }
 
-      if (delta.length > 0 && (outcome === "committed" || (ev.op === "effect.receipt" && outcome !== "rejected" && outcome !== "failed"))) {
-        if (ev.op === "effect.receipt" && outcome === "committed") {
-          return [
-            finding(
-              inv,
-              cs,
-              "violation",
-              `Effect committed with approval for action_digest=${digest} after binding fields changed (${delta.join(",")}).`,
-              [approved.snap.seq, approved.seq, ev.seq],
-              basis(ctx),
-            ),
-          ];
+      // Binding-field compare against latest matching grant (existing rule)
+      if (digest) {
+        const approved = [...decisions].reverse().find((d) => d.kind === "grant" && d.snap.action_digest === digest);
+        if (approved) {
+          const current = snap_from_attrs(ev.seq, digest, a);
+          const delta = changed_fields(approved.snap, current);
+          if (
+            delta.length > 0 &&
+            (outcome === "committed" || (ev.op === "effect.receipt" && outcome !== "rejected" && outcome !== "failed"))
+          ) {
+            if (ev.op === "effect.receipt" && outcome === "committed") {
+              push_violation(
+                `Effect committed with approval for action_digest=${digest} after binding fields changed (${delta.join(",")}).`,
+                [approved.snap.seq, approved.seq, ev.seq],
+              );
+            }
+          }
         }
       }
 
-      // Dispatch/receipt carries binding fields that diverge from approved snapshot
-      if (ev.op === "effect.receipt" && outcome === "committed" && a.binding_changed_after_approval === true) {
-        return [
-          finding(
-            inv,
-            cs,
-            "violation",
-            `binding_changed_after_approval with committed receipt for action_digest=${digest}.`,
-            [approved.seq, ev.seq],
-            basis(ctx),
-          ),
-        ];
+      if (!is_committed_receipt) {
+        if (ev.op === "effect.receipt") {
+          inconclusive_witnesses.push(ev.seq);
+        }
+        continue;
       }
+
+      saw_committed = true;
+
+      // Rule 2: unlinked / no action_digest → inconclusive witness only
+      if (!digest || str(a.binding) === "unlinked") {
+        inconclusive_witnesses.push(ev.seq);
+        continue;
+      }
+
+      saw_unlinked_only = false;
+
+      // Rule 1: latest grant/deny before this receipt with same digest
+      let latest: Decision | undefined;
+      for (let i = decisions.length - 1; i >= 0; i--) {
+        const d = decisions[i]!;
+        if (d.seq >= ev.seq) continue;
+        if (d.snap.action_digest !== digest) continue;
+        latest = d;
+        break;
+      }
+
+      if (!latest) {
+        push_violation(
+          `committed_without_grant: effect.receipt outcome=committed for action_digest=${digest} with no prior approval.grant/deny (approval.record does not count).`,
+          [ev.seq],
+        );
+        continue;
+      }
+
+      if (latest.kind === "deny") {
+        push_violation(
+          `committed_after_deny: effect.receipt outcome=committed for action_digest=${digest} after latest approval.deny.`,
+          [latest.seq, ev.seq],
+        );
+        continue;
+      }
+
+      const grant_gen = latest.runtime_generation;
+      const receipt_gen = num(a.runtime_generation);
+      if (grant_gen != null && receipt_gen != null && grant_gen !== receipt_gen) {
+        push_violation(
+          `cross_generation_grant: approval.grant runtime_generation=${grant_gen} ≠ receipt runtime_generation=${receipt_gen} for action_digest=${digest}.`,
+          [latest.seq, ev.seq],
+        );
+        continue;
+      }
+
+      saw_supported = true;
+      supported_witnesses.push(latest.seq, ev.seq);
     }
   }
 
-  // If we saw at least one approval+matching commit with stable fields → supported;
-  // otherwise supported when no counterexample (synthetic fixtures).
+  if (violations.length > 0) {
+    const witnesses = [...new Set(violations.flatMap((v) => v.witnesses))].sort((a, b) => a - b);
+    const parts = violations.map((v) => v.text);
+    const marker_note = violations.some((v) => v.marker)
+      ? " At least one violation used a test-injected marker."
+      : "";
+    return [
+      finding(
+        inv,
+        cs,
+        "violation",
+        parts.join(" ") + marker_note,
+        witnesses,
+        basis(ctx),
+      ),
+    ];
+  }
+
+  if (saw_supported) {
+    return [
+      finding(
+        inv,
+        cs,
+        "supported",
+        "Committed effect.receipt(s) matched same-generation approval.grant; no action-bound approval reuse after binding-field change.",
+        [...new Set(supported_witnesses)].sort((a, b) => a - b),
+        basis(ctx),
+      ),
+    ];
+  }
+
+  // No violation and no supported committed evidence
+  const unlinked_note =
+    inconclusive_witnesses.length > 0
+      ? ` Committed effect not linked to any action.bind (binding=unlinked); witness_seqs=[${[...new Set(inconclusive_witnesses)].sort((a, b) => a - b).join(",")}].`
+      : "";
+  if (!saw_committed || saw_unlinked_only) {
+    return [
+      finding(
+        inv,
+        cs,
+        "inconclusive",
+        (!saw_committed
+          ? "No outcome=committed effect.receipt observed; AUTH-02 cannot be positively supported."
+          : "All committed effect.receipt(s) are unlinked (no action_digest).") + unlinked_note,
+        [...new Set(inconclusive_witnesses)].sort((a, b) => a - b),
+        basis(ctx),
+      ),
+    ];
+  }
+
   return [
     finding(
       inv,
       cs,
-      "supported",
-      "No action-bound approval reuse after binding-field change observed.",
-      [],
+      "inconclusive",
+      "No committed receipt counted as supported evidence." + unlinked_note,
+      [...new Set([...supported_witnesses, ...inconclusive_witnesses])].sort((a, b) => a - b),
       basis(ctx),
     ),
   ];
 };
+

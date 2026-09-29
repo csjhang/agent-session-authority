@@ -8,6 +8,7 @@ export const check_auth03a: Checker = (ctx) => {
   const cs = claim_for(ctx, inv);
   const guard = observation_guard(ctx, inv, ctx.profile != null, ctx.events.some((e) => e.op === "action.bind" || e.op === "action.propose"));
   if (guard) return guard;
+  const violations: { text: string; witnesses: number[] }[] = [];
   for (const ev of ctx.events) {
     if (ev.op !== "action.bind" && ev.op !== "action.propose") continue;
     const a = attrs(ev);
@@ -17,14 +18,16 @@ export const check_auth03a: Checker = (ctx) => {
     if (!action_type || !target || !self_scope) continue;
     const expected = resolve_scope_id(ctx.profile, action_type, target);
     if (expected != null && expected !== self_scope) {
-      return [finding(inv, cs, "violation",
-        `Self-declared scope_id=${self_scope} != profile mapping ${expected} for ${action_type}|${target}.`,
-        [ev.seq], basis(ctx))];
+      violations.push({
+        text: `Self-declared scope_id=${self_scope} != profile mapping ${expected} for ${action_type}|${target}.`,
+        witnesses: [ev.seq],
+      });
     }
     if (a.self_declared_scope === true && expected == null) {
-      return [finding(inv, cs, "violation",
-        `Actor self-declared scope_id=${self_scope} without published scope decision function.`,
-        [ev.seq], basis(ctx))];
+      violations.push({
+        text: `Actor self-declared scope_id=${self_scope} without published scope decision function.`,
+        witnesses: [ev.seq],
+      });
     }
   }
   const seen = new Map<string, string>();
@@ -32,9 +35,13 @@ export const check_auth03a: Checker = (ctx) => {
     const key = `${row.action_type}|${row.target}`;
     const prev = seen.get(key);
     if (prev && prev !== row.scope_id) {
-      return [finding(inv, cs, "violation", `Non-deterministic scope map for ${key}.`, [], basis(ctx))];
+      violations.push({ text: `Non-deterministic scope map for ${key}.`, witnesses: [] });
     }
     seen.set(key, row.scope_id);
+  }
+  if (violations.length > 0) {
+    const witnesses = [...new Set(violations.flatMap((v) => v.witnesses))].sort((a, b) => a - b);
+    return [finding(inv, cs, "violation", violations.map((v) => v.text).join(" "), witnesses, basis(ctx))];
   }
   return [finding(inv, cs, "supported", "Scope determinism holds on observed bindings.", [], basis(ctx))];
 };
@@ -48,6 +55,7 @@ export const check_auth03b: Checker = (ctx) => {
   type Lease = { holder: string; seq: number; active: boolean };
   const leases = new Map<string, Lease[]>();
   const key_of = (scope_id: string, fence_epoch: number) => `${scope_id}|${fence_epoch}`;
+  const violations: { text: string; witnesses: number[] }[] = [];
 
   for (const ev of ctx.events) {
     const a = attrs(ev);
@@ -60,9 +68,10 @@ export const check_auth03b: Checker = (ctx) => {
       const list = leases.get(k) ?? [];
       const active = list.filter((l) => l.active);
       if (active.length >= 1 && !active.some((l) => l.holder === holder)) {
-        return [finding(inv, cs, "violation",
-          `Second ControlLease holder=${holder} while ${active[0]!.holder} active on ${k}.`,
-          [active[0]!.seq, ev.seq], basis(ctx))];
+        violations.push({
+          text: `Second ControlLease holder=${holder} while ${active[0]!.holder} active on ${k}.`,
+          witnesses: [active[0]!.seq, ev.seq],
+        });
       }
       list.push({ holder, seq: ev.seq, active: true });
       leases.set(k, list);
@@ -79,6 +88,25 @@ export const check_auth03b: Checker = (ctx) => {
       }
       leases.set(k, list);
     }
+    if (ev.op === "control.handoff" && (ev.kind === "ok" || ev.kind === "info")) {
+      const scope_id = str(a.scope_id);
+      const fence_epoch = num(a.fence_epoch) ?? num(a.new_fence_epoch);
+      const from = str(a.from) ?? str(a.predecessor) ?? ev.actor_id;
+      const to = str(a.holder) ?? str(a.successor);
+      if (!scope_id || fence_epoch == null || !to) continue;
+      // Release old holder on this scope+epoch, activate successor
+      const k = key_of(scope_id, fence_epoch);
+      const list = leases.get(k) ?? [];
+      for (const l of list) {
+        if (l.active && (!from || l.holder === from)) l.active = false;
+      }
+      list.push({ holder: to, seq: ev.seq, active: true });
+      leases.set(k, list);
+    }
+  }
+  if (violations.length > 0) {
+    const witnesses = [...new Set(violations.flatMap((v) => v.witnesses))].sort((a, b) => a - b);
+    return [finding(inv, cs, "violation", violations.map((v) => v.text).join(" "), witnesses, basis(ctx))];
   }
   return [finding(inv, cs, "supported", "At most one active ControlLease per scope+epoch observed.", [], basis(ctx))];
 };
@@ -87,9 +115,24 @@ export const check_auth03b: Checker = (ctx) => {
 export const check_auth03c: Checker = (ctx) => {
   const inv = "AUTH-03c";
   const cs = claim_for(ctx, inv);
-  const guard = observation_guard(ctx, inv, ctx.events.some((e) => e.op === "lease.acquire"), ctx.events.some((e) => e.op === "effect.receipt"));
+  const guard = observation_guard(
+    ctx,
+    inv,
+    ctx.events.some((e) => e.op === "lease.acquire" || e.op === "control.handoff"),
+    ctx.events.some((e) => e.op === "effect.receipt"),
+  );
   if (guard) return guard;
-  const active = new Map<string, { holder: string; scopes: Set<string>; seq: number }>();
+
+  type LeaseState = {
+    holder: string;
+    scopes: Set<string>;
+    seq: number;
+    expires_at?: string;
+  };
+  const active = new Map<string, LeaseState>();
+  const violations: { text: string; witnesses: number[] }[] = [];
+
+  const event_ts = (ev: { ts?: string }): string | undefined => ev.ts;
 
   for (const ev of ctx.events) {
     const a = attrs(ev);
@@ -101,6 +144,8 @@ export const check_auth03c: Checker = (ctx) => {
       const cur = active.get(holder) ?? { holder, scopes: new Set(), seq: ev.seq };
       cur.scopes.add(scope_id);
       cur.seq = ev.seq;
+      const expires = str(a.expires_at) ?? str(a.expiry);
+      if (expires) cur.expires_at = expires;
       active.set(holder, cur);
     }
     if ((ev.op === "lease.release" || ev.op === "lease.revoke") && (ev.kind === "ok" || ev.kind === "info")) {
@@ -111,6 +156,26 @@ export const check_auth03c: Checker = (ctx) => {
       if (cur && scope_id) cur.scopes.delete(scope_id);
       if (cur && cur.scopes.size === 0) active.delete(holder);
     }
+    if (ev.op === "control.handoff" && (ev.kind === "ok" || ev.kind === "info")) {
+      const scope_id = str(a.scope_id);
+      const from = str(a.from) ?? str(a.predecessor) ?? ev.actor_id;
+      const to = str(a.holder) ?? str(a.successor);
+      if (!scope_id || !to) continue;
+      // Move scope to new holder; old loses scope
+      if (from) {
+        const old = active.get(from);
+        if (old) {
+          old.scopes.delete(scope_id);
+          if (old.scopes.size === 0) active.delete(from);
+        }
+      }
+      const neu = active.get(to) ?? { holder: to, scopes: new Set(), seq: ev.seq };
+      neu.scopes.add(scope_id);
+      neu.seq = ev.seq;
+      const expires = str(a.expires_at) ?? str(a.expiry);
+      if (expires) neu.expires_at = expires;
+      active.set(to, neu);
+    }
     if (ev.op === "effect.receipt") {
       const outcome = str(a.outcome);
       if (outcome !== "committed") continue;
@@ -118,12 +183,22 @@ export const check_auth03c: Checker = (ctx) => {
       const actor = str(a.controller) ?? str(a.holder) ?? ev.actor_id;
       if (!scope_id || !actor) continue;
       const lease = active.get(actor);
-      if (!lease || !lease.scopes.has(scope_id)) {
-        return [finding(inv, cs, "violation",
-          `Committed effect scope_id=${scope_id} not covered by holder=${actor} ControlLease.`,
-          [lease?.seq, ev.seq].filter((x): x is number => typeof x === "number"), basis(ctx))];
+      const ts = event_ts(ev);
+      const expired =
+        lease?.expires_at != null && ts != null && ts > lease.expires_at;
+      if (!lease || !lease.scopes.has(scope_id) || expired) {
+        violations.push({
+          text: expired
+            ? `Committed effect scope_id=${scope_id} past lease expires_at=${lease!.expires_at} for holder=${actor}.`
+            : `Committed effect scope_id=${scope_id} not covered by holder=${actor} ControlLease.`,
+          witnesses: [lease?.seq, ev.seq].filter((x): x is number => typeof x === "number"),
+        });
       }
     }
+  }
+  if (violations.length > 0) {
+    const witnesses = [...new Set(violations.flatMap((v) => v.witnesses))].sort((a, b) => a - b);
+    return [finding(inv, cs, "violation", violations.map((v) => v.text).join(" "), witnesses, basis(ctx))];
   }
   return [finding(inv, cs, "supported", "Committed effects stayed within holder lease scopes.", [], basis(ctx))];
 };

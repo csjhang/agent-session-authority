@@ -29,15 +29,42 @@ function classify(ev_op: string | undefined, a: Record<string, unknown>, fault?:
   return undefined;
 }
 
+const WIN_RESOLUTION: Record<string, string[]> = {
+  cancel_wins: ["cancelled", "canceled", "cancel"],
+  complete_wins: ["completed", "complete", "committed", "success"],
+  timeout_wins: ["timeout", "timed_out"],
+  restart_wins: ["restart", "orphaned", "unknown"],
+  failed_wins: ["failed", "fail"],
+};
+
 /**
  * AUTH-07 — deterministic terminal interpretation.
- * Cancel/complete/timeout/restart races require a published rule or reconciliation,
- * not guessing. Ambiguous or wrong terminals are violations.
+ * Cancel/complete/timeout/restart races require a published rule or reconciliation.
+ * Restart fault with session_id pairs with all unfinished effects/tasks in that session.
+ * All *_wins rule kinds are verified, not only cancel_wins and complete_wins.
  */
 export const check_auth07: Checker = (ctx) => {
   const inv = "AUTH-07";
   const cs = claim_for(ctx, inv);
-  const guard = observation_guard(ctx, inv, ctx.events.some((e) => e.op === "task.cancel" || e.op === "task.complete" || e.op === "task.timeout" || e.op === "effect.receipt"), ctx.events.some((e) => e.op === "task.reconcile" || e.op === "effect.reconcile" || e.attrs?.terminal != null));
+  const guard = observation_guard(
+    ctx,
+    inv,
+    ctx.events.some(
+      (e) =>
+        e.op === "task.cancel" ||
+        e.op === "task.complete" ||
+        e.op === "task.timeout" ||
+        e.op === "effect.receipt" ||
+        (e.kind === "fault" && (e.fault === "runtime.restart" || e.fault === "runtime.crash")),
+    ),
+    ctx.events.some(
+      (e) =>
+        e.op === "task.reconcile" ||
+        e.op === "effect.reconcile" ||
+        e.attrs?.terminal != null ||
+        (e.kind === "fault" && (e.fault === "runtime.restart" || e.fault === "runtime.crash")),
+    ),
+  );
   if (guard) return guard;
 
   const profile_rules = (ctx.profile?.terminal_rules ?? {}) as Record<string, string>;
@@ -45,9 +72,36 @@ export const check_auth07: Checker = (ctx) => {
 
   const terminals = new Map<string, TerminalEvent[]>();
   const reconciles = new Map<string, { seq: number; resolved: string }>();
+  /** session_id -> unfinished effect/task subjects observed before a restart */
+  const unfinished_by_session = new Map<string, Set<string>>();
+  const started = new Set<string>();
+  const finished = new Set<string>();
+  const violations: { text: string; witnesses: number[]; marker?: boolean }[] = [];
 
   for (const ev of ctx.events) {
     const a = attrs(ev);
+
+    // Track unfinished subjects per session for restart pairing
+    const subj = subject_of(a, ev.session_id);
+    if (subj && (ev.op === "effect.dispatch" || ev.op === "task.start" || ev.op === "action.bind")) {
+      started.add(subj);
+      if (ev.session_id) {
+        const set = unfinished_by_session.get(ev.session_id) ?? new Set();
+        set.add(subj);
+        unfinished_by_session.set(ev.session_id, set);
+      }
+    }
+    if (
+      subj &&
+      (ev.op === "task.complete" ||
+        ev.op === "task.cancel" ||
+        ev.op === "task.timeout" ||
+        (ev.op === "effect.receipt" &&
+          (str(a.outcome) === "committed" || str(a.outcome) === "failed" || str(a.outcome) === "rejected")))
+    ) {
+      finished.add(subj);
+      if (ev.session_id) unfinished_by_session.get(ev.session_id)?.delete(subj);
+    }
 
     if (ev.op === "task.reconcile" || ev.op === "effect.reconcile" || a.reconcile === true) {
       const subject = subject_of(a, ev.session_id);
@@ -60,7 +114,7 @@ export const check_auth07: Checker = (ctx) => {
 
     const kind = classify(ev.op, a, ev.fault);
     if (!kind) continue;
-    // Only count explicit terminal publications / race participants
+
     if (
       ev.op === "task.cancel" ||
       ev.op === "task.complete" ||
@@ -69,29 +123,56 @@ export const check_auth07: Checker = (ctx) => {
       a.terminal != null ||
       a.terminal_kind != null ||
       (ev.kind === "fault" && (ev.fault === "runtime.restart" || ev.fault === "runtime.crash")) ||
-      (ev.op === "effect.receipt" && (str(a.outcome) === "committed" || str(a.outcome) === "failed" || str(a.outcome) === "unknown"))
+      (ev.op === "effect.receipt" &&
+        (str(a.outcome) === "committed" || str(a.outcome) === "failed" || str(a.outcome) === "unknown"))
     ) {
+      // Restart with session_id pairs with all unfinished effects/tasks in that session
+      if (ev.kind === "fault" && (ev.fault === "runtime.restart" || ev.fault === "runtime.crash") && ev.session_id) {
+        const unfinished = unfinished_by_session.get(ev.session_id) ?? new Set();
+        if (unfinished.size === 0 && subj) {
+          const subject = `fault:${ev.seq}`;
+          const list = terminals.get(subject) ?? [];
+          list.push({ seq: ev.seq, kind: "restart", subject });
+          terminals.set(subject, list);
+        } else {
+          for (const u of unfinished) {
+            const list = terminals.get(u) ?? [];
+            list.push({ seq: ev.seq, kind: "restart", subject: u });
+            terminals.set(u, list);
+          }
+        }
+        continue;
+      }
+
       const subject = subject_of(a, ev.session_id) ?? (ev.kind === "fault" ? `fault:${ev.seq}` : undefined);
       if (!subject) continue;
-      // Map receipt committed to complete for race detection when task_id/effect_id present
       let k = kind;
       if (ev.op === "effect.receipt" && str(a.outcome) === "committed") k = "complete";
       if (ev.op === "effect.receipt" && str(a.outcome) === "unknown") k = "unknown";
       const list = terminals.get(subject) ?? [];
-      list.push({ seq: ev.seq, kind: k, subject, published: str(a.published_terminal) ?? str(a.terminal) });
+      list.push({
+        seq: ev.seq,
+        kind: k,
+        subject,
+        published: str(a.published_terminal) ?? str(a.terminal),
+      });
       terminals.set(subject, list);
     }
   }
 
+  const race_pairs: Array<[TerminalKind, TerminalKind]> = [
+    ["cancel", "complete"],
+    ["timeout", "complete"],
+    ["cancel", "timeout"],
+    ["restart", "complete"],
+    ["restart", "cancel"],
+    ["restart", "timeout"],
+    ["failed", "complete"],
+    ["failed", "cancel"],
+  ];
+
   for (const [subject, events] of terminals) {
     const kinds = new Set(events.map((e) => e.kind));
-    const race_pairs: Array<[TerminalKind, TerminalKind]> = [
-      ["cancel", "complete"],
-      ["timeout", "complete"],
-      ["cancel", "timeout"],
-      ["restart", "complete"],
-      ["restart", "cancel"],
-    ];
 
     for (const [a, b] of race_pairs) {
       if (!(kinds.has(a) && kinds.has(b))) continue;
@@ -102,106 +183,70 @@ export const check_auth07: Checker = (ctx) => {
       const rule = profile_rules[rule_key] ?? profile_rules[alt_key];
 
       if (!rec && !rule && !has_published_rules) {
-        return [
-          finding(
-            inv,
-            cs,
-            "violation",
-            `Ambiguous terminal race (${a} vs ${b}) for ${subject} without published rule or reconciliation.`,
-            witnesses.sort((x, y) => x - y),
-            basis(ctx),
-          ),
-        ];
+        violations.push({
+          text: `Ambiguous terminal race (${a} vs ${b}) for ${subject} without published rule or reconciliation.`,
+          witnesses: witnesses.sort((x, y) => x - y),
+        });
+        continue;
       }
 
       if (!rec && has_published_rules && !rule) {
-        return [
-          finding(
-            inv,
-            cs,
-            "violation",
-            `Terminal race (${a} vs ${b}) for ${subject} not covered by published terminal_rules.`,
-            witnesses.sort((x, y) => x - y),
-            basis(ctx),
-          ),
-        ];
+        violations.push({
+          text: `Terminal race (${a} vs ${b}) for ${subject} not covered by published terminal_rules.`,
+          witnesses: witnesses.sort((x, y) => x - y),
+        });
+        continue;
       }
 
-      // Wrong published terminal: both claimed as definitive without matching rule winner
       const published = events.map((e) => e.published).filter(Boolean) as string[];
       if (published.includes("completed") && published.includes("cancelled") && !rec) {
-        return [
-          finding(
-            inv,
-            cs,
-            "violation",
-            `Conflicting published terminals for ${subject} (completed and cancelled) without reconciliation.`,
-            witnesses.sort((x, y) => x - y),
-            basis(ctx),
-          ),
-        ];
+        violations.push({
+          text: `Conflicting published terminals for ${subject} (completed and cancelled) without reconciliation.`,
+          witnesses: witnesses.sort((x, y) => x - y),
+        });
       }
 
       if (rec && rule) {
-        // If rule says cancel_wins but resolved to complete → violation
-        if (rule === "cancel_wins" && (rec.resolved === "completed" || rec.resolved === "complete") && a === "cancel") {
-          return [
-            finding(
-              inv,
-              cs,
-              "violation",
-              `Reconciliation resolved to ${rec.resolved} but published rule ${rule_key}=${rule}.`,
-              [...witnesses, rec.seq].sort((x, y) => x - y),
-              basis(ctx),
-            ),
-          ];
-        }
-        if (rule === "complete_wins" && (rec.resolved === "cancelled" || rec.resolved === "canceled") && b === "complete") {
-          return [
-            finding(
-              inv,
-              cs,
-              "violation",
-              `Reconciliation resolved to ${rec.resolved} but published rule ${rule_key}=${rule}.`,
-              [...witnesses, rec.seq].sort((x, y) => x - y),
-              basis(ctx),
-            ),
-          ];
+        const allowed = WIN_RESOLUTION[rule];
+        if (allowed && !allowed.some((x) => rec.resolved === x || rec.resolved.startsWith(x))) {
+          // Also accept rule name form like "cancel_wins" resolving incorrectly
+          violations.push({
+            text: `Reconciliation resolved to ${rec.resolved} but published rule ${rule_key}=${rule}.`,
+            witnesses: [...witnesses, rec.seq].sort((x, y) => x - y),
+          });
         }
       }
     }
 
-    // Explicit ambiguous marker
-    if (events.some((e) => e.kind === "unknown") && events.some((e) => e.kind === "complete" || e.kind === "cancel") && !reconciles.has(subject)) {
-      const witnesses = events.map((e) => e.seq);
-      return [
-        finding(
-          inv,
-          cs,
-          "violation",
-          `Unknown terminal coexists with another terminal for ${subject} without reconciliation.`,
-          witnesses.sort((x, y) => x - y),
-          basis(ctx),
-        ),
-      ];
+    if (
+      events.some((e) => e.kind === "unknown") &&
+      events.some((e) => e.kind === "complete" || e.kind === "cancel") &&
+      !reconciles.has(subject)
+    ) {
+      violations.push({
+        text: `Unknown terminal coexists with another terminal for ${subject} without reconciliation.`,
+        witnesses: events.map((e) => e.seq).sort((x, y) => x - y),
+      });
     }
   }
 
-  // Corpus may mark attrs.ambiguous_terminal on a single event
   for (const ev of ctx.events) {
     const a = attrs(ev);
     if (a.ambiguous_terminal === true || a.terminal_guess === true) {
-      return [
-        finding(
-          inv,
-          cs,
-          "violation",
-          "Terminal outcome was guessed without published rule or reconciliation.",
-          [ev.seq],
-          basis(ctx),
-        ),
-      ];
+      violations.push({
+        text: "test-injected marker ambiguous_terminal/terminal_guess: Terminal outcome was guessed without published rule or reconciliation.",
+        witnesses: [ev.seq],
+        marker: true,
+      });
     }
+  }
+
+  if (violations.length > 0) {
+    const witnesses = [...new Set(violations.flatMap((v) => v.witnesses))].sort((a, b) => a - b);
+    const marker_note = violations.some((v) => v.marker) ? " Includes test-injected marker." : "";
+    return [
+      finding(inv, cs, "violation", violations.map((v) => v.text).join(" ") + marker_note, witnesses, basis(ctx)),
+    ];
   }
 
   return [

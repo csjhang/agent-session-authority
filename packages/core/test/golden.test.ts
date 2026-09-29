@@ -142,3 +142,90 @@ describe("label distinctions", () => {
     }
   });
 });
+
+const ACP_SHAPED_CASES: Array<{ file: string; result: "supported" | "violation" | "inconclusive" }> = [
+  { file: "a1-reask-after-restart.jsonl", result: "supported" },
+  { file: "a2-stale-grant-no-reask.jsonl", result: "violation" },
+  { file: "a3-deny-then-committed.jsonl", result: "violation" },
+  { file: "a4-no-request-committed.jsonl", result: "inconclusive" },
+  { file: "a5-unknown-only.jsonl", result: "inconclusive" },
+  { file: "a6-orphan-only.jsonl", result: "violation" },
+];
+
+describe("golden corpus ACP-shaped AUTH-02", () => {
+  const profile = load_profile(path.join(repo_root, "corpus", "acp-shaped", "profile.json"));
+  for (const { file, result } of ACP_SHAPED_CASES) {
+    it(`${file} → AUTH-02 ${result} with non-empty witness_seqs when applicable`, () => {
+      const history = load_history_file(path.join(repo_root, "corpus", "acp-shaped", file));
+      const assessment = default_assessment();
+      assessment.target = "acp-shaped";
+      assessment.test_basis = "synthetic_fixture";
+      const findings = run_checkers(history, profile, assessment);
+      const f = by_inv(findings, "AUTH-02")[0];
+      expect(f?.result).toBe(result);
+      expect(f!.witness_seqs.length).toBeGreaterThan(0);
+    });
+  }
+
+  it("AUTH-01b supported explanation notes probe-derived generation when field_provenance marks it", () => {
+    const history = load_history_file(path.join(repo_root, "corpus", "acp-shaped", "a1-reask-after-restart.jsonl"));
+    const assessment = default_assessment();
+    assessment.test_basis = "synthetic_fixture";
+    const f = by_inv(run_checkers(history, profile, assessment), "AUTH-01b")[0];
+    expect(f?.result).toBe("supported");
+    expect(f?.explanation).toMatch(/generation derived by probe, not target-native/);
+  });
+});
+
+describe("marker-free violate corpora", () => {
+  it("AUTH-02 deny-then-commit without markers", () => {
+    const history = load_history_file(path.join(repo_root, "corpus", "auth02", "violate-markerfree.jsonl"));
+    const profile = load_profile(path.join(repo_root, "corpus", "auth02", "profile.json"));
+    const f = by_inv(run_checkers(history, profile, default_assessment()), "AUTH-02").find((x) => x.result === "violation");
+    expect(f).toBeTruthy();
+    expect(f!.explanation).toMatch(/committed_after_deny/);
+    expect(f!.explanation).not.toMatch(/test-injected marker/);
+    expect(f!.witness_seqs.length).toBeGreaterThan(0);
+  });
+
+  it("AUTH-04 wrong holder after same-epoch handoff", () => {
+    const history = load_history_file(path.join(repo_root, "corpus", "auth04", "violate-markerfree.jsonl"));
+    const profile = load_profile(path.join(repo_root, "corpus", "auth04", "profile.json"));
+    const f = by_inv(run_checkers(history, profile, default_assessment()), "AUTH-04").find((x) => x.result === "violation");
+    expect(f).toBeTruthy();
+    expect(f!.explanation).toMatch(/not live holder/);
+    expect(f!.explanation).not.toMatch(/test-injected marker/);
+  });
+
+  it("AUTH-05 grantor acquires lease without markers", () => {
+    const history = load_history_file(path.join(repo_root, "corpus", "auth05", "violate-markerfree.jsonl"));
+    const profile = load_profile(path.join(repo_root, "corpus", "auth05", "profile.json"));
+    const f = by_inv(run_checkers(history, profile, default_assessment()), "AUTH-05").find((x) => x.result === "violation");
+    expect(f).toBeTruthy();
+    expect(f!.explanation).not.toMatch(/test-injected marker/);
+  });
+
+  it("AUTH-06 non-committed receipt cannot support success", () => {
+    const history = load_history_file(path.join(repo_root, "corpus", "auth06", "violate-noncommitted-receipt.jsonl"));
+    const profile = load_profile(path.join(repo_root, "corpus", "auth06", "profile.json"));
+    const f = by_inv(run_checkers(history, profile, default_assessment()), "AUTH-06").find((x) => x.result === "violation");
+    expect(f).toBeTruthy();
+    expect(f!.witness_seqs).toEqual(expect.arrayContaining([3]));
+  });
+
+  it("AUTH-07 conflicting published terminals without markers", () => {
+    const history = load_history_file(path.join(repo_root, "corpus", "auth07", "violate-markerfree.jsonl"));
+    const profile = load_profile(path.join(repo_root, "corpus", "auth07", "profile.json"));
+    const f = by_inv(run_checkers(history, profile, default_assessment()), "AUTH-07").find((x) => x.result === "violation");
+    expect(f).toBeTruthy();
+    expect(f!.explanation).not.toMatch(/test-injected marker/);
+  });
+
+  it("AUTH-03c handoff moves scope; expiry not covered", () => {
+    const history = load_history_file(path.join(repo_root, "corpus", "auth03", "violate-handoff-expiry.jsonl"));
+    const profile = load_profile(path.join(repo_root, "corpus", "auth03", "profile.json"));
+    const f = by_inv(run_checkers(history, profile, default_assessment()), "AUTH-03c").find((x) => x.result === "violation");
+    expect(f).toBeTruthy();
+    expect(f!.explanation).toMatch(/not covered|expires_at/);
+  });
+});

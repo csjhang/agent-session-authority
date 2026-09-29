@@ -1,36 +1,48 @@
 import type { Checker } from "./index.js";
 import { attrs, basis, claim_for, finding, str, observation_guard } from "./index.js";
 
-/** AUTH-06 — no implicit success without trusted EffectReceipt */
+/**
+ * AUTH-06 — no implicit success without trusted EffectReceipt.
+ * Only outcome=committed receipts may support later committed/completed/success
+ * claims; unknown/rejected/failed may not.
+ */
 export const check_auth06: Checker = (ctx) => {
   const inv = "AUTH-06";
   const cs = claim_for(ctx, inv);
-  // Gate on effect activity only. Requiring effect.receipt here would make the
-  // "implicit success without receipt" violate path unreachable (always inconclusive).
-  const has_effect_activity = ctx.events.some((e) => e.op === "effect.dispatch" || e.op === "effect.query" || e.op === "effect.receipt");
+  const has_effect_activity = ctx.events.some(
+    (e) => e.op === "effect.dispatch" || e.op === "effect.query" || e.op === "effect.receipt",
+  );
   const guard = observation_guard(ctx, inv, has_effect_activity, has_effect_activity);
   if (guard) return guard;
-  const receipts = new Set<string>();
+
+  /** effect_id -> only committed receipts count as supporting evidence */
+  const committed_receipts = new Set<string>();
+  const violations: { text: string; witnesses: number[] }[] = [];
 
   for (const ev of ctx.events) {
     const a = attrs(ev);
     if (ev.op === "effect.receipt") {
       const effect_id = str(a.effect_id);
       const outcome = str(a.outcome);
-      if (effect_id && (outcome === "committed" || outcome === "rejected" || outcome === "failed" || outcome === "unknown")) {
-        receipts.add(effect_id);
+      if (effect_id && outcome === "committed") {
+        committed_receipts.add(effect_id);
       }
+      // unknown/rejected/failed intentionally do NOT populate committed_receipts
       continue;
     }
     if (ev.op === "effect.dispatch" || ev.op === "effect.query") {
       const effect_id = str(a.effect_id);
       const status = str(a.status) ?? str(a.effect_status);
       if (status === "committed" || status === "success" || status === "completed") {
-        if (!effect_id || !receipts.has(effect_id)) {
+        if (!effect_id || !committed_receipts.has(effect_id)) {
           if (ev.kind === "fail") continue;
-          return [finding(inv, cs, "violation",
-            `Effect marked ${status} without trusted EffectReceipt` + (effect_id ? ` for ${effect_id}` : "") + `. kind=${ev.kind} (fail!=info).`,
-            [ev.seq], basis(ctx))];
+          violations.push({
+            text:
+              `Effect marked ${status} without trusted committed EffectReceipt` +
+              (effect_id ? ` for ${effect_id}` : "") +
+              `. kind=${ev.kind} (fail!=info).`,
+            witnesses: [ev.seq],
+          });
         }
       }
     }
@@ -38,14 +50,30 @@ export const check_auth06: Checker = (ctx) => {
       if (ev.op !== "effect.receipt") {
         const effect_id = str(a.effect_id);
         if (ev.kind === "fail") continue;
-        if (!effect_id || !receipts.has(effect_id)) {
-          return [finding(inv, cs, "violation",
-            `Implicit success without EffectReceipt at seq=${ev.seq}.`,
-            [ev.seq], basis(ctx))];
+        if (!effect_id || !committed_receipts.has(effect_id)) {
+          violations.push({
+            text: `Implicit success without committed EffectReceipt at seq=${ev.seq}.`,
+            witnesses: [ev.seq],
+          });
         }
       }
     }
   }
-  return [finding(inv, cs, "supported",
-    "No implicit success without EffectReceipt; fail!=info respected.", [], basis(ctx))];
+
+  if (violations.length > 0) {
+    const witnesses = [...new Set(violations.flatMap((v) => v.witnesses))].sort((a, b) => a - b);
+    return [
+      finding(inv, cs, "violation", violations.map((v) => v.text).join(" "), witnesses, basis(ctx)),
+    ];
+  }
+  return [
+    finding(
+      inv,
+      cs,
+      "supported",
+      "No implicit success without committed EffectReceipt; fail!=info respected.",
+      [],
+      basis(ctx),
+    ),
+  ];
 };

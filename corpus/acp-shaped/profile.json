@@ -1,0 +1,6 @@
+{
+  "profile_version": "0.2",
+  "target": "acp-shaped-auth02",
+  "generation_model": "G1",
+  "claimed_invariants": ["AUTH-01", "AUTH-01a", "AUTH-01b", "AUTH-01c", "AUTH-02"]
+}

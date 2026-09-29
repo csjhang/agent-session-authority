@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import {
   collect_history,
   MockAcpPeer,
@@ -734,4 +738,40 @@ describe("@asa/adapter-acp fixture", () => {
   });
 
 
+});
+
+describe("acp-shaped corpus regeneration", () => {
+  it("regenerated a1–a6 match committed files (ignore ts/ts_unix_nano)", () => {
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const repo = path.resolve(here, "../../../..");
+    const dir = path.join(repo, "corpus", "acp-shaped");
+    const names = [
+      "a1-reask-after-restart.jsonl",
+      "a2-stale-grant-no-reask.jsonl",
+      "a3-deny-then-committed.jsonl",
+      "a4-no-request-committed.jsonl",
+      "a5-unknown-only.jsonl",
+      "a6-orphan-only.jsonl",
+    ];
+    const before: Record<string, string> = {};
+    for (const name of names) {
+      before[name] = fs.readFileSync(path.join(dir, name), "utf8");
+    }
+    execFileSync("pnpm", ["exec", "tsx", "scripts/generate-acp-shaped-corpus.ts"], {
+      cwd: repo,
+      stdio: "pipe",
+    });
+    const strip_ts = (line: string): string => {
+      const o = JSON.parse(line) as Record<string, unknown>;
+      delete o.ts;
+      delete o.ts_unix_nano;
+      return JSON.stringify(o);
+    };
+    for (const [name, prev] of Object.entries(before)) {
+      const next = fs.readFileSync(path.join(dir, name), "utf8");
+      const prev_lines = prev.trim().split("\n").map(strip_ts);
+      const next_lines = next.trim().split("\n").map(strip_ts);
+      expect(next_lines).toEqual(prev_lines);
+    }
+  });
 });
