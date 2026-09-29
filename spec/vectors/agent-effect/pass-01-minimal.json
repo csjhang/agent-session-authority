@@ -1,0 +1,25 @@
+{
+  "id": "pass-01-minimal",
+  "expect": "pass",
+  "description": "Minimal MUST authority fields; signature and previous_evidence_hash excluded from JCS hashed form",
+  "record": {
+    "schema_version": "asa.agent-effect/0.1",
+    "effect_id": "eff-1",
+    "action_digest": "sha256:deadbeef",
+    "runtime_generation": 2,
+    "fence_epoch": 7,
+    "boundary_id": "fs-gateway",
+    "outcome": "committed",
+    "external_reference": "file:///tmp/witness.txt",
+    "stream_id": "boundary/fs-gateway",
+    "sequence_number": 1,
+    "ts": "2026-09-29T01:00:00.000Z",
+    "ts_unix_nano": "1759107600000000000",
+    "session_id": "s1",
+    "controller": "runtime_a",
+    "signature": "BASE64_NOT_IN_HASH",
+    "previous_evidence_hash": null
+  },
+  "expected_jcs": "{\"action_digest\":\"sha256:deadbeef\",\"boundary_id\":\"fs-gateway\",\"controller\":\"runtime_a\",\"effect_id\":\"eff-1\",\"external_reference\":\"file:///tmp/witness.txt\",\"fence_epoch\":7,\"outcome\":\"committed\",\"runtime_generation\":2,\"schema_version\":\"asa.agent-effect/0.1\",\"sequence_number\":1,\"session_id\":\"s1\",\"stream_id\":\"boundary/fs-gateway\",\"ts\":\"2026-09-29T01:00:00.000Z\",\"ts_unix_nano\":\"1759107600000000000\"}",
+  "expected_jcs_sha256": "70c382999761494f38e6e5f427eef2a7700a185324e2d2c4a1f166e071aa5831"
+}

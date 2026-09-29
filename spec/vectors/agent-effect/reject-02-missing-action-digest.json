@@ -1,0 +1,21 @@
+{
+  "id": "reject-02-missing-action-digest",
+  "expect": "reject",
+  "reject_code": "missing_required",
+  "description": "action_digest is MUST",
+  "record": {
+    "schema_version": "asa.agent-effect/0.1",
+    "effect_id": "eff-1",
+    "runtime_generation": 2,
+    "fence_epoch": 7,
+    "boundary_id": "fs-gateway",
+    "outcome": "committed",
+    "external_reference": "file:///tmp/witness.txt",
+    "stream_id": "boundary/fs-gateway",
+    "sequence_number": 1,
+    "ts": "2026-09-29T01:00:00.000Z",
+    "ts_unix_nano": "1759107600000000000",
+    "session_id": "s1",
+    "controller": "runtime_a"
+  }
+}

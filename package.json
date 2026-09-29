@@ -23,7 +23,9 @@
     "fixture:ably": "pnpm --filter @asa/adapter-ably fixture",
     "fixture:acp-mux": "pnpm --filter @asa/adapter-acp-mux fixture",
     "fixture:acp": "pnpm --filter @asa/adapter-acp fixture",
-    "adapter:acp:fixture": "pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode fixture"
+    "adapter:acp:fixture": "pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode fixture",
+    "test:agent-effect": "vitest run --config spec/vectors/agent-effect/vitest.config.ts",
+    "verify:agent-effect": "tsx spec/vectors/agent-effect/verify.ts"
   },
   "devDependencies": {
     "typescript": "^5.7.2",

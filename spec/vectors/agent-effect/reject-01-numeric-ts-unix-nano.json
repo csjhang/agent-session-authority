@@ -1,0 +1,22 @@
+{
+  "id": "reject-01-numeric-ts-unix-nano",
+  "expect": "reject",
+  "reject_code": "numeric_ts_unix_nano",
+  "description": "ts_unix_nano as JSON number must be rejected (JS safe-integer trap); type is the defect, magnitude is incidental",
+  "record": {
+    "schema_version": "asa.agent-effect/0.1",
+    "effect_id": "eff-1",
+    "action_digest": "sha256:deadbeef",
+    "runtime_generation": 2,
+    "fence_epoch": 7,
+    "boundary_id": "fs-gateway",
+    "outcome": "committed",
+    "external_reference": "file:///tmp/witness.txt",
+    "stream_id": "boundary/fs-gateway",
+    "sequence_number": 1,
+    "ts": "2026-09-29T01:00:00.000Z",
+    "ts_unix_nano": 12345,
+    "session_id": "s1",
+    "controller": "runtime_a"
+  }
+}

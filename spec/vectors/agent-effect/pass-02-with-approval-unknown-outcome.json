@@ -1,0 +1,31 @@
+{
+  "id": "pass-02-with-approval-unknown-outcome",
+  "expect": "pass",
+  "description": "Approval binding present; outcome unknown is valid; flat integrity_* keys excluded from hash",
+  "record": {
+    "schema_version": "asa.agent-effect/0.1",
+    "effect_id": "eff-2",
+    "action_digest": "sha256:deadbeef",
+    "runtime_generation": 2,
+    "fence_epoch": 7,
+    "boundary_id": "fs-gateway",
+    "outcome": "unknown",
+    "external_reference": null,
+    "stream_id": "boundary/fs-gateway",
+    "sequence_number": 2,
+    "ts": "2026-09-29T01:00:00.000Z",
+    "ts_unix_nano": "1759107600000000000",
+    "session_id": "s1",
+    "controller": "runtime_a",
+    "signature": "BASE64_NOT_IN_HASH",
+    "previous_evidence_hash": null,
+    "approval_decision": "grant",
+    "approval_id": "appr-9",
+    "approver": "human:alice",
+    "integrity_signer": "producer",
+    "integrity_value": "SIG_BYTES",
+    "integrity_canonicalization": "JCS"
+  },
+  "expected_jcs": "{\"action_digest\":\"sha256:deadbeef\",\"approval_decision\":\"grant\",\"approval_id\":\"appr-9\",\"approver\":\"human:alice\",\"boundary_id\":\"fs-gateway\",\"controller\":\"runtime_a\",\"effect_id\":\"eff-2\",\"external_reference\":null,\"fence_epoch\":7,\"outcome\":\"unknown\",\"runtime_generation\":2,\"schema_version\":\"asa.agent-effect/0.1\",\"sequence_number\":2,\"session_id\":\"s1\",\"stream_id\":\"boundary/fs-gateway\",\"ts\":\"2026-09-29T01:00:00.000Z\",\"ts_unix_nano\":\"1759107600000000000\"}",
+  "expected_jcs_sha256": "1573c5bcfabbb5c962313b7a7056c0f9f42404885ab067ee1325e7102566cc49"
+}
