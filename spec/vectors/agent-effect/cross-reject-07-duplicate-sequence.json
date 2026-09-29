@@ -1,0 +1,53 @@
+{
+  "id": "cross-reject-07-duplicate-sequence",
+  "expect": "reject",
+  "kind": "cross_record",
+  "rules": [
+    7
+  ],
+  "description": "Duplicate sequence_number within same stream_id",
+  "records": [
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "eff-a",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 2,
+      "fence_epoch": 7,
+      "boundary_id": "fs-gateway",
+      "outcome": "unknown",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000000",
+      "session_id": "s1",
+      "controller": "runtime_a",
+      "approval_decision": "grant",
+      "approval_id": "appr-7"
+    },
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "eff-b",
+      "action_digest": "sha256:other",
+      "runtime_generation": 2,
+      "fence_epoch": 7,
+      "boundary_id": "fs-gateway",
+      "outcome": "committed",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000000",
+      "session_id": "s1",
+      "controller": "runtime_a",
+      "approval_decision": "grant",
+      "approval_id": "appr-7b"
+    }
+  ],
+  "expected": {
+    "ok": false,
+    "violation_codes": [
+      "duplicate_sequence"
+    ],
+    "gap_streams": [],
+    "unknown_effect_ids": [
+      "eff-a"
+    ]
+  }
+}

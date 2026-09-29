@@ -1,0 +1,35 @@
+{
+  "id": "cross-reject-01-unauthorized-effect",
+  "expect": "reject",
+  "kind": "cross_record",
+  "rules": [
+    1,
+    5
+  ],
+  "description": "Committed effect with no prior approval \u2192 unauthorized_effect",
+  "records": [
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "eff-1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 2,
+      "fence_epoch": 7,
+      "boundary_id": "fs-gateway",
+      "outcome": "committed",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000000",
+      "session_id": "s1",
+      "controller": "runtime_a",
+      "approval_decision": "none"
+    }
+  ],
+  "expected": {
+    "ok": false,
+    "violation_codes": [
+      "unauthorized_effect"
+    ],
+    "gap_streams": [],
+    "unknown_effect_ids": []
+  }
+}

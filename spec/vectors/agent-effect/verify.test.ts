@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { canonicalize } from "./jcs.js";
-import { loadVectors, runVector, sha256Hex } from "./verify.js";
+import {
+  loadCrossVectors,
+  loadVectors,
+  runCrossVector,
+  runVector,
+  sha256Hex,
+} from "./verify.js";
 import { stripIntegrity } from "./profile.js";
+import { verifyCrossRecords } from "./cross-verify.js";
 
 describe("agent-effect JCS vectors", () => {
   const vectors = loadVectors();
@@ -32,6 +39,41 @@ describe("agent-effect JCS vectors", () => {
     const b = canonicalize(stripIntegrity({ ...rec, signature: "OTHER" }));
     expect(a).toBe(b);
     expect(sha256Hex(a)).toBe(pass.expected_jcs_sha256);
+  });
+});
+
+describe("agent-effect cross-record authority", () => {
+  const cross = loadCrossVectors();
+
+  it("loads pass, reject, and report fixtures covering rules 1–7", () => {
+    expect(cross.some((v) => v.expect === "pass")).toBe(true);
+    expect(cross.some((v) => v.expect === "reject")).toBe(true);
+    expect(cross.some((v) => v.expect === "report")).toBe(true);
+    const covered = new Set(cross.flatMap((v) => v.rules ?? []));
+    expect([...covered].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+  });
+
+  for (const v of cross) {
+    it(`${v.expect}: ${v.id}`, () => {
+      const r = runCrossVector(v);
+      expect(r.ok, r.detail).toBe(true);
+    });
+  }
+
+  it("gaps alone do not set ok=false", () => {
+    const gap = cross.find((v) => v.id === "cross-report-07-sequence-gap")!;
+    const result = verifyCrossRecords(gap.records);
+    expect(result.ok).toBe(true);
+    expect(result.gaps.length).toBeGreaterThan(0);
+    expect(result.violations).toEqual([]);
+  });
+
+  it("unknown without approval is not unauthorized_effect", () => {
+    const v = cross.find((v) => v.id === "cross-pass-06-unknown-not-committed")!;
+    const result = verifyCrossRecords(v.records);
+    expect(result.ok).toBe(true);
+    expect(result.violations).toEqual([]);
+    expect(result.unknowns.map((u) => u.effect_id)).toEqual(["eff-u"]);
   });
 });
 

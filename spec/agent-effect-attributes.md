@@ -141,6 +141,31 @@ After exclusion, `signature` is gone; JCS is taken over the remaining object (ke
 
 ---
 
+## Cross-record authority checks
+
+Offline verifier: [`vectors/agent-effect/cross-verify.ts`](vectors/agent-effect/cross-verify.ts) (`verifyCrossRecords`).
+Fixtures: `cross-pass-*` / `cross-reject-*` / `cross-report-*` under [`vectors/agent-effect/`](vectors/agent-effect/).
+
+Given a **set** of `AgentEffectRecord` objects (JSONL lines or a JSON array), the verifier checks mutual authority consistency:
+
+1. **Committed needs approval** — every record with `outcome=committed` must have a corresponding prior approval: some record with the same `effect_id`, `approval_decision=grant`, and a non-empty `approval_id` (same record counts).
+2. **Action digest consistency** — all records sharing an `effect_id` must carry the same `action_digest`; the approval-bound digest must equal the committed effect’s digest.
+3. **Generation binding** — the approval’s `runtime_generation` must equal the landing effect’s `runtime_generation`. Reusing an approval across generations is an error (`cross_generation_reuse`).
+4. **Fence monotonicity** — within one `stream_id`, `fence_epoch` must not go backwards when ordered by `sequence_number`. A committed effect’s `fence_epoch` must not be lower than its approval’s `fence_epoch`.
+5. **Unauthorized effect** — a committed effect with no prior approval is reported as `unauthorized_effect` (the hard failure for rule 1).
+6. **Unknown is first-class** — `outcome=unknown` is listed in a separate `unknowns` report. It is **not** treated as committed (does not require approval) and **not** treated as failed.
+7. **Sequence integrity** — within one `stream_id`, a duplicate `sequence_number` is a hard violation (`duplicate_sequence`). Missing numbers between the observed min and max are reported as `sequence_gap` soft reports (they do **not** flip `ok` to false).
+
+### Boundary (what this does *not* prove)
+
+- The verifier only proves that the **records are mutually consistent** with these rules.
+- It does **not** prove that any external side effect really happened (FS write, API call, ticket, …).
+- It does **not** verify signatures, hash chains, checkpoints, or key rotation — those belong to the signingprocessor / OTEP custody layer. Integrity keys remain excluded from the single-record hashed form; this cross-record pass does not add them.
+
+### Placement note
+
+These checks live next to the agent-effect draft vectors (`spec/vectors/agent-effect/`), not in `packages/core` AUTH-01…07. Core checkers evaluate fault-probe `HistoryEvent` histories; they do not consume `asa.agent-effect/0.1` JSONL. See the vectors README for the conceptual overlap map.
+
 ## Vectors
 
 See [`vectors/agent-effect/`](vectors/agent-effect/) for pass/reject fixtures and the offline verifier.
