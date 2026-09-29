@@ -50,6 +50,8 @@ export function write_live_run(
   }
 
   const history_jsonl = result.history_jsonl;
+  const peer_events_jsonl =
+    result.events.map((e) => JSON.stringify(e)).join("\n") + (result.events.length ? "\n" : "");
   const run_json = {
     mode: result.mode,
     scenario,
@@ -59,23 +61,26 @@ export function write_live_run(
     package_version_observed: result.package_version_observed ?? null,
     run_valid: result.run_valid,
     invalid_reasons: result.invalid_reasons,
-    events: result.events,
-    history_events: result.history,
+    events: result.events.length,
+    history_events: result.history.length,
     notes: result.notes,
   };
-  const run_body = JSON.stringify(run_json, null, 2);
+  const run_body = JSON.stringify(run_json, null, 2) + "\n";
 
-  const leak_h = secret_leak_reason(history_jsonl, env);
-  if (leak_h) {
-    throw new Error(`refusing to write live run: ${leak_h}`);
-  }
-  const leak_r = secret_leak_reason(run_body, env);
-  if (leak_r) {
-    throw new Error(`refusing to write live run: ${leak_r}`);
+  for (const [label, text] of [
+    ["history.jsonl", history_jsonl],
+    ["run.json", run_body],
+    ["peer-events.jsonl", peer_events_jsonl],
+  ] as const) {
+    const leak = secret_leak_reason(text, env);
+    if (leak) {
+      throw new Error(`refusing to write live run (${label}): ${leak}`);
+    }
   }
 
   fs.mkdirSync(run_dir, { recursive: true });
   fs.writeFileSync(path.join(run_dir, "history.jsonl"), history_jsonl);
   fs.writeFileSync(path.join(run_dir, "run.json"), run_body);
+  fs.writeFileSync(path.join(run_dir, "peer-events.jsonl"), peer_events_jsonl);
   return run_dir;
 }

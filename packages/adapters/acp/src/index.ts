@@ -405,6 +405,7 @@ class LiveRpc {
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
+        // Synthetic client wait expiry — not a peer JSON-RPC error. Never score effects from this alone.
         resolve({ jsonrpc: "2.0", id, error: { code: -32000, message: "timeout", data: { harness_client_timeout: true } } });
       }, timeout);
       this.pending.set(id, { resolve, timer });

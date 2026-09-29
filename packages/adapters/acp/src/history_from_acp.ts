@@ -105,12 +105,13 @@ function effect_outcome_from_update(update: Record<string, unknown>): {
   outcome: "committed" | "unknown";
   reason?: string;
 } {
-  // Prefer content_mismatch over present-alone (matched===false wins first).
-  if (update.matched === false) {
-    return { outcome: "unknown", reason: "content_mismatch" };
-  }
+  // Absent file is always file_absent, even when the reader also set matched=false.
+  // content_mismatch only applies when the file exists but contents differ.
   if (update.absent === true || update.present === false) {
     return { outcome: "unknown", reason: "file_absent" };
+  }
+  if (update.matched === false) {
+    return { outcome: "unknown", reason: "content_mismatch" };
   }
   if (update.matched === true) {
     return { outcome: "committed" };

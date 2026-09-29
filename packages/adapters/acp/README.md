@@ -12,7 +12,8 @@ pnpm --filter @asa/adapter-acp exec tsx src/cli.ts
 Live writes under `targets/claude-agent-acp/results/live-runs/<scenario>/<run-id>/`:
 
 - `history.jsonl` — probe history
-- `run.json` — manifest (`mode`, `scenario`, `run_id`, `package_name`, `package_version_pinned`, `package_version_observed`, `run_valid`, `invalid_reasons`, `events`, `history_events`, `notes`)
+- `run.json` — manifest (`mode`, `scenario`, `run_id`, `package_name`, `package_version_pinned`, `package_version_observed`, `run_valid`, `invalid_reasons`, `events` = peer event count, `history_events` = history event count, `notes`)
+- `peer-events.jsonl` — one JSON object per line: the raw client-side peer event stream (`result.events`). Use it to re-convert history after converter fixes without re-running live.
 
 CLI flags:
 
@@ -25,11 +26,6 @@ Exit codes (live): `0` when `run_valid` is true; `2` when the run is invalid (ve
 # Real peer (requires ANTHROPIC_API_KEY — never commit it)
 ANTHROPIC_API_KEY=... pnpm --filter @asa/adapter-acp exec tsx src/cli.ts \
   --mode live --scenario effect --run-id my-run-1
-
-# Offline fake agent (no network / no Anthropic API)
-ANTHROPIC_API_KEY=offline-fake-agent-placeholder pnpm --filter @asa/adapter-acp exec tsx src/cli.ts \
-  --mode live --scenario effect --run-id offline-1 \
-  # spawn via collect_history live_command/live_args pointing at test/fixtures/fake-acp-agent.mjs
 ```
 
 ### Version pin
@@ -46,13 +42,15 @@ When the harness replies with ACP outcome `cancelled` because a required option 
 
 ### Secret guard
 
-If history or `run.json` text contains the `ANTHROPIC_API_KEY` value (length ≥ 8) or an `sk-ant-…` pattern, `write_live_run` throws and writes nothing.
+If `history.jsonl`, `run.json`, or `peer-events.jsonl` text contains the `ANTHROPIC_API_KEY` value (length ≥ 8) or an `sk-ant-…` pattern, `write_live_run` throws and writes nothing.
 
 ### Timing options (collect_history only)
 
 `live_observe_ms`, `effect_grace_ms`, and `always_grant_poll_ms` are **`collect_history` options** — there are no CLI flags for them. Defaults: observe 4000ms, effect grace 20000ms, always-grant poll 30000ms. Write-probe `session/prompt` client wait floors at 180s.
 
 ### Offline fake agent
+
+The offline fake agent can only be driven through `collect_history` via `live_command` / `live_args`. The CLI has no way to point at a custom agent binary and would start real `claude-agent-acp` if used for live mode.
 
 `test/fixtures/fake-acp-agent.mjs` speaks newline-delimited JSON-RPC on stdio. Drive it with:
 
