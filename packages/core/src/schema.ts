@@ -16,6 +16,15 @@ const SUPPORTED_KEYWORDS = new Set([
   "required",
 ]);
 
+/** RFC 6901 JSON Pointer: ~ → ~0, / → ~1 (tilde first). */
+function escape_pointer_segment(segment: string): string {
+  return segment.replace(/~/g, "~0").replace(/\//g, "~1");
+}
+
+function child_pointer(pointer: string, segment: string): string {
+  return `${pointer}/${escape_pointer_segment(segment)}`;
+}
+
 function is_object(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
@@ -48,7 +57,7 @@ function assert_supported_keywords_tree(schema: unknown, pointer: string): void 
   }
   if (is_object(schema.properties)) {
     for (const [key, child] of Object.entries(schema.properties)) {
-      assert_supported_keywords_tree(child, `${pointer}/properties/${key}`);
+      assert_supported_keywords_tree(child, `${pointer}/properties/${escape_pointer_segment(key)}`);
     }
   }
   if ("additionalProperties" in schema) {
@@ -122,13 +131,13 @@ function validate_against(
       for (const key of schema.required) {
         if (typeof key !== "string") continue;
         if (!Object.hasOwn(value, key)) {
-          errors.push(`${pointer}/${key}: required property missing`);
+          errors.push(`${child_pointer(pointer, key)}: required property missing`);
         }
       }
     }
     for (const [key, child_schema] of Object.entries(props)) {
       if (Object.hasOwn(value, key)) {
-        validate_against(child_schema, value[key], `${pointer}/${key}`, errors);
+        validate_against(child_schema, value[key], child_pointer(pointer, key), errors);
       }
     }
     if ("additionalProperties" in schema) {
@@ -136,11 +145,11 @@ function validate_against(
       for (const key of Object.keys(value)) {
         if (Object.hasOwn(props, key)) continue;
         if (ap === false) {
-          errors.push(`${pointer}/${key}: additional property not allowed`);
+          errors.push(`${child_pointer(pointer, key)}: additional property not allowed`);
         } else if (ap === true || ap === undefined) {
           // allow
         } else {
-          validate_against(ap, value[key], `${pointer}/${key}`, errors);
+          validate_against(ap, value[key], child_pointer(pointer, key), errors);
         }
       }
     }

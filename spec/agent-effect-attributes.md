@@ -174,7 +174,7 @@ Given a **set** of `AgentEffectRecord` objects (JSONL lines or a JSON array), th
    - independent grant's `effect_id` ≠ committed `effect_id` → `approval_effect_mismatch`;
    - same `approval_id` on multiple committed `effect_id`s → `approval_reused_across_effects`;
    - more than one `outcome=committed` for the same `effect_id` → `duplicate_commit`.
-6. **Unknown is first-class** — `outcome=unknown` with `record_kind` absent or `"effect"` is listed in `unknowns`. `record_kind=approval` issuances are **not** listed. Unknown is not treated as committed or failed. (Legacy unknown issuances remain listed — not changed in this profile.)
+6. **Unknown is first-class** — `outcome=unknown` is listed in `unknowns` only when the record is **not** an approval record. Approval records are `record_kind=approval`, or legacy (absent `record_kind`) non-committed records with `approval_decision` `"grant"`|`"deny"` and a non-empty `approval_id`. Those issuances are **not** listed, even when `outcome=unknown`. Real unknown effects (`approval_decision` `"none"` / missing, no grant/deny+id) stay listed. Unknown is not treated as committed or failed.
 7. **Sequence integrity** — duplicate `sequence_number` → hard `duplicate_sequence`; adjacent gaps → soft `sequence_gap` (does **not** flip `ok`). Adjacent-difference only (no min→max walk).
 
 ### Ordering (`order_ts`)
@@ -184,7 +184,7 @@ Given a **set** of `AgentEffectRecord` objects (JSONL lines or a JSON array), th
 Within one `stream_id`, records are ordered by `sequence_number`. Each stream assigns a monotonic-max **`order_ts`**: walking by sequence, `order_ts = max(prior_order_ts, ts_unix_nano)`. A raw `ts_unix_nano` regression within the stream → soft `stream_ts_regression` (does **not** flip `ok`).
 
 - **Priorness:** same stream → compare `sequence_number`; different streams → compare **only** `order_ts` (equal counts as prior). Cross-stream priorness MUST NOT use `stream_id`, `sequence_number`, or JCS.
-- **Pick latest** among candidates already determined prior: find max `order_ts`; per stream take the record with largest `sequence_number` at that `order_ts` (that stream's **head**). Global sort key `(order_ts, stream_id, sequence_number, JCS)` is used only to pick the latest among those heads — not to decide whether a record is prior. Fail-closed: only when stream-heads include **both** grant and deny → soft `ambiguous_decision_order` and treat as deny. Denies/grants superseded by later records on the **same** stream do not participate in conflict.
+- **Pick latest** among candidates already determined prior: find max `order_ts`; per stream, **every** record that shares that stream's largest `sequence_number` at that `order_ts` is a **head** (a same-stream `duplicate_sequence` grant+deny tie therefore has both as heads). Global sort key `(order_ts, stream_id, sequence_number, JCS)` is used only to pick the latest among those heads — not to decide whether a record is prior. Fail-closed: only when stream-heads include **both** grant and deny → soft `ambiguous_decision_order` and treat as deny. Denies/grants superseded by a **higher** `sequence_number` on the **same** stream do not participate in conflict.
 
 `ts_unix_nano` remains a reference clock only — not causal order across producers.
 

@@ -26,7 +26,7 @@ Or: `pnpm test:agent-effect` / `pnpm verify:agent-effect`
 
 ## Single-record
 
-Reject coverage: numeric `ts_unix_nano`, missing `action_digest`, integrity key left inside claimed `hashed_form`, non-integer / wrong-type / null / empty / unsafe-integer fields (`reject-04`…`07`, `reject-11`…`13`, `reject-16`), and `bad_record_kind` (`reject-08`…`10`, `reject-14`…`15`).
+Reject coverage: numeric `ts_unix_nano`, missing `action_digest`, integrity key left inside claimed `hashed_form`, non-integer / wrong-type / null / empty / unsafe-integer fields (`reject-04`…`07`, `reject-11`…`13`, `reject-16`), `bad_record_kind` (`reject-08`…`10`, `reject-14`…`15`), and lone UTF-16 surrogates in any string key or value (`reject-17` → `invalid_unicode`).
 
 ## Cross-record authority
 
@@ -39,10 +39,10 @@ Approvals are indexed by `approval_id` (not `effect_id`). **Independent issuance
 3. Issuance generation from **independent issuance** must equal landing `runtime_generation`. Self-declared generation on the commit must not override issuance (`cross-reject-09` / `cross-reject-10`) but can only make the check stricter: commit `approval_runtime_generation` ≠ own `runtime_generation` → always `cross_generation_reuse` even with issuance (`cross-reject-24`). No issuance → soft `approval_generation_unverifiable`; self-admitted mismatch → also hard `cross_generation_reuse` (`cross-reject-11`).
 4. `fence_epoch` must not go backwards within a `stream_id`; effect epoch ≥ approval epoch.
 5. Latest prior independent decision wins: deny then commit same id → `revoked_approval_used` (including “reclaim on commit”). Effect-level deny (other id) → `committed_after_deny`. Grant issued for another `effect_id` → `approval_effect_mismatch`. Same `approval_id` on multiple committed effects → `approval_reused_across_effects`. Multiple commits → `duplicate_commit`. Deny then **fresh** grant then commit → pass (`cross-pass-10-deny-then-fresh-grant`).
-6. `outcome=unknown` with `record_kind`≠`approval` is listed separately; never treated as committed or failed. `record_kind=approval` issuances are omitted from the unknowns list.
+6. `outcome=unknown` is listed only when the record is **not** an approval record (`record_kind=approval`, or legacy non-committed grant/deny + `approval_id`). Those issuances are omitted from the unknowns list even when `outcome=unknown`. Real unknown effects (`approval_decision` none/missing) stay listed; never treated as committed or failed.
 7. Duplicate `sequence_number` → hard `duplicate_sequence`; gaps → soft `sequence_gap` report (do **not** fail `ok`).
 
-Ordering: **priorness** vs **pick latest** are separate. Cross-stream priorness = `order_ts` only (equal = prior; no stream_id/seq/JCS). Pick latest uses per-stream heads at max `order_ts`; fail-closed only when heads disagree grant+deny. Soft `stream_ts_regression`. Vectors are permutation-invariant (see `verify.test.ts`).
+Ordering: **priorness** vs **pick latest** are separate. Cross-stream priorness = `order_ts` only (equal = prior; no stream_id/seq/JCS). Pick latest uses per-stream heads at max `order_ts` (when several records share that stream's max `sequence_number` — `duplicate_sequence` — **all** are heads); fail-closed only when heads disagree grant+deny. Soft `stream_ts_regression`. Vectors are permutation-invariant (see `verify.test.ts`).
 
 Boundary: mutual consistency only — not proof that external effects happened, and not signatures / hash chains.
 
