@@ -428,7 +428,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
   const i1 = await initialize(c1, events, notes, timeout, gen1_mode);
   if (!i1.result) {
     await stop(c1);
-    return { events, history: acp_events_to_history(events, { runtime_generation: 1 }) };
+    return { events, history: acp_events_to_history(events, { issuer_id: "acp_adapter_live" }) };
   }
   const n = await i1.rpc.request(build_session_new(3, cwd), timeout);
   const sid = String((n.result as Record<string, unknown> | undefined)?.sessionId ?? "live-session");
@@ -545,6 +545,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
   await stop(c1);
 
   notes.push("AUTH-01 RuntimeRestart: terminated generation 1 with SIGTERM; spawning generation 2.");
+  events.push({ type: "runtime_restart", sessionId: sid, reason: "SIGTERM_gen1_process_spawn" });
   // gen2: effect/stale/always-grant/reject-always allow (default pick_allow); capped/stale-effect deny
   const gen2_mode: PermissionPickMode = !(effect || stale || always_grant || reject_always) ? "deny" : "allow";
   const c2 = await spawn_live(command, args, env);
@@ -974,7 +975,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
             ? "live_effect_ok"
             : "live_capped_ok";
   events.push({ type: "session_closed", sessionId: sid, reason: close_reason });
-  const history = acp_events_to_history(events, { runtime_generation: 1, fence_epoch: 1 });
+  const history = acp_events_to_history(events, { fence_epoch: 1, issuer_id: "acp_adapter_live" });
   return { events, history };
 }
 
@@ -986,7 +987,6 @@ export async function collect_history(opts: AcpAdapterOptions = {}): Promise<Acp
     if (!has_key(opts.env ?? process.env)) throw new Error("LIVE ACP requires ANTHROPIC_API_KEY in the environment");
     const out = await run_live(opts, notes);
     const history = out.history;
-    for (const x of history) if (x.op === "generation.observe" && x.attrs) x.attrs.issuer_id = "acp_adapter_live";
     return { mode, target: "claude-agent-acp", package_name: PKG, package_version_pinned: PINNED, events: out.events, history, history_jsonl: history_to_jsonl(history), notes };
   }
   notes.push("FIXTURE mode: MockAcpPeer (no cloud key, no ACP SDK in core).");

@@ -1,3 +1,8 @@
+Status: WITHDRAWN (2026-09-29)
+Reason: the published live history does not encode runtime generation, the restart fault,
+approval↔action binding, or effect receipts, so `asa check` cannot reproduce these
+conclusions. They are not established. Pending re-run with the fixed adapter.
+
 # Auth to effect chain report
 
 ## Run identity and configuration

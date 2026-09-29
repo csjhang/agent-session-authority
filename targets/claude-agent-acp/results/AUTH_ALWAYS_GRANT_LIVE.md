@@ -1,3 +1,8 @@
+Status: WITHDRAWN (2026-09-29)
+Reason: the published live history does not encode runtime generation, the restart fault,
+approval↔action binding, or effect receipts, so `asa check` cannot reproduce these
+conclusions. They are not established. Pending re-run with the fixed adapter.
+
 ## Live always-grant run (2026-09-14, hardened waits) - A / B / C-always score
 
 Run identity: pin claude-agent-acp 0.75.1 (agentInfo.version at seq 3 and seq 23). Exact invocation uses scenario always-grant on the ACP adapter CLI (same pin; provide cloud key in env). Hardened waits: prompt_timeout_ms=180000 with FS / tool_call poll before scoring the receipt.

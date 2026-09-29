@@ -3,9 +3,55 @@
   "profile_version": "0.2",
   "test_basis": "synthetic_fixture",
   "mode": "FIXTURE",
-  "capability_vector": {"AUTH-01":"not_declared","AUTH-01a":"not_declared","AUTH-01b":"not_declared","AUTH-01c":"not_declared","AUTH-02":"inconclusive","AUTH-03":"not_declared","AUTH-04":"not_declared","AUTH-05":"not_declared","AUTH-06":"not_declared","AUTH-07":"not_declared","AUTH-08":"not_declared"},
-  "claim_status_vector": {"AUTH-01":"not_declared","AUTH-02":"not_declared","AUTH-03":"not_declared","AUTH-04":"not_declared","AUTH-05":"not_declared","AUTH-06":"not_declared","AUTH-07":"not_declared","AUTH-08":"not_declared"},
-  "explanation": {"AUTH-02":"Pending permission re-issue on attach is observable; adapter synthesizes digest for probe only — acp-mux has no native ActionDigest+generation.","AUTH-01":"No RuntimeGeneration in acp-mux — not_declared.","AUTH-03":"No ControlLease — not_declared.","AUTH-04":"No fencing — not_declared.","AUTH-05":"Observation attach is not Approver/Controller SoD — not_declared.","AUTH-06":"No EffectReceipt — not_declared."},
+  "fixture_limitations": [
+    "RFD #533 observation-only semantics",
+    "no fencing/lease/digest/generation"
+  ],
+  "capability_vector": {
+    "AUTH-01a": "not_declared",
+    "AUTH-01b": "supported",
+    "AUTH-01c": "inconclusive",
+    "AUTH-02": "inconclusive",
+    "AUTH-03a": "inconclusive",
+    "AUTH-03b": "inconclusive",
+    "AUTH-03c": "inconclusive",
+    "AUTH-04": "inconclusive",
+    "AUTH-05": "inconclusive",
+    "AUTH-06": "inconclusive",
+    "AUTH-07": "inconclusive"
+  },
+  "claim_status_vector": {
+    "AUTH-01a": "not_declared",
+    "AUTH-01b": "not_declared",
+    "AUTH-01c": "not_declared",
+    "AUTH-02": "not_declared",
+    "AUTH-03a": "not_declared",
+    "AUTH-03b": "not_declared",
+    "AUTH-03c": "not_declared",
+    "AUTH-04": "not_declared",
+    "AUTH-05": "not_declared",
+    "AUTH-06": "not_declared",
+    "AUTH-07": "not_declared"
+  },
+  "explanation": {
+    "AUTH-02": "Pending permission re-issue on attach is observable; adapter synthesizes digest for probe only — acp-mux has no native ActionDigest+generation.",
+    "AUTH-01": "No RuntimeGeneration in acp-mux — not_declared.",
+    "AUTH-03": "No ControlLease — not_declared.",
+    "AUTH-04": "No fencing — not_declared.",
+    "AUTH-05": "Observation attach is not Approver/Controller SoD — not_declared.",
+    "AUTH-06": "No EffectReceipt — not_declared.",
+    "AUTH-01a": "No generation_model declared in profile.",
+    "AUTH-01b": "No generation monotonicity violation observed.",
+    "AUTH-01c": "Required prerequisite observations are absent.",
+    "AUTH-03a": "Required prerequisite observations are absent.",
+    "AUTH-03b": "Required prerequisite observations are absent.",
+    "AUTH-03c": "Required prerequisite observations are absent.",
+    "AUTH-07": "Required prerequisite observations are absent."
+  },
+  "notes": {
+    "summary": "Fixture vector from asa check against history-fixture.jsonl (MockAcpMuxPeer / RFD #533 observation attach). Explicit non-claims: no fencing, lease, digest, generation, or revocation in acp-mux."
+  },
   "history_artifact": "targets/acp-mux/results/history-fixture.jsonl",
-  "fixture_limitations": ["RFD #533 observation-only semantics", "no fencing/lease/digest/generation"]
+  "generated_by": "scripts/generate-capability-vectors.ts",
+  "generated_at": "2026-09-29"
 }

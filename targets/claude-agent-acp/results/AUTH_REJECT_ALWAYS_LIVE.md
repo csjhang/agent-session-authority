@@ -1,3 +1,8 @@
+Status: WITHDRAWN (2026-09-29)
+Reason: the published live history does not encode runtime generation, the restart fault,
+approval↔action binding, or effect receipts, so `asa check` cannot reproduce these
+conclusions. They are not established. Pending re-run with the fixed adapter.
+
 ## Live reject-always run (2026-09-14) — NOT OFFERED / UNDERSPECIFIED
 
 Run identity: pin claude-agent-acp 0.75.1. Exact invocation uses scenario reject-always on the ACP adapter CLI (same pin; provide cloud key in env). CLI exit 0; detach reason `live_reject_always_ok` is **status only** — not effect or defect proof.

@@ -162,4 +162,78 @@ describe("@asa/adapter-acp fixture", () => {
     expect(result.history.length).toBeGreaterThan(3);
     expect(result.notes.some((n) => /reject-always/i.test(n))).toBe(true);
   });
+
+  it("multi-generation restart fixture emits fault, gen bump, digest-linked approvals, and effect receipts", () => {
+    const peer = new MockAcpPeer({ sessionId: "s-restart" });
+    const history = acp_events_to_history(peer.run_restart_fixture_scenario());
+
+    const faults = history.filter((e) => e.kind === "fault" && e.fault === "runtime.restart");
+    expect(faults.length).toBe(1);
+
+    const gens = history.filter((e) => e.op === "generation.observe");
+    expect(gens.length).toBe(2);
+    expect(gens[0]?.attrs?.runtime_generation).toBe(1);
+    expect(gens[1]?.attrs?.runtime_generation).toBe(2);
+
+    const binds = history.filter((e) => e.op === "action.bind");
+    expect(binds.length).toBe(2);
+    expect(binds[0]?.attrs?.runtime_generation).toBe(1);
+    expect(binds[1]?.attrs?.runtime_generation).toBe(2);
+
+    const grants = history.filter((e) => e.op === "approval.grant");
+    expect(grants.length).toBe(2);
+    for (const g of grants) {
+      const req = history.find(
+        (e) => e.op === "approval.request" && e.attrs?.request_id === g.attrs?.request_id,
+      );
+      expect(req).toBeTruthy();
+      expect(g.attrs?.action_digest).toBe(req?.attrs?.action_digest);
+      expect(g.attrs?.action_digest).toBeTruthy();
+    }
+    expect(grants[0]?.attrs?.runtime_generation).toBe(1);
+    expect(grants[1]?.attrs?.runtime_generation).toBe(2);
+
+    const receipts = history.filter((e) => e.op === "effect.receipt");
+    expect(receipts.length).toBe(2);
+    for (const r of receipts) {
+      expect(r.attrs?.outcome).toBe("committed");
+      expect(r.attrs?.field_provenance).toMatchObject({ outcome: "derived" });
+    }
+    expect(receipts[0]?.attrs?.runtime_generation).toBe(1);
+    expect(receipts[1]?.attrs?.runtime_generation).toBe(2);
+  });
+
+  it("links approval.grant action_digest via request_id on single-generation fixture", () => {
+    const peer = new MockAcpPeer();
+    const history = acp_events_to_history(peer.run_fixture_scenario());
+    const grant = history.find((e) => e.op === "approval.grant");
+    const req = history.find((e) => e.op === "approval.request");
+    expect(grant?.attrs?.action_digest).toBe(req?.attrs?.action_digest);
+    expect(grant?.attrs?.runtime_generation).toBe(1);
+    const receipt = history.find((e) => e.op === "effect.receipt");
+    expect(receipt?.attrs?.outcome).toBe("committed");
+    expect(receipt?.attrs?.field_provenance).toMatchObject({ outcome: "derived" });
+  });
+
+  it("effect.receipt is unknown with reason when wait fixture reports absent file", () => {
+    const events = [
+      {
+        type: "session_update" as const,
+        sessionId: "s-absent",
+        update: {
+          kind: "effect_receipt",
+          sink: "wait_for_write_effect",
+          path: "repo/missing.txt",
+          present: false,
+          absent: true,
+        },
+      },
+    ];
+    const history = acp_events_to_history(events);
+    const receipt = history.find((e) => e.op === "effect.receipt");
+    expect(receipt?.attrs?.outcome).toBe("unknown");
+    expect(receipt?.attrs?.reason).toBe("file_absent");
+    expect(receipt?.attrs?.field_provenance).toMatchObject({ outcome: "derived" });
+  });
+
 });
