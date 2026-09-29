@@ -130,8 +130,10 @@ Each finding keeps **two independent axes** (`claim_status` and `observed_result
 | `result` | same labels | Claim-rewritten grade (may equal `observed_result`) |
 | `witness_seqs` | number[] | Counterexample / support evidence seqs (unchanged by rewrite) |
 | `explanation` | string | Human-readable reason (rewritten findings use a fixed prefix; see below) |
-| `reproducible` | boolean | Whether the finding is reproducible from the corpus |
+| `reproducible` | boolean | `false` when `observed_result` is `not_tested`; otherwise `true` (computed in `finding()`) |
 | `test_basis` | `vendor_claim` \| `research_profile` \| `synthetic_fixture` | Evidence basis |
+
+**`reproducible`:** Unexecuted findings (`observed_result === "not_tested"`, e.g. AUTH-08 stub) are **not** reproducible. All other findings are reproducible: they either point at evidence events via `witness_seqs`, or are explicitly profile-based (AUTH-01a; AUTH-01c when `generation_model` is G0) with empty `witness_seqs` and an explanation that says the conclusion is based on profile.
 
 ### Claim rewrite rules (`finding()`)
 
