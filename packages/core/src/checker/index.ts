@@ -98,6 +98,20 @@ export function finding(
   };
 }
 
+
+/** Keep identical explanation sentences once when stitching multi-violation text. */
+export function join_unique_sentences(texts: string[]): string {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of texts) {
+    const s = raw.trim();
+    if (!s || seen.has(s)) continue;
+    seen.add(s);
+    out.push(s);
+  }
+  return out.join(" ");
+}
+
 /** Return not_tested for empty history and inconclusive for incomplete evidence. */
 export function observation_guard(ctx: CheckerContext, invariant: string, prerequisites: boolean, sufficient_observations: boolean): CheckFinding[] | undefined {
   const cs = claim_for(ctx, invariant);

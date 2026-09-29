@@ -22,8 +22,8 @@
   "capability_sources": {},
   "fixture_vector": {
     "AUTH-01a": "not_declared",
-    "AUTH-01b": "supported",
-    "AUTH-01c": "inconclusive",
+    "AUTH-01b": "inconclusive",
+    "AUTH-01c": "not_declared",
     "AUTH-02": "supported",
     "AUTH-03a": "inconclusive",
     "AUTH-03b": "inconclusive",
@@ -50,8 +50,8 @@
   },
   "checker_explanation": {
     "AUTH-01a": "No generation_model declared in profile.",
-    "AUTH-01b": "No generation monotonicity violation observed.",
-    "AUTH-01c": "Required prerequisite observations are absent.",
+    "AUTH-01b": "no restart observed, cross-restart increment not examined",
+    "AUTH-01c": "No profile/generation_model to evaluate issuer separation.",
     "AUTH-02": "Committed effect.receipt(s) matched same-generation approval.grant; no action-bound approval reuse after binding-field change.",
     "AUTH-03a": "Required prerequisite observations are absent.",
     "AUTH-03b": "Required prerequisite observations are absent.",
@@ -59,7 +59,7 @@
     "AUTH-04": "Required prerequisite observations are absent.",
     "AUTH-05": "Required prerequisite observations are absent.",
     "AUTH-06": "No implicit success without committed EffectReceipt; fail!=info respected.",
-    "AUTH-07": "Not enough observations for a positive conclusion.",
+    "AUTH-07": "no terminal contention examined",
     "AUTH-08": "AUTH-08 (Bypass honesty) has no checker yet. Disclosure belongs in profile.known_bypasses and profile.coverage_boundary."
   },
   "notes": {

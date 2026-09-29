@@ -20,6 +20,7 @@ export const KNOWN_OPS = [
   "lease.renew",
   "lease.release",
   "lease.revoke",
+  "lease.observe",
   "generation.observe",
   "action.propose",
   "action.bind",

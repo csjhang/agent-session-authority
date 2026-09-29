@@ -119,7 +119,7 @@ export function ably_events_to_history(events: readonly AblyPeerEvent[]): Histor
     } else if (e.type === "run_resume")
       next({
         kind: "fault",
-        op: "runtime.restart",
+        fault: "runtime.restart",
         session_id: e.sessionId,
         attrs: { run_id: e.runId, new_invocation_id: e.newInvocationId, generation_bumped: false },
         note: e.note,
