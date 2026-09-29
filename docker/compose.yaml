@@ -18,7 +18,7 @@ services:
     volumes:
       - ..:/repo
     ports:
-      - "8787:8787"
+      - "127.0.0.1:8787:8787"
     environment:
       ASA_SINK_PORT: "8787"
       ASA_SINK_HOST: "0.0.0.0"

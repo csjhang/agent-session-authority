@@ -22,7 +22,10 @@ export type CrossViolationCode =
   | "approval_reused_across_effects"
   | "invalid_record";
 
-export type CrossReportCode = "approval_generation_unverifiable";
+export type CrossReportCode =
+  | "approval_generation_unverifiable"
+  | "rejected_digest_variant"
+  | "rejected_stale_fence";
 
 export interface CrossViolation {
   code: CrossViolationCode;
@@ -79,6 +82,8 @@ export interface AgentEffectFields {
   approval_id?: string;
   /** Generation when the referenced approval was issued (SHOULD). */
   approval_runtime_generation?: number;
+  /** Optional; default "effect". Sink grant() emits "approval". */
+  record_kind?: "effect" | "approval";
 }
 
 interface IndexedRecord {
@@ -104,6 +109,10 @@ function asFields(raw: Record<string, unknown>): AgentEffectFields {
       Number.isFinite(raw.approval_runtime_generation)
         ? (raw.approval_runtime_generation as number)
         : undefined,
+    record_kind:
+      raw.record_kind === "approval" || raw.record_kind === "effect"
+        ? raw.record_kind
+        : undefined,
   };
 }
 
@@ -111,16 +120,40 @@ function hasApprovalId(f: AgentEffectFields): boolean {
   return typeof f.approval_id === "string" && f.approval_id.length > 0;
 }
 
+/**
+ * Grant issuance decision. record_kind="effect" never counts — committed/rejected
+ * effect receipts may echo approval fields as a claim of use, not issuance.
+ */
 function isGrant(f: AgentEffectFields): boolean {
+  if (f.record_kind === "effect") return false;
   return f.approval_decision === "grant" && hasApprovalId(f);
 }
 
+/** Deny issuance decision. record_kind="effect" never counts (see isGrant). */
 function isDeny(f: AgentEffectFields): boolean {
+  if (f.record_kind === "effect") return false;
   return f.approval_decision === "deny" && hasApprovalId(f);
 }
 
 function isDecision(f: AgentEffectFields): boolean {
   return isGrant(f) || isDeny(f);
+}
+
+/**
+ * Explicit approval records, or legacy issuance (decision + non-committed, no record_kind).
+ * record_kind="effect" MUST NOT be treated as approval even if approval fields are present
+ * (e.g. a rejected accept that echoed approval_id). Legacy only when record_kind absent.
+ */
+function isApprovalRecord(f: AgentEffectFields): boolean {
+  if (f.record_kind === "approval") return true;
+  if (f.record_kind === "effect") return false;
+  // absent record_kind: treat non-committed decisions as approval issuance (legacy vectors)
+  return isDecision(f) && f.outcome !== "committed";
+}
+
+/** Unknowns report lists only effect-kind records (default when record_kind absent). */
+function isEffectKindForUnknowns(f: AgentEffectFields): boolean {
+  return f.record_kind !== "approval";
 }
 
 /**
@@ -253,7 +286,8 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
     indexed.push({ index: i, fields });
 
     // Rule 6: list unknowns separately; never treat as committed or failed.
-    if (fields.outcome === "unknown") {
+    // Only record_kind=effect (default) — approval issuances are not listed.
+    if (fields.outcome === "unknown" && isEffectKindForUnknowns(fields)) {
       unknowns.push({
         effect_id: fields.effect_id,
         stream_id: fields.stream_id,
@@ -276,15 +310,35 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
   }
 
   for (const [effectId, group] of byEffect) {
-    // Rule 2: consistent action_digest for same effect_id.
-    const digests = new Set(group.map((r) => r.fields.action_digest));
-    if (digests.size > 1) {
+    // Rule 2: digest consistency only among committed effects + approval records.
+    const hard = group.filter(
+      (r) => r.fields.outcome === "committed" || isApprovalRecord(r.fields),
+    );
+    const hardDigests = new Set(hard.map((r) => r.fields.action_digest));
+    if (hardDigests.size > 1) {
       violations.push({
         code: "inconsistent_action_digest",
-        message: `effect_id=${effectId} has multiple action_digest values: ${[...digests].join(", ")}`,
+        message: `effect_id=${effectId} has multiple action_digest values among committed/approval: ${[...hardDigests].join(", ")}`,
         effect_id: effectId,
-        indices: group.map((r) => r.index),
+        indices: hard.map((r) => r.index),
       });
+    }
+
+    // rejected/failed with a digest that diverges from the hard set → soft report only.
+    const soft = group.filter(
+      (r) => r.fields.outcome === "rejected" || r.fields.outcome === "failed",
+    );
+    if (hardDigests.size >= 1 && soft.length > 0) {
+      const canonical = [...hardDigests][0]!;
+      const variants = soft.filter((r) => r.fields.action_digest !== canonical);
+      if (variants.length > 0) {
+        reports.push({
+          code: "rejected_digest_variant",
+          message: `effect_id=${effectId}: rejected/failed record(s) carry action_digest different from committed/approval digest ${canonical}`,
+          effect_id: effectId,
+          indices: variants.map((r) => r.index),
+        });
+      }
     }
 
     const committed = group.filter((r) => r.fields.outcome === "committed");
@@ -333,6 +387,8 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
       continue;
     }
 
+    // isDecision excludes record_kind="effect" — committed receipt approval
+    // fields are a claim of which approval_id was used, not issuance evidence.
     const decisions = indexed.filter(
       (r) =>
         isDecision(r.fields) &&
@@ -470,11 +526,30 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
       });
     }
 
-    // Rule 4a: fence_epoch must not go backwards within stream (by sequence_number).
+    // Rule 4a: fence_epoch non-decreasing among committed + approval records only
+    // (by sequence_number). rejected/failed non-approval with a lower fence_epoch
+    // → soft report rejected_stale_fence (does not flip ok).
     let lastEpoch: number | undefined;
     let lastIdx: number | undefined;
     let lastSeq: number | undefined;
     for (const rec of ordered) {
+      const hard =
+        rec.fields.outcome === "committed" || isApprovalRecord(rec.fields);
+      if (!hard) {
+        if (
+          (rec.fields.outcome === "rejected" || rec.fields.outcome === "failed") &&
+          lastEpoch !== undefined &&
+          rec.fields.fence_epoch < lastEpoch
+        ) {
+          reports.push({
+            code: "rejected_stale_fence",
+            message: `stream_id=${streamId}: rejected/failed record fence_epoch=${rec.fields.fence_epoch} < prior committed/approval fence_epoch=${lastEpoch} at sequence_number=${rec.fields.sequence_number}`,
+            effect_id: rec.fields.effect_id,
+            indices: lastIdx !== undefined ? [lastIdx, rec.index] : [rec.index],
+          });
+        }
+        continue;
+      }
       if (lastSeq !== undefined && rec.fields.sequence_number === lastSeq) {
         if (lastEpoch !== undefined && rec.fields.fence_epoch < lastEpoch) {
           violations.push({

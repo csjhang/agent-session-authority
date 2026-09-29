@@ -35,11 +35,11 @@ Reject coverage: numeric `ts_unix_nano`, missing `action_digest`, integrity key 
 Approvals are indexed by `approval_id` (not `effect_id`). Self-declared approval fields on a committed record are a claim, not independent issuance evidence.
 
 1. Every `outcome=committed` resolves to a prior grant for its `approval_id` (`approval_decision=grant` + `approval_id`).
-2. Same `effect_id` keeps a consistent `action_digest`; approval digest equals effect digest.
+2. Committed + approval records for the same `effect_id` keep a consistent `action_digest`; approval digest equals effect digest. `rejected`/`failed` digest divergence → soft `rejected_digest_variant`.
 3. Approval issuance generation equals the landing effect’s `runtime_generation` (`approval_runtime_generation` when present; else a separate issuance record). Else soft-report `approval_generation_unverifiable`. Cross-generation reuse → `cross_generation_reuse`.
 4. `fence_epoch` must not go backwards within a `stream_id`; effect epoch ≥ approval epoch.
 5. No prior grant → `unauthorized_effect`. Latest prior decision wins: deny then commit → `revoked_approval_used`. Same `approval_id` on multiple committed `effect_id`s → `approval_reused_across_effects`. Multiple `outcome=committed` for one `effect_id` → `duplicate_commit`.
-6. `outcome=unknown` is listed separately; never treated as committed or failed.
+6. `outcome=unknown` with `record_kind`≠`approval` is listed separately; never treated as committed or failed. `record_kind=approval` issuances are omitted from the unknowns list.
 7. Duplicate `sequence_number` → hard `duplicate_sequence`; gaps → soft `sequence_gap` report (do **not** fail `ok`).
 
 Boundary: mutual consistency only — not proof that external effects happened, and not signatures / hash chains.
