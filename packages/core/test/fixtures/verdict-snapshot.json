@@ -1,0 +1,2738 @@
+[
+  {
+    "file": "corpus/acp-shaped/a1-reask-after-restart.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a1-reask-after-restart.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a1-reask-after-restart.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a1-reask-after-restart.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a1-reask-after-restart.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a1-reask-after-restart.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a1-reask-after-restart.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a1-reask-after-restart.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a1-reask-after-restart.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a1-reask-after-restart.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a1-reask-after-restart.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a1-reask-after-restart.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/acp-shaped/a2-stale-grant-no-reask.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a2-stale-grant-no-reask.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a2-stale-grant-no-reask.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a2-stale-grant-no-reask.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/acp-shaped/a2-stale-grant-no-reask.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a2-stale-grant-no-reask.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a2-stale-grant-no-reask.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a2-stale-grant-no-reask.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a2-stale-grant-no-reask.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a2-stale-grant-no-reask.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a2-stale-grant-no-reask.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a2-stale-grant-no-reask.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/acp-shaped/a3-deny-then-committed.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a3-deny-then-committed.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a3-deny-then-committed.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a3-deny-then-committed.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/acp-shaped/a3-deny-then-committed.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a3-deny-then-committed.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a3-deny-then-committed.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a3-deny-then-committed.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a3-deny-then-committed.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a3-deny-then-committed.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a3-deny-then-committed.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a3-deny-then-committed.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/acp-shaped/a4-no-request-committed.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a4-no-request-committed.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a4-no-request-committed.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a4-no-request-committed.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a4-no-request-committed.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a4-no-request-committed.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a4-no-request-committed.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a4-no-request-committed.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a4-no-request-committed.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a4-no-request-committed.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a4-no-request-committed.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a4-no-request-committed.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/acp-shaped/a5-unknown-only.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a5-unknown-only.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a5-unknown-only.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a5-unknown-only.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a5-unknown-only.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a5-unknown-only.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a5-unknown-only.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a5-unknown-only.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a5-unknown-only.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a5-unknown-only.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a5-unknown-only.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a5-unknown-only.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/acp-shaped/a6-orphan-only.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a6-orphan-only.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a6-orphan-only.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a6-orphan-only.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/acp-shaped/a6-orphan-only.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a6-orphan-only.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a6-orphan-only.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a6-orphan-only.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a6-orphan-only.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a6-orphan-only.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a6-orphan-only.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a6-orphan-only.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/acp-shaped/a7-deny-restart-reask-same-action.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a7-deny-restart-reask-same-action.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a7-deny-restart-reask-same-action.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a7-deny-restart-reask-same-action.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a7-deny-restart-reask-same-action.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a7-deny-restart-reask-same-action.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a7-deny-restart-reask-same-action.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a7-deny-restart-reask-same-action.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a7-deny-restart-reask-same-action.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/acp-shaped/a7-deny-restart-reask-same-action.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a7-deny-restart-reask-same-action.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/acp-shaped/a7-deny-restart-reask-same-action.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth01/pass.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth01/pass.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth01/pass.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth01/pass.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth01/pass.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth01/pass.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth01/pass.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth01/pass.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth01/pass.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth01/pass.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth01/pass.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth01/pass.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth01/violate.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth01/violate.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth01/violate.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth01/violate.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth01/violate.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth01/violate.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth01/violate.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth01/violate.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth01/violate.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth01/violate.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth01/violate.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth01/violate.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth02/pass-with-unlinked.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/pass-with-unlinked.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/pass-with-unlinked.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/pass-with-unlinked.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/pass-with-unlinked.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/pass-with-unlinked.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/pass-with-unlinked.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/pass-with-unlinked.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/pass-with-unlinked.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/pass-with-unlinked.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/pass-with-unlinked.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/pass-with-unlinked.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth02/pass.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/pass.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/pass.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/pass.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/pass.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/pass.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/pass.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/pass.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/pass.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/pass.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/pass.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/pass.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth02/violate-markerfree.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/violate-markerfree.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/violate-markerfree.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/violate-markerfree.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth02/violate-markerfree.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/violate-markerfree.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/violate-markerfree.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/violate-markerfree.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/violate-markerfree.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/violate-markerfree.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/violate-markerfree.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/violate-markerfree.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth02/violate-once-grant-reused.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/violate-once-grant-reused.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/violate-once-grant-reused.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/violate-once-grant-reused.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth02/violate-once-grant-reused.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/violate-once-grant-reused.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/violate-once-grant-reused.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/violate-once-grant-reused.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/violate-once-grant-reused.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/violate-once-grant-reused.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/violate-once-grant-reused.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/violate-once-grant-reused.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth02/violate.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/violate.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/violate.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/violate.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth02/violate.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/violate.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/violate.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/violate.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/violate.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/violate.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth02/violate.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth02/violate.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth03/inconclusive-missing-receipt-ts.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/inconclusive-missing-receipt-ts.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/inconclusive-missing-receipt-ts.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/inconclusive-missing-receipt-ts.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/inconclusive-missing-receipt-ts.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/inconclusive-missing-receipt-ts.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/inconclusive-missing-receipt-ts.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/inconclusive-missing-receipt-ts.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/inconclusive-missing-receipt-ts.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/inconclusive-missing-receipt-ts.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/inconclusive-missing-receipt-ts.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/inconclusive-missing-receipt-ts.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth03/pass.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/pass.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/pass.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/pass.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/pass.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/pass.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/pass.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/pass.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/pass.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/pass.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/pass.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/pass.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-expiry.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-expiry.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-expiry.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-expiry.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-expiry.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-expiry.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-expiry.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-expiry.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-expiry.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-expiry.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-expiry.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-expiry.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-no-from.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-no-from.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-no-from.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-no-from.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-no-from.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-no-from.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-no-from.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-no-from.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-no-from.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-no-from.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-no-from.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/violate-handoff-no-from.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth03/violate.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/violate.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/violate.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/violate.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/violate.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth03/violate.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth03/violate.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth03/violate.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/violate.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/violate.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth03/violate.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth03/violate.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-missing-controller.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-missing-controller.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-missing-controller.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-missing-controller.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-missing-controller.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-missing-controller.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-missing-controller.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-missing-controller.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-missing-controller.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-missing-controller.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-missing-controller.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-missing-controller.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-rejected-only.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-rejected-only.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-rejected-only.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-rejected-only.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-rejected-only.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-rejected-only.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-rejected-only.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-rejected-only.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-rejected-only.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-rejected-only.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-rejected-only.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/inconclusive-rejected-only.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth04/pass.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/pass.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/pass.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/pass.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/pass.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/pass.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/pass.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/pass.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/pass.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/pass.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/pass.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/pass.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth04/violate-lower-epoch-acquire.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/violate-lower-epoch-acquire.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/violate-lower-epoch-acquire.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/violate-lower-epoch-acquire.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/violate-lower-epoch-acquire.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/violate-lower-epoch-acquire.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/violate-lower-epoch-acquire.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/violate-lower-epoch-acquire.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth04/violate-lower-epoch-acquire.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/violate-lower-epoch-acquire.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/violate-lower-epoch-acquire.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/violate-lower-epoch-acquire.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth04/violate-markerfree.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/violate-markerfree.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/violate-markerfree.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/violate-markerfree.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth04/violate-markerfree.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/violate-markerfree.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/violate-markerfree.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth04/violate-markerfree.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth04/violate-markerfree.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/violate-markerfree.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/violate-markerfree.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/violate-markerfree.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth04/violate.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/violate.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/violate.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/violate.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth04/violate.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/violate.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/violate.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth04/violate.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth04/violate.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/violate.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth04/violate.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth04/violate.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth05/pass.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth05/pass.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth05/pass.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth05/pass.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth05/pass.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth05/pass.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth05/pass.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth05/pass.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth05/pass.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth05/pass.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth05/pass.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth05/pass.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth05/violate-markerfree.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth05/violate-markerfree.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth05/violate-markerfree.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth05/violate-markerfree.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth05/violate-markerfree.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth05/violate-markerfree.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth05/violate-markerfree.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth05/violate-markerfree.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth05/violate-markerfree.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth05/violate-markerfree.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth05/violate-markerfree.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth05/violate-markerfree.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth05/violate.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth05/violate.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth05/violate.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth05/violate.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth05/violate.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth05/violate.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth05/violate.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth05/violate.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth05/violate.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth05/violate.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth05/violate.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth05/violate.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth06/pass.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth06/pass.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/pass.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/pass.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/pass.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/pass.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/pass.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/pass.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/pass.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/pass.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth06/pass.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/pass.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth06/violate-noncommitted-receipt.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth06/violate-noncommitted-receipt.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/violate-noncommitted-receipt.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/violate-noncommitted-receipt.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/violate-noncommitted-receipt.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/violate-noncommitted-receipt.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/violate-noncommitted-receipt.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/violate-noncommitted-receipt.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/violate-noncommitted-receipt.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/violate-noncommitted-receipt.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth06/violate-noncommitted-receipt.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/violate-noncommitted-receipt.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth06/violate.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth06/violate.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/violate.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/violate.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/violate.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/violate.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/violate.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/violate.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/violate.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/violate.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth06/violate.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth06/violate.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth07/pass.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth07/pass.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/pass.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/pass.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/pass.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/pass.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/pass.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/pass.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/pass.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/pass.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth07/pass.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth07/pass.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth07/violate-markerfree.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth07/violate-markerfree.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-markerfree.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-markerfree.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-markerfree.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-markerfree.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-markerfree.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-markerfree.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-markerfree.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate-markerfree.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth07/violate-markerfree.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth07/violate-markerfree.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth07/violate.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth07/violate.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth07/violate.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth07/violate.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "violation",
+    "result": "violation"
+  },
+  {
+    "file": "corpus/auth07/violate.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "targets/ably/results/history-fixture.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "not_declared",
+    "result": "not_declared"
+  },
+  {
+    "file": "targets/ably/results/history-fixture.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "targets/ably/results/history-fixture.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/ably/results/history-fixture.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/ably/results/history-fixture.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/ably/results/history-fixture.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/ably/results/history-fixture.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/ably/results/history-fixture.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/ably/results/history-fixture.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/ably/results/history-fixture.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/ably/results/history-fixture.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/ably/results/history-fixture.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "targets/acp-mux/results/history-fixture.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "not_declared",
+    "result": "not_declared"
+  },
+  {
+    "file": "targets/acp-mux/results/history-fixture.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "targets/acp-mux/results/history-fixture.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/acp-mux/results/history-fixture.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/acp-mux/results/history-fixture.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/acp-mux/results/history-fixture.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/acp-mux/results/history-fixture.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/acp-mux/results/history-fixture.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/acp-mux/results/history-fixture.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/acp-mux/results/history-fixture.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/acp-mux/results/history-fixture.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/acp-mux/results/history-fixture.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "targets/claude-agent-acp/results/history-fixture.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "not_declared",
+    "result": "not_declared"
+  },
+  {
+    "file": "targets/claude-agent-acp/results/history-fixture.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "targets/claude-agent-acp/results/history-fixture.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/claude-agent-acp/results/history-fixture.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "targets/claude-agent-acp/results/history-fixture.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/claude-agent-acp/results/history-fixture.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/claude-agent-acp/results/history-fixture.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/claude-agent-acp/results/history-fixture.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/claude-agent-acp/results/history-fixture.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/claude-agent-acp/results/history-fixture.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "targets/claude-agent-acp/results/history-fixture.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/claude-agent-acp/results/history-fixture.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "targets/vscode-agent-host/results/history-fixture.jsonl",
+    "invariant": "AUTH-01a",
+    "observed_result": "not_declared",
+    "result": "not_declared"
+  },
+  {
+    "file": "targets/vscode-agent-host/results/history-fixture.jsonl",
+    "invariant": "AUTH-01b",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "targets/vscode-agent-host/results/history-fixture.jsonl",
+    "invariant": "AUTH-01c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/vscode-agent-host/results/history-fixture.jsonl",
+    "invariant": "AUTH-02",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/vscode-agent-host/results/history-fixture.jsonl",
+    "invariant": "AUTH-03a",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/vscode-agent-host/results/history-fixture.jsonl",
+    "invariant": "AUTH-03b",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/vscode-agent-host/results/history-fixture.jsonl",
+    "invariant": "AUTH-03c",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/vscode-agent-host/results/history-fixture.jsonl",
+    "invariant": "AUTH-04",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/vscode-agent-host/results/history-fixture.jsonl",
+    "invariant": "AUTH-05",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/vscode-agent-host/results/history-fixture.jsonl",
+    "invariant": "AUTH-06",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/vscode-agent-host/results/history-fixture.jsonl",
+    "invariant": "AUTH-07",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "targets/vscode-agent-host/results/history-fixture.jsonl",
+    "invariant": "AUTH-08",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  }
+]
