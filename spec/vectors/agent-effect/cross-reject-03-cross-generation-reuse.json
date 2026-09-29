@@ -1,0 +1,53 @@
+{
+  "id": "cross-reject-03-cross-generation-reuse",
+  "expect": "reject",
+  "kind": "cross_record",
+  "rules": [
+    3
+  ],
+  "description": "Approval from generation 2 reused at landing generation 4",
+  "records": [
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "eff-1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 2,
+      "fence_epoch": 7,
+      "boundary_id": "fs-gateway",
+      "outcome": "unknown",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000000",
+      "session_id": "s1",
+      "controller": "runtime_a",
+      "approval_decision": "grant",
+      "approval_id": "appr-3"
+    },
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "eff-1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 4,
+      "fence_epoch": 7,
+      "boundary_id": "fs-gateway",
+      "outcome": "committed",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 2,
+      "ts_unix_nano": "1759107600000000000",
+      "session_id": "s1",
+      "controller": "runtime_a",
+      "approval_decision": "grant",
+      "approval_id": "appr-3"
+    }
+  ],
+  "expected": {
+    "ok": false,
+    "violation_codes": [
+      "cross_generation_reuse"
+    ],
+    "gap_streams": [],
+    "unknown_effect_ids": [
+      "eff-1"
+    ]
+  }
+}

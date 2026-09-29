@@ -1,0 +1,54 @@
+{
+  "id": "cross-reject-02-inconsistent-action-digest",
+  "expect": "reject",
+  "kind": "cross_record",
+  "rules": [
+    2
+  ],
+  "description": "Same effect_id with diverging action_digest values",
+  "records": [
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "eff-1",
+      "action_digest": "sha256:aaaa",
+      "runtime_generation": 2,
+      "fence_epoch": 7,
+      "boundary_id": "fs-gateway",
+      "outcome": "unknown",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000000",
+      "session_id": "s1",
+      "controller": "runtime_a",
+      "approval_decision": "grant",
+      "approval_id": "appr-2"
+    },
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "eff-1",
+      "action_digest": "sha256:bbbb",
+      "runtime_generation": 2,
+      "fence_epoch": 7,
+      "boundary_id": "fs-gateway",
+      "outcome": "committed",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 2,
+      "ts_unix_nano": "1759107600000000000",
+      "session_id": "s1",
+      "controller": "runtime_a",
+      "approval_decision": "grant",
+      "approval_id": "appr-2"
+    }
+  ],
+  "expected": {
+    "ok": false,
+    "violation_codes": [
+      "inconsistent_action_digest",
+      "approval_digest_mismatch"
+    ],
+    "gap_streams": [],
+    "unknown_effect_ids": [
+      "eff-1"
+    ]
+  }
+}

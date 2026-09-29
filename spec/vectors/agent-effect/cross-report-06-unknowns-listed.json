@@ -1,0 +1,67 @@
+{
+  "id": "cross-report-06-unknowns-listed",
+  "expect": "report",
+  "kind": "cross_record",
+  "rules": [
+    6
+  ],
+  "description": "Mixed stream: committed (authorized) + unknown listed separately; unknown is not failed/committed",
+  "records": [
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "eff-a",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 2,
+      "fence_epoch": 7,
+      "boundary_id": "fs-gateway",
+      "outcome": "unknown",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000000",
+      "session_id": "s1",
+      "controller": "runtime_a",
+      "approval_decision": "grant",
+      "approval_id": "appr-6"
+    },
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "eff-a",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 2,
+      "fence_epoch": 7,
+      "boundary_id": "fs-gateway",
+      "outcome": "committed",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 2,
+      "ts_unix_nano": "1759107600000000000",
+      "session_id": "s1",
+      "controller": "runtime_a",
+      "approval_decision": "grant",
+      "approval_id": "appr-6"
+    },
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "eff-b",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 2,
+      "fence_epoch": 7,
+      "boundary_id": "fs-gateway",
+      "outcome": "unknown",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 3,
+      "ts_unix_nano": "1759107600000000000",
+      "session_id": "s1",
+      "controller": "runtime_a",
+      "approval_decision": "none"
+    }
+  ],
+  "expected": {
+    "ok": true,
+    "violation_codes": [],
+    "gap_streams": [],
+    "unknown_effect_ids": [
+      "eff-a",
+      "eff-b"
+    ]
+  }
+}

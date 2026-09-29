@@ -1,0 +1,51 @@
+{
+  "id": "cross-pass-03-matching-generation",
+  "expect": "pass",
+  "kind": "cross_record",
+  "rules": [
+    3
+  ],
+  "description": "Approval runtime_generation equals landing effect runtime_generation",
+  "records": [
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "eff-1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 3,
+      "fence_epoch": 7,
+      "boundary_id": "fs-gateway",
+      "outcome": "unknown",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000000",
+      "session_id": "s1",
+      "controller": "runtime_a",
+      "approval_decision": "grant",
+      "approval_id": "appr-3"
+    },
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "eff-1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 3,
+      "fence_epoch": 7,
+      "boundary_id": "fs-gateway",
+      "outcome": "committed",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 2,
+      "ts_unix_nano": "1759107600000000000",
+      "session_id": "s1",
+      "controller": "runtime_a",
+      "approval_decision": "grant",
+      "approval_id": "appr-3"
+    }
+  ],
+  "expected": {
+    "ok": true,
+    "violation_codes": [],
+    "gap_streams": [],
+    "unknown_effect_ids": [
+      "eff-1"
+    ]
+  }
+}
