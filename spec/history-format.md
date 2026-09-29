@@ -72,7 +72,8 @@ These keys appear under `attrs` and are consumed by checkers / vocabulary types.
 | --- | --- | --- |
 | `runtime_generation` | number | AUTH-01; `RuntimeGeneration.value` |
 | `issuer_id` | string | Generation issuer |
-| `runtime_id` | string | Runtime identity |
+| `runtime_id` | string | Runtime identity; AUTH-01b stream key is `${runtime_id ?? ""}\|${session_id ?? ""}` (with `session_id`); also restart→observe mapping |
+| `tool_call_id` | string | AUTH-07 subject after `subject_id` (before `session_id`) |
 | `scope_id` | string | AUTH-03 lease / action scope |
 | `holder` | string | Lease holder (`ControlLease.holder`) |
 | `fence_epoch` | number | AUTH-03 / AUTH-04 / AUTH-05 fence (`FenceEpoch`) |
@@ -104,6 +105,13 @@ These keys appear under `attrs` and are consumed by checkers / vocabulary types.
 6. If present: `invoke_seq` finite number; `attrs` object.
 7. If present: `ts_unix_nano` must be a JSON **string** matching `/^[0-9]+$/` (reject JSON number, float, or scientific notation). Same rule for any other integer field that may exceed `2^53-1`.
 8. After all lines: assert **strict seq monotonicity** (no sort, no dedupe).
+
+
+### AUTH-07 `terminal_rules` values
+
+Published profile `terminal_rules` values are limited to: `cancel_wins`, `complete_wins`, `timeout_wins`, `restart_wins`, `failed_wins`, `reconcile_required`.
+
+Restart-class fault events may carry `attrs.runtime_id` for AUTH-01b observe mapping (unchanged: map by `runtime_id` match, else `session_id` match, else all). AUTH-01b generation-stream key is `${runtime_id ?? ""}|${session_id ?? ""}`: observes with neither share one empty stream; same `runtime_id` with different `session_id` are different streams.
 
 ## Example line
 

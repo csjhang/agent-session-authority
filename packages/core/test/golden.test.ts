@@ -75,8 +75,18 @@ describe("golden corpus AUTH-02", () => {
 describe("golden corpus AUTH-03", () => {
   it("pass supports AUTH-03b/c", () => {
     const { pass } = run_corpus("auth03");
-    expect(by_inv(pass, "AUTH-03b")[0]?.result).toBe("supported");
+    // Single-holder pass.jsonl: AUTH-03b has no lease contention examined
+    expect(by_inv(pass, "AUTH-03b")[0]?.result).toBe("inconclusive");
+    expect(by_inv(pass, "AUTH-03b")[0]?.explanation).toMatch(/no lease contention examined/);
     expect(by_inv(pass, "AUTH-03c")[0]?.result).toBe("supported");
+  });
+  it("pass-contended supports AUTH-03b, AUTH-03c, AUTH-04", () => {
+    const history = load_history_file(path.join(repo_root, "corpus", "auth03", "pass-contended.jsonl"));
+    const profile = load_profile(path.join(repo_root, "corpus", "auth03", "profile.json"));
+    const findings = run_checkers(history, profile, default_assessment());
+    expect(by_inv(findings, "AUTH-03b")[0]?.result).toBe("supported");
+    expect(by_inv(findings, "AUTH-03c")[0]?.result).toBe("supported");
+    expect(by_inv(findings, "AUTH-04")[0]?.result).toBe("supported");
   });
   it("violate catches dual lease and/or scope coverage", () => {
     const { violate } = run_corpus("auth03");

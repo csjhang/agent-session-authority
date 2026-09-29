@@ -73,9 +73,17 @@
     "terminal_rules": {
       "type": "object",
       "additionalProperties": {
-        "type": "string"
+        "type": "string",
+        "enum": [
+          "cancel_wins",
+          "complete_wins",
+          "timeout_wins",
+          "restart_wins",
+          "failed_wins",
+          "reconcile_required"
+        ]
       },
-      "description": "AUTH-07 published terminal rules, e.g. cancel_vs_complete \u2192 cancel_wins"
+      "description": "AUTH-07 published terminal rules; values limited to cancel_wins, complete_wins, timeout_wins, restart_wins, failed_wins, reconcile_required"
     },
     "notes": {
       "type": "string"

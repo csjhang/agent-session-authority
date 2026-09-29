@@ -1,0 +1,6 @@
+{"seq":1,"kind":"observe","op":"generation.observe","attrs":{"runtime_generation":5,"issuer_id":"lease_plane","runtime_id":"runtime_a"}}
+{"seq":2,"kind":"observe","op":"generation.observe","attrs":{"runtime_generation":1,"issuer_id":"lease_plane","runtime_id":"runtime_b"}}
+{"seq":3,"kind":"fault","fault":"runtime.restart","attrs":{"runtime_id":"runtime_a"}}
+{"seq":4,"kind":"observe","op":"generation.observe","attrs":{"runtime_generation":6,"issuer_id":"lease_plane","runtime_id":"runtime_a"}}
+{"seq":5,"kind":"fault","fault":"runtime.restart","attrs":{"runtime_id":"runtime_b"}}
+{"seq":6,"kind":"observe","op":"generation.observe","attrs":{"runtime_generation":2,"issuer_id":"lease_plane","runtime_id":"runtime_b"}}

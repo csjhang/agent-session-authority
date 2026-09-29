@@ -1,0 +1,4 @@
+{"seq":1,"kind":"ok","op":"action.bind","session_id":"s1","attrs":{"action_type":"tool.Write","target":"/ws/a.txt","tool_call_id":"tc1"}}
+{"seq":2,"kind":"ok","op":"approval.grant","session_id":"s1","attrs":{"tool_call_id":"tc1"}}
+{"seq":3,"kind":"fault","fault":"runtime.restart","session_id":"s1"}
+{"seq":4,"kind":"ok","op":"effect.receipt","session_id":"s1","attrs":{"effect_id":"tc1","tool_call_id":"tc1","outcome":"committed"}}

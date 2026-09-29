@@ -1,0 +1,2 @@
+{"seq":1,"kind":"ok","op":"task.timeout","attrs":{"task_id":"t2","effect_id":"e2"}}
+{"seq":2,"kind":"ok","op":"effect.receipt","attrs":{"effect_id":"e2","task_id":"t2","outcome":"committed"}}
