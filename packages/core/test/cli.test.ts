@@ -1,9 +1,10 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { run_cli } from "../src/cli.js";
+import { run_cli } from "../src/cli_run.js";
 import { build_report } from "../src/report.js";
 import { run_checkers } from "../src/index.js";
 import { load_history_file } from "../src/history.js";
@@ -217,5 +218,48 @@ describe("run_cli exit codes and path resolution", () => {
     const findings = run_checkers(events, profile, assessment);
     const expected = build_report(findings, assessment, profile);
     expect(parsed).toEqual(expected);
+  });
+});
+
+describe("CLI via symlink/junction entry (realpath)", () => {
+  it("junction/symlink to packages/core/src: check violate → exit 1, stdout non-empty", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "asa-cli-link-"));
+    const src_real = path.join(repo_root, "packages/core/src");
+    const src_link = path.join(tmp, "src_link");
+    try {
+      fs.symlinkSync(src_real, src_link, "junction");
+      const violate = path.join(repo_root, "corpus/auth02/violate.jsonl");
+      const profile = path.join(repo_root, "corpus/auth02/profile.json");
+      const entry = path.join(src_link, "cli.ts");
+      const r = spawnSync(
+        process.execPath,
+        ["--import", "tsx", entry, "check", violate, "--profile", profile],
+        { encoding: "utf8", cwd: repo_root },
+      );
+      expect(r.status, `stdout=${r.stdout} stderr=${r.stderr}`).toBe(1);
+      expect(r.stdout.length).toBeGreaterThan(0);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("junction/symlink entry: nonexistent history → exit 2", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "asa-cli-link-"));
+    const src_real = path.join(repo_root, "packages/core/src");
+    const src_link = path.join(tmp, "src_link");
+    try {
+      fs.symlinkSync(src_real, src_link, "junction");
+      const missing = path.join(tmp, "no-such-history.jsonl");
+      const profile = path.join(repo_root, "corpus/auth02/profile.json");
+      const entry = path.join(src_link, "cli.ts");
+      const r = spawnSync(
+        process.execPath,
+        ["--import", "tsx", entry, "check", missing, "--profile", profile],
+        { encoding: "utf8", cwd: repo_root },
+      );
+      expect(r.status, `stdout=${r.stdout} stderr=${r.stderr}`).toBe(2);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
   });
 });

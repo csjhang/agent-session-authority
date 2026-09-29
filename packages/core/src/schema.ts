@@ -31,13 +31,34 @@ function matches_type(v: unknown, t: string): boolean {
   return type_of(v) === t;
 }
 
-function assert_supported_keywords(schema: Record<string, unknown>, pointer: string): void {
+/**
+ * Walk the entire schema tree (independent of data) and throw on unsupported keywords.
+ * Recurses into properties values, object-form additionalProperties, and items.
+ */
+function assert_supported_keywords_tree(schema: unknown, pointer: string): void {
+  if (!is_object(schema)) {
+    throw new Error(`schema at ${pointer || "/"} must be an object`);
+  }
   for (const key of Object.keys(schema)) {
     if (!SUPPORTED_KEYWORDS.has(key)) {
       throw new Error(
         `unsupported JSON Schema keyword "${key}" at ${pointer || "/"} (validator supports only: ${[...SUPPORTED_KEYWORDS].join(", ")})`,
       );
     }
+  }
+  if (is_object(schema.properties)) {
+    for (const [key, child] of Object.entries(schema.properties)) {
+      assert_supported_keywords_tree(child, `${pointer}/properties/${key}`);
+    }
+  }
+  if ("additionalProperties" in schema) {
+    const ap = schema.additionalProperties;
+    if (is_object(ap)) {
+      assert_supported_keywords_tree(ap, `${pointer}/additionalProperties`);
+    }
+  }
+  if ("items" in schema) {
+    assert_supported_keywords_tree(schema.items, `${pointer}/items`);
   }
 }
 
@@ -50,7 +71,6 @@ function validate_against(
   if (!is_object(schema)) {
     throw new Error(`schema at ${pointer || "/"} must be an object`);
   }
-  assert_supported_keywords(schema, pointer);
 
   if ("type" in schema) {
     const types = Array.isArray(schema.type) ? schema.type : [schema.type];
@@ -101,20 +121,20 @@ function validate_against(
       }
       for (const key of schema.required) {
         if (typeof key !== "string") continue;
-        if (!(key in value)) {
+        if (!Object.hasOwn(value, key)) {
           errors.push(`${pointer}/${key}: required property missing`);
         }
       }
     }
     for (const [key, child_schema] of Object.entries(props)) {
-      if (key in value) {
+      if (Object.hasOwn(value, key)) {
         validate_against(child_schema, value[key], `${pointer}/${key}`, errors);
       }
     }
     if ("additionalProperties" in schema) {
       const ap = schema.additionalProperties;
       for (const key of Object.keys(value)) {
-        if (key in props) continue;
+        if (Object.hasOwn(props, key)) continue;
         if (ap === false) {
           errors.push(`${pointer}/${key}: additional property not allowed`);
         } else if (ap === true || ap === undefined) {
@@ -141,9 +161,10 @@ function validate_against(
 
 /**
  * Validate `value` against `schema`. Returns a list of "pointer: reason" strings.
- * Throws if the schema uses an unsupported keyword.
+ * Throws if the schema uses an unsupported keyword (whole-tree walk, independent of data).
  */
 export function validate_json(schema: unknown, value: unknown): string[] {
+  assert_supported_keywords_tree(schema, "");
   const errors: string[] = [];
   validate_against(schema, value, "", errors);
   return errors;

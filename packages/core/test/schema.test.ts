@@ -90,3 +90,27 @@ describe("validate_json counterexamples", () => {
     expect(() => validate_json({ type: "number", minimum: 0 }, 1)).toThrow(/minimum/);
   });
 });
+
+describe("validate_json schema-walk and Object.hasOwn", () => {
+  it('nested unsupported keyword "minimum" under properties throws even when data is {}', () => {
+    const schema = {
+      type: "object",
+      properties: {
+        generation_model: { type: "string", minimum: 0 },
+      },
+    };
+    expect(() => validate_json(schema, {})).toThrow(/minimum/);
+  });
+
+  it('required:["constructor"] on {} → error /constructor missing (Object.hasOwn, not in)', () => {
+    const schema = {
+      type: "object",
+      required: ["constructor"],
+      properties: {
+        constructor: { type: "string" },
+      },
+    };
+    const errs = validate_json(schema, {});
+    expect(errs.some((e) => e.includes("/constructor") && /missing|required/i.test(e))).toBe(true);
+  });
+});

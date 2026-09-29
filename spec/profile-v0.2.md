@@ -21,7 +21,7 @@ Across people, devices, runtimes, and restarts: who may act now, who approved wh
 | AUTH-05 | Approval is not control; control is not blanket approval (derive from grant/lease events, not self-reported role) |
 | AUTH-06 | No implicit success without trusted **committed** EffectReceipt; unknown/rejected/failed receipts may not support later success; fail!=info. Supported requires ≥1 committed receipt evaluated; else inconclusive. |
 | AUTH-07 | Deterministic terminal interpretation; restart fault with session_id pairs unfinished effects/tasks; all published `*_wins` rules verified. Supported requires ≥1 subject with a terminal event; else inconclusive. |
-| AUTH-08 | Bypass honesty: disclose known bypasses / out-of-band paths. **未實作，一律 not_tested.** Disclosure belongs in `profile.known_bypasses` and `profile.coverage_boundary`. |
+| AUTH-08 | Bypass honesty: If a runtime or tool can bypass the authority enforcement point, the implementation must publicly state its coverage boundary and must not claim end-to-end guarantees. Not implemented: always `not_tested`. Disclosure belongs in `profile.known_bypasses` and `profile.coverage_boundary`. |
 
 AUTH-02/04/07 are implemented checkers (not stubs). Capability vectors remain `not_tested` until live/native evidence exists.
 

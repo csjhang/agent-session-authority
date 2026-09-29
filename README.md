@@ -77,7 +77,7 @@ Exit codes:
 | 1 | At least one `finding.result` is `violation` |
 | 2 | Tool error (missing args, unknown command/flag, flag missing value, missing file, JSON/schema/history parse failure, unexpected exception) |
 
-`--json` prints only the `build_report` JSON on stdout (no text report). Default text report is unchanged otherwise.
+`--json` prints only the `build_report` JSON on stdout (no text report). Default stdout is the text report only; use `--json` for JSON.
 
 ## Stage map
 
