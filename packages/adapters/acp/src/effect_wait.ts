@@ -1,4 +1,4 @@
-import type { AcpPeerEvent } from "./mock_peer.js";
+import { observe_event, type AcpPeerEvent } from "./mock_peer.js";
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -79,26 +79,28 @@ export async function wait_for_write_effect(
   }
 
   const sessionId = opts.sessionId ?? infer_session_id(events);
-  events.push({
-    type: "session_update",
-    sessionId,
-    update: {
-      kind: "effect_receipt",
-      sink: "wait_for_write_effect",
-      path,
-      present,
-      absent: !present,
-      tool_call_completed,
-      waited_ms,
-      grace_ms: grace,
-      ...(opts.expected !== undefined ? { expected: opts.expected } : {}),
-      ...(content !== undefined ? { content } : {}),
-      ...(matched !== undefined ? { matched } : {}),
-      ...(present
-        ? {}
-        : { withhold: true }),
-    },
-  });
+  events.push(
+    observe_event({
+      type: "session_update",
+      sessionId,
+      update: {
+        kind: "effect_receipt",
+        sink: "wait_for_write_effect",
+        path,
+        present,
+        absent: !present,
+        tool_call_completed,
+        waited_ms,
+        grace_ms: grace,
+        ...(opts.expected !== undefined ? { expected: opts.expected } : {}),
+        ...(content !== undefined ? { content } : {}),
+        ...(matched !== undefined ? { matched } : {}),
+        ...(present
+          ? {}
+          : { withhold: true }),
+      },
+    }),
+  );
 
   return { present, tool_call_completed, waited_ms };
 }

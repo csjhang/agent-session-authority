@@ -1,5 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { MockAcpPeer, type AcpPeerEvent } from "./mock_peer.js";
+import { MockAcpPeer, observe_event, type AcpPeerEvent } from "./mock_peer.js";
 import { sleep, wait_for_write_effect } from "./effect_wait.js";
 import { acp_events_to_history, history_to_jsonl, type HistoryEventLite } from "./history_from_acp.js";
 
@@ -161,7 +161,7 @@ class LiveRpc {
       const name = String(call.title ?? call.name ?? "permission");
       const call_id = typeof call.toolCallId === "string" ? call.toolCallId : undefined;
       this.permission_requests++;
-      this.events.push({
+      this.events.push(observe_event({
         type: "permission_request",
         sessionId: this.session,
         requestId: String(id),
@@ -169,17 +169,17 @@ class LiveRpc {
         input: raw,
         ...(call_id ? { toolCallId: call_id } : {}),
         options: params.options,
-      });
+      }));
       if (this.mode === "deny") {
         const reject_opt = pick_deny_option_id(params.options);
         this.permission_denies++;
-        this.events.push({
+        this.events.push(observe_event({
           type: "permission_response",
           sessionId: this.session,
           requestId: String(id),
           decision: "deny",
           ...(reject_opt ? { optionId: reject_opt, optionKind: option_kind_for_id(params.options, reject_opt) } : {}),
-        });
+        }));
         if (reject_opt) this.write(build_permission_selected(id, reject_opt));
         else this.write({ jsonrpc: "2.0", id, result: { outcome: { outcome: "cancelled" } } });
       } else if (this.mode === "allow_always") {
@@ -187,14 +187,14 @@ class LiveRpc {
         if (always) {
           this.permission_grants++;
           this.last_selected_option = always;
-          this.events.push({
+          this.events.push(observe_event({
             type: "permission_response",
             sessionId: this.session,
             requestId: String(id),
             decision: "allow",
             optionId: always.id,
             optionKind: always.kind,
-          });
+          }));
           this.write(build_permission_selected(id, always.id));
         } else {
           this.allow_always_absent++;
@@ -202,12 +202,12 @@ class LiveRpc {
           this.notes.push(
             "always-grant FAIL: allow_always / allow-always option absent from session/request_permission options — run inconclusive (do not fall back to allow_once)",
           );
-          this.events.push({
+          this.events.push(observe_event({
             type: "permission_response",
             sessionId: this.session,
             requestId: String(id),
             decision: "deny",
-          });
+          }));
           this.write({ jsonrpc: "2.0", id, result: { outcome: { outcome: "cancelled" } } });
         }
       } else if (this.mode === "reject_always") {
@@ -215,14 +215,14 @@ class LiveRpc {
         if (always) {
           this.permission_denies++;
           this.last_selected_option = always;
-          this.events.push({
+          this.events.push(observe_event({
             type: "permission_response",
             sessionId: this.session,
             requestId: String(id),
             decision: "deny",
             optionId: always.id,
             optionKind: always.kind,
-          });
+          }));
           this.write(build_permission_selected(id, always.id));
         } else {
           this.reject_always_absent++;
@@ -230,12 +230,12 @@ class LiveRpc {
           this.notes.push(
             "reject-always FAIL: reject_always / reject-always option absent from session/request_permission options — run inconclusive (do not fall back to reject_once)",
           );
-          this.events.push({
+          this.events.push(observe_event({
             type: "permission_response",
             sessionId: this.session,
             requestId: String(id),
             decision: "deny",
-          });
+          }));
           this.write({ jsonrpc: "2.0", id, result: { outcome: { outcome: "cancelled" } } });
         }
       } else {
@@ -244,18 +244,18 @@ class LiveRpc {
           const kind = option_kind_for_id(params.options, option);
           this.permission_grants++;
           this.last_selected_option = { id: option, kind: kind ?? "" };
-          this.events.push({
+          this.events.push(observe_event({
             type: "permission_response",
             sessionId: this.session,
             requestId: String(id),
             decision: "allow",
             optionId: option,
             ...(kind ? { optionKind: kind } : {}),
-          });
+          }));
           this.write(build_permission_selected(id, option));
         } else {
           this.permission_denies++;
-          this.events.push({ type: "permission_response", sessionId: this.session, requestId: String(id), decision: "deny" });
+          this.events.push(observe_event({ type: "permission_response", sessionId: this.session, requestId: String(id), decision: "deny" }));
           this.write({ jsonrpc: "2.0", id, result: { outcome: { outcome: "cancelled" } } });
         }
       }
@@ -267,11 +267,11 @@ class LiveRpc {
     }
     if ((method === "fs/write_text_file" || method === "fs/writeTextFile") && id !== undefined) {
       const p = (msg.params ?? {}) as Record<string, unknown>;
-      this.events.push({
+      this.events.push(observe_event({
         type: "session_update",
         sessionId: this.session,
         update: { kind: "effect_receipt", sink: "acp.fs.write_text_file", path: String(p.path ?? p.filePath ?? ""), content: p.content, request: p },
-      });
+      }));
       this.write({ jsonrpc: "2.0", id, result: {} });
       return;
     }
@@ -290,7 +290,7 @@ class LiveRpc {
       const status = update.status ?? update.toolCallStatus;
       const toolName = update.title ?? update.toolName ?? update.name;
       const toolCallId = update.toolCallId ?? update.tool_call_id;
-      this.events.push({
+      this.events.push(observe_event({
         type: "session_update",
         sessionId,
         update: {
@@ -300,7 +300,7 @@ class LiveRpc {
           ...(toolCallId !== undefined ? { toolCallId: String(toolCallId) } : {}),
           raw_update: update,
         },
-      });
+      }));
       return;
     }
     if (method && id !== undefined) this.write({ jsonrpc: "2.0", id, result: {} });
@@ -336,12 +336,12 @@ async function initialize(
   const rpc = new LiveRpc(child, events, notes, mode);
   const first = await rpc.request(build_initialize_v1(1), timeout);
   if ("result" in first) {
-    events.push({ type: "session_update", sessionId: "live-session", update: { kind: "initialize_result", result: first.result } });
+    events.push(observe_event({ type: "session_update", sessionId: "live-session", update: { kind: "initialize_result", result: first.result } }));
     return { rpc, result: first.result as Record<string, unknown> };
   }
   const second = await rpc.request(build_initialize_v2(2), timeout);
   if ("result" in second) {
-    events.push({ type: "session_update", sessionId: "live-session", update: { kind: "initialize_result", result: second.result } });
+    events.push(observe_event({ type: "session_update", sessionId: "live-session", update: { kind: "initialize_result", result: second.result } }));
     return { rpc, result: second.result as Record<string, unknown> };
   }
   return { rpc };
@@ -438,7 +438,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
   const n = await i1.rpc.request(build_session_new(3, cwd), timeout);
   const sid = String((n.result as Record<string, unknown> | undefined)?.sessionId ?? "live-session");
   i1.rpc.set_session(sid);
-  events.push({ type: "session_update", sessionId: sid, update: { kind: "session_new", cwd, response: n } });
+  events.push(observe_event({ type: "session_update", sessionId: sid, update: { kind: "session_new", cwd, response: n } }));
 
   const prompt1 = write_probe
     ? `Write ${first_path} with exactly: ${first_content}`
@@ -448,7 +448,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
     notes.push(`write-probe gen1: session/prompt timeout_ms=${write_prompt_timeout} (observe_ms=${timeout}); FS receipt remains score path`);
   }
   const p1 = await i1.rpc.request(build_session_prompt(4, sid, prompt1), write_prompt_timeout);
-  events.push({
+  events.push(observe_event({
     type: "session_update",
     sessionId: sid,
     update: {
@@ -467,7 +467,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
       response: p1,
       ...(write_probe ? { effect_path: first_path, effect_content: first_content, prompt_timeout_ms: write_prompt_timeout } : {}),
     },
-  });
+  }));
   if (always_grant || write_probe) {
     await wait_for_write_effect(first_path, events, notes, {
       grace_ms: effect_grace_ms,
@@ -552,7 +552,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
   await stop(c1);
 
   notes.push("AUTH-01 RuntimeRestart: terminated generation 1 with SIGTERM; spawning generation 2.");
-  events.push({ type: "runtime_restart", sessionId: sid, reason: "SIGTERM_gen1_process_spawn" });
+  events.push(observe_event({ type: "runtime_restart", sessionId: sid, reason: "SIGTERM_gen1_process_spawn" }));
   // gen2: effect/stale/always-grant/reject-always allow (default pick_allow); capped/stale-effect deny
   const gen2_mode: PermissionPickMode = !(effect || stale || always_grant || reject_always) ? "deny" : "allow";
   const c2 = await spawn_live(command, args, env);
@@ -562,21 +562,21 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
   if (i2.result) {
     const loaded = await i2.rpc.request(build_session_load(6, sid, cwd), timeout);
     restored = "result" in loaded;
-    events.push({ type: "session_update", sessionId: sid, update: { kind: "session_load", cwd, response: loaded } });
+    events.push(observe_event({ type: "session_update", sessionId: sid, update: { kind: "session_load", cwd, response: loaded } }));
 
     if (stale && old_req && old_req.type === "permission_request") {
       i2.rpc.write(build_permission_selected(old_req.requestId, "allow_once"));
       // Record the orphan allow_once reply in history as approval.record
       // (orphan=true) with request_runtime_generation=gen1 and runtime_generation=gen2.
-      events.push({
+      events.push(observe_event({
         type: "permission_response",
         sessionId: sid,
         requestId: old_req.requestId,
         decision: "allow",
         optionId: "allow_once",
         optionKind: "allow_once",
-      });
-      events.push({
+      }));
+      events.push(observe_event({
         type: "session_update",
         sessionId: sid,
         update: {
@@ -587,7 +587,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
           input: old_req.input,
           note: "orphan permission response using gen1 request_id; not paired with a gen2 pending request",
         },
-      });
+      }));
       notes.push(
         `stale-grant: allow_once was sent for the old gen1 requestId=${old_req.requestId}` +
           (old_req.toolCallId ? ` toolCallId=${old_req.toolCallId}` : "") +
@@ -621,7 +621,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
       );
     }
     let p2 = await i2.rpc.request(build_session_prompt(8, sid, prompt2), gen2_prompt_timeout);
-    events.push({
+    events.push(observe_event({
       type: "session_update",
       sessionId: sid,
       update: {
@@ -640,7 +640,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
         response: p2,
         ...(write_probe ? { effect_path: post_path, effect_content: post_content, prompt_timeout_ms: gen2_prompt_timeout } : {}),
       },
-    });
+    }));
     let gen2_effect_wait: { present: boolean; tool_call_completed: boolean; waited_ms: number } | undefined;
     if (cross_gen_always) {
       const scenario_label = always_grant ? "always-grant" : "reject-always";
@@ -669,7 +669,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
         const follow_id = i2.rpc.next_id();
         const follow_prompt = `Reminder: write ${post_path} with exactly: ${post_content}`;
         const p2b = await i2.rpc.request(build_session_prompt(follow_id, sid, follow_prompt), gen2_prompt_timeout);
-        events.push({
+        events.push(observe_event({
           type: "session_update",
           sessionId: sid,
           update: {
@@ -680,7 +680,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
             effect_content: post_content,
             prompt_timeout_ms: gen2_prompt_timeout,
           },
-        });
+        }));
         p2 = p2b;
         gen2_effect_wait = await wait_for_write_effect(post_path, events, notes, {
           grace_ms: ALWAYS_GRANT_EFFECT_POLL_MS,
@@ -731,7 +731,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
         if (fs.existsSync(post_path)) {
           const got = fs.readFileSync(post_path, "utf8");
           const matched = got.trim() === post_content.trim();
-          events.push({
+          events.push(observe_event({
             type: "session_update",
             sessionId: sid,
             update: {
@@ -751,10 +751,10 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
                   }
                 : {}),
             },
-          });
+          }));
           notes.push(`always-grant C-signal: direct fs read ${post_path} matched=${matched}`);
         } else {
-          events.push({
+          events.push(observe_event({
             type: "session_update",
             sessionId: sid,
             update: {
@@ -775,7 +775,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
                   }
                 : {}),
             },
-          });
+          }));
           notes.push(
             `always-grant C-signal: file ${post_path} absent after prompt+poll — effect UNKNOWN (timeout alone is not evidence)`,
           );
@@ -820,7 +820,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
         if (fs.existsSync(post_path)) {
           const got = fs.readFileSync(post_path, "utf8");
           const matched = got.trim() === post_content.trim();
-          events.push({
+          events.push(observe_event({
             type: "session_update",
             sessionId: sid,
             update: {
@@ -840,7 +840,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
                   }
                 : {}),
             },
-          });
+          }));
           if (i2.rpc.permission_requests === 0 && matched) {
             notes.push(
               `reject-always C-signal: FS matched ${post_path} with ZERO gen2 approval.request after reject_always — unexpected effect without fresh grant (contrast concern)`,
@@ -849,7 +849,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
             notes.push(`reject-always C-signal: direct fs read ${post_path} matched=${matched}`);
           }
         } else {
-          events.push({
+          events.push(observe_event({
             type: "session_update",
             sessionId: sid,
             update: {
@@ -870,7 +870,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
                   }
                 : {}),
             },
-          });
+          }));
           if (gen1_reject_ok && i2.rpc.permission_requests === 0) {
             notes.push(
               `reject-always C-signal: file ${post_path} absent with ZERO gen2 approval.request after reject_always — candidate silent durable-reject across generation (timeout alone still UNKNOWN for agent completion)`,
@@ -909,7 +909,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
         if (fs.existsSync(post_path)) {
           const got = fs.readFileSync(post_path, "utf8");
           const matched = got.trim() === post_content.trim();
-          events.push({
+          events.push(observe_event({
             type: "session_update",
             sessionId: sid,
             update: {
@@ -921,14 +921,14 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
               matched,
               withhold: true,
             },
-          });
+          }));
           notes.push(
             matched
               ? `stale-effect C-signal: FS matched ${post_path} AFTER withhold — C-stale concern / unexpected auth path`
               : `stale-effect C-signal: file ${post_path} present but content mismatch matched=false`,
           );
         } else {
-          events.push({
+          events.push(observe_event({
             type: "session_update",
             sessionId: sid,
             update: {
@@ -941,7 +941,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
               absent: true,
               withhold: true,
             },
-          });
+          }));
           notes.push(
             `stale-effect C-signal: file ${post_path} absent after withhold — C-stale not observed on this path (prompt timeout alone remains UNKNOWN for agent completion)`,
           );
@@ -966,7 +966,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
         const fs = await import("node:fs");
         if (fs.existsSync(post_path)) {
           const got = fs.readFileSync(post_path, "utf8");
-          events.push({
+          events.push(observe_event({
             type: "session_update",
             sessionId: sid,
             update: {
@@ -977,7 +977,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
               expected: post_content,
               matched: got.trim() === post_content.trim(),
             },
-          });
+          }));
           notes.push(`stale-grant C-signal: direct fs read ${post_path} matched=${got.trim() === post_content.trim()}`);
         } else {
           notes.push(`stale-grant C-signal: file ${post_path} absent after prompt — effect UNKNOWN (timeout alone is not evidence)`);
@@ -1004,7 +1004,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{ eve
           : effect && restored
             ? "live_effect_ok"
             : "live_capped_ok";
-  events.push({ type: "session_closed", sessionId: sid, reason: close_reason });
+  events.push(observe_event({ type: "session_closed", sessionId: sid, reason: close_reason }));
   const history = acp_events_to_history(events, { fence_epoch: 1, issuer_id: "acp_adapter_live", session_cwd: cwd });
   return { events, history };
 }
@@ -1031,6 +1031,7 @@ export async function collect_history(opts: AcpAdapterOptions = {}): Promise<Acp
   return { mode, target: "claude-agent-acp", package_name: PKG, package_version_pinned: PINNED, events, history, history_jsonl: history_to_jsonl(history), notes };
 }
 export { MockAcpPeer } from "./mock_peer.js";
+export { observe_event } from "./mock_peer.js";
 export type { AcpPeerEvent } from "./mock_peer.js";
 export { acp_events_to_history, history_to_jsonl } from "./history_from_acp.js";
 export type { HistoryEventLite } from "./history_from_acp.js";

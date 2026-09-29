@@ -44,11 +44,20 @@ function derived_provenance(fields: string[]): Record<string, "derived"> {
 /**
  * Prefer input.file_path, then input.path, else toolName (live titles like
  * "Write asa-x.txt" are not paths — callers with file_path win).
+ * Path-normalize ONLY when the value came from file_path/path; toolName stays raw.
  */
-function bind_target_raw(toolName: string, input: Record<string, unknown>): string {
-  if (typeof input.file_path === "string" && input.file_path.length > 0) return input.file_path;
-  if (typeof input.path === "string" && input.path.length > 0) return input.path;
-  return toolName;
+function bind_target(
+  toolName: string,
+  input: Record<string, unknown>,
+  session_cwd: string | undefined,
+): { target: string; target_kind: "path" | "tool_name" } {
+  if (typeof input.file_path === "string" && input.file_path.length > 0) {
+    return { target: normalize_path(input.file_path, session_cwd), target_kind: "path" };
+  }
+  if (typeof input.path === "string" && input.path.length > 0) {
+    return { target: normalize_path(input.path, session_cwd), target_kind: "path" };
+  }
+  return { target: toolName, target_kind: "tool_name" };
 }
 
 /** Resolve relative paths against session cwd; leave absolute as normalized. */
@@ -57,6 +66,14 @@ function normalize_path(p: string, session_cwd: string | undefined): string {
   if (path.isAbsolute(p)) return path.normalize(p);
   if (session_cwd) return path.normalize(path.resolve(session_cwd, p));
   return path.normalize(p);
+}
+
+/** Match action.bind target to receipt path; win32 is case-insensitive only. */
+function paths_equal(a: string, b: string): boolean {
+  if (process.platform === "win32") {
+    return a.toLowerCase() === b.toLowerCase();
+  }
+  return a === b;
 }
 
 function discover_session_cwd(
@@ -129,7 +146,7 @@ function find_adjacent_receipt_index(out: readonly HistoryEventLite[], path_norm
   let last_idx: number | undefined;
   for (let i = 0; i < out.length; i++) {
     const e = out[i]!;
-    if (e.op === "effect.receipt" && String(e.attrs?.path ?? "") === path_norm) {
+    if (e.op === "effect.receipt" && paths_equal(String(e.attrs?.path ?? ""), path_norm)) {
       last_idx = i;
     }
   }
@@ -174,9 +191,31 @@ export function acp_events_to_history(
   const session_cwd = discover_session_cwd(events, opts.session_cwd);
   const out: HistoryEventLite[] = [];
   let seq = 0;
-  const next = (partial: Omit<HistoryEventLite, "seq">): void => {
+  const next = (
+    partial: Omit<HistoryEventLite, "seq">,
+    source_observed_at_ms?: number,
+  ): void => {
     seq += 1;
-    out.push({ seq, ts: new Date().toISOString(), ts_unix_nano: format_unix_nano_decimal(), ...partial });
+    const has_obs = typeof source_observed_at_ms === "number" && Number.isFinite(source_observed_at_ms);
+    const epoch_ms = has_obs ? source_observed_at_ms! : Date.now();
+    let attrs = partial.attrs;
+    if (!has_obs) {
+      const prev_fp =
+        attrs && typeof attrs.field_provenance === "object" && attrs.field_provenance !== null
+          ? (attrs.field_provenance as Record<string, unknown>)
+          : {};
+      attrs = {
+        ...attrs,
+        field_provenance: { ...prev_fp, ts: "derived" },
+      };
+    }
+    out.push({
+      ...partial,
+      seq,
+      ts: new Date(epoch_ms).toISOString(),
+      ts_unix_nano: format_unix_nano_decimal(epoch_ms),
+      ...(attrs !== undefined ? { attrs } : {}),
+    });
   };
   const renumber = (): void => {
     for (let i = 0; i < out.length; i++) out[i]!.seq = i + 1;
@@ -205,28 +244,34 @@ export function acp_events_to_history(
 
   for (const ev of events) {
     if (ev.type === "runtime_restart") {
-      next({
-        kind: "fault",
-        fault: "runtime.restart",
-        session_id: ev.sessionId,
-        note: ev.reason ?? "process_spawn",
-        attrs: {
-          previous_runtime_generation: runtime_generation,
-          field_provenance: derived_provenance(["previous_runtime_generation"]),
+      next(
+        {
+          kind: "fault",
+          fault: "runtime.restart",
+          session_id: ev.sessionId,
+          note: ev.reason ?? "process_spawn",
+          attrs: {
+            previous_runtime_generation: runtime_generation,
+            field_provenance: derived_provenance(["previous_runtime_generation"]),
+          },
         },
-      });
+        ev.observed_at_ms,
+      );
       runtime_generation += 1;
-      next({
-        kind: "observe",
-        op: "generation.observe",
-        session_id: ev.sessionId,
-        attrs: {
-          runtime_generation,
-          issuer_id,
-          runtime_id: "claude-agent-acp",
-          field_provenance: derived_provenance(["runtime_generation"]),
+      next(
+        {
+          kind: "observe",
+          op: "generation.observe",
+          session_id: ev.sessionId,
+          attrs: {
+            runtime_generation,
+            issuer_id,
+            runtime_id: "claude-agent-acp",
+            field_provenance: derived_provenance(["runtime_generation"]),
+          },
         },
-      });
+        ev.observed_at_ms,
+      );
       continue;
     }
 
@@ -243,7 +288,7 @@ export function acp_events_to_history(
         if (path_norm) {
           for (let i = out.length - 1; i >= 0; i--) {
             const prev = out[i]!;
-            if (prev.op === "action.bind" && String(prev.attrs?.target ?? "") === path_norm) {
+            if (prev.op === "action.bind" && paths_equal(String(prev.attrs?.target ?? ""), path_norm)) {
               bind_digest = typeof prev.attrs?.action_digest === "string" ? prev.attrs.action_digest : "";
               bind_tool_call_id =
                 typeof prev.attrs?.tool_call_id === "string" ? prev.attrs.tool_call_id : undefined;
@@ -263,6 +308,11 @@ export function acp_events_to_history(
 
         const latest = normalize_observation_flags(ev.update);
         const { outcome, reason } = effect_outcome_from_update(latest);
+        const obs_ms =
+          typeof ev.observed_at_ms === "number" && Number.isFinite(ev.observed_at_ms)
+            ? ev.observed_at_ms
+            : Date.now();
+        const obs_iso = new Date(obs_ms).toISOString();
 
         const adj_idx = path_norm !== undefined ? find_adjacent_receipt_index(out, path_norm) : undefined;
         if (adj_idx !== undefined) {
@@ -284,7 +334,7 @@ export function acp_events_to_history(
           if (path_norm) {
             for (let i = out.length - 1; i >= 0; i--) {
               const prev = out[i]!;
-              if (prev.op === "action.bind" && String(prev.attrs?.target ?? "") === path_norm) {
+              if (prev.op === "action.bind" && paths_equal(String(prev.attrs?.target ?? ""), path_norm)) {
                 merge_digest = typeof prev.attrs?.action_digest === "string" ? prev.attrs.action_digest : "";
                 merge_tool_call_id =
                   typeof prev.attrs?.tool_call_id === "string" ? prev.attrs.tool_call_id : undefined;
@@ -324,7 +374,7 @@ export function acp_events_to_history(
               fence_epoch,
               sink: sources[sources.length - 1],
               sources,
-              observed_at: new Date().toISOString(),
+              observed_at: obs_iso,
               ...(latest.matched !== undefined ? { matched: latest.matched } : {}),
               ...(latest.present !== undefined ? { present: latest.present } : {}),
               ...(latest.absent !== undefined ? { absent: latest.absent } : {}),
@@ -333,7 +383,9 @@ export function acp_events_to_history(
               field_provenance: derived_provenance(provenance_fields),
             },
             note: "derived from wait_for_write_effect / fs observation",
-          });
+          },
+          ev.observed_at_ms,
+          );
         } else {
           const provenance_fields = [
             "outcome",
@@ -358,7 +410,7 @@ export function acp_events_to_history(
               fence_epoch,
               sink,
               sources: [sink],
-              observed_at: new Date().toISOString(),
+              observed_at: obs_iso,
               ...(latest.matched !== undefined ? { matched: latest.matched } : {}),
               ...(latest.present !== undefined ? { present: latest.present } : {}),
               ...(latest.absent !== undefined ? { absent: latest.absent } : {}),
@@ -367,60 +419,72 @@ export function acp_events_to_history(
               field_provenance: derived_provenance(provenance_fields),
             },
             note: "derived from wait_for_write_effect / fs observation",
-          });
+          },
+          ev.observed_at_ms,
+          );
         }
       } else {
-        next({
-          kind: "observe",
-          op: "session.attach",
-          session_id: ev.sessionId,
-          attrs: { update_kind: kind, raw_update: ev.update },
-          note: "acp session_update",
-        });
+        next(
+          {
+            kind: "observe",
+            op: "session.attach",
+            session_id: ev.sessionId,
+            attrs: { update_kind: kind, raw_update: ev.update },
+            note: "acp session_update",
+          },
+          ev.observed_at_ms,
+        );
       }
       continue;
     }
 
     if (ev.type === "permission_request") {
       const action_digest = digest_of(ev.toolName, ev.input);
-      const target = normalize_path(bind_target_raw(ev.toolName, ev.input), session_cwd);
+      const { target, target_kind } = bind_target(ev.toolName, ev.input, session_cwd);
       pending_by_request.set(ev.requestId, {
         action_digest,
         tool_call_id: ev.toolCallId,
         tool_name: ev.toolName,
         runtime_generation,
       });
-      next({
-        kind: "ok",
-        op: "action.bind",
-        session_id: ev.sessionId,
-        actor_id: "agent",
-        attrs: {
-          action_type: `tool.${ev.toolName}`,
-          target,
-          args: ev.input,
-          tool_call_id: ev.toolCallId,
-          action_digest,
-          runtime_generation,
-          policy_version: "acp-permission-ext",
-          nonce: ev.requestId,
-          ...(ev.options !== undefined ? { offered_options: ev.options } : {}),
+      next(
+        {
+          kind: "ok",
+          op: "action.bind",
+          session_id: ev.sessionId,
+          actor_id: "agent",
+          attrs: {
+            action_type: `tool.${ev.toolName}`,
+            target,
+            target_kind,
+            args: ev.input,
+            tool_call_id: ev.toolCallId,
+            action_digest,
+            runtime_generation,
+            policy_version: "acp-permission-ext",
+            nonce: ev.requestId,
+            ...(ev.options !== undefined ? { offered_options: ev.options } : {}),
+          },
         },
-      });
-      next({
-        kind: "invoke",
-        op: "approval.request",
-        session_id: ev.sessionId,
-        actor_id: "agent",
-        attrs: {
-          tool_call_id: ev.toolCallId,
-          action_digest,
-          request_id: ev.requestId,
-          tool_name: ev.toolName,
-          runtime_generation,
-          ...(ev.options !== undefined ? { offered_options: ev.options } : {}),
+        ev.observed_at_ms,
+      );
+      next(
+        {
+          kind: "invoke",
+          op: "approval.request",
+          session_id: ev.sessionId,
+          actor_id: "agent",
+          attrs: {
+            tool_call_id: ev.toolCallId,
+            action_digest,
+            request_id: ev.requestId,
+            tool_name: ev.toolName,
+            runtime_generation,
+            ...(ev.options !== undefined ? { offered_options: ev.options } : {}),
+          },
         },
-      });
+        ev.observed_at_ms,
+      );
       continue;
     }
 
@@ -447,26 +511,29 @@ export function acp_events_to_history(
             }
           }
         }
-        next({
-          kind: "ok",
-          op: "approval.record",
-          session_id: ev.sessionId,
-          actor_id: "approver_client",
-          attrs: {
-            approver: "approver_client",
-            decision,
-            orphan: true,
-            acknowledged: "unknown",
-            request_id: ev.requestId,
-            ...(action_digest !== undefined ? { action_digest } : {}),
-            runtime_generation,
-            request_runtime_generation: request_runtime_generation ?? runtime_generation,
-            fence_epoch,
-            ...(ev.optionId !== undefined ? { option_id: ev.optionId } : {}),
-            ...(ev.optionKind !== undefined ? { option_kind: ev.optionKind } : {}),
-            ...(tool_call_id !== undefined ? { tool_call_id } : {}),
+        next(
+          {
+            kind: "ok",
+            op: "approval.record",
+            session_id: ev.sessionId,
+            actor_id: "approver_client",
+            attrs: {
+              approver: "approver_client",
+              decision,
+              orphan: true,
+              acknowledged: "unknown",
+              request_id: ev.requestId,
+              ...(action_digest !== undefined ? { action_digest } : {}),
+              runtime_generation,
+              request_runtime_generation: request_runtime_generation ?? runtime_generation,
+              fence_epoch,
+              ...(ev.optionId !== undefined ? { option_id: ev.optionId } : {}),
+              ...(ev.optionKind !== undefined ? { option_kind: ev.optionKind } : {}),
+              ...(tool_call_id !== undefined ? { tool_call_id } : {}),
+            },
           },
-        });
+          ev.observed_at_ms,
+        );
         continue;
       }
 
@@ -474,34 +541,40 @@ export function acp_events_to_history(
       answered_by_request.set(ev.requestId, linked);
       const action_digest = linked.action_digest;
       const request_runtime_generation = linked.runtime_generation;
-      next({
-        kind: "ok",
-        op: ev.decision === "allow" ? "approval.grant" : "approval.deny",
-        session_id: ev.sessionId,
-        actor_id: "approver_client",
-        attrs: {
-          approver: "approver_client",
-          decision,
-          request_id: ev.requestId,
-          action_digest,
-          runtime_generation,
-          request_runtime_generation,
-          fence_epoch,
-          ...(ev.optionId !== undefined ? { option_id: ev.optionId } : {}),
-          ...(ev.optionKind !== undefined ? { option_kind: ev.optionKind } : {}),
-          ...(linked.tool_call_id !== undefined ? { tool_call_id: linked.tool_call_id } : {}),
+      next(
+        {
+          kind: "ok",
+          op: ev.decision === "allow" ? "approval.grant" : "approval.deny",
+          session_id: ev.sessionId,
+          actor_id: "approver_client",
+          attrs: {
+            approver: "approver_client",
+            decision,
+            request_id: ev.requestId,
+            action_digest,
+            runtime_generation,
+            request_runtime_generation,
+            fence_epoch,
+            ...(ev.optionId !== undefined ? { option_id: ev.optionId } : {}),
+            ...(ev.optionKind !== undefined ? { option_kind: ev.optionKind } : {}),
+            ...(linked.tool_call_id !== undefined ? { tool_call_id: linked.tool_call_id } : {}),
+          },
         },
-      });
+        ev.observed_at_ms,
+      );
       continue;
     }
 
     if (ev.type === "session_closed") {
-      next({
-        kind: "ok",
-        op: "session.detach",
-        session_id: ev.sessionId,
-        attrs: { reason: ev.reason ?? "closed" },
-      });
+      next(
+        {
+          kind: "ok",
+          op: "session.detach",
+          session_id: ev.sessionId,
+          attrs: { reason: ev.reason ?? "closed" },
+        },
+        ev.observed_at_ms,
+      );
     }
   }
   return out;

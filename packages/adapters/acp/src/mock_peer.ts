@@ -1,6 +1,11 @@
 /** Local mock ACP peer — emits session/permission observables without cloud SDKs. */
 export type AcpPeerEvent =
-  | { type: "session_update"; sessionId: string; update: Record<string, unknown> }
+  | {
+      type: "session_update";
+      sessionId: string;
+      update: Record<string, unknown>;
+      observed_at_ms?: number;
+    }
   | {
       type: "permission_request";
       sessionId: string;
@@ -9,6 +14,7 @@ export type AcpPeerEvent =
       input: Record<string, unknown>;
       toolCallId?: string;
       options?: unknown;
+      observed_at_ms?: number;
     }
   | {
       type: "permission_response";
@@ -17,14 +23,21 @@ export type AcpPeerEvent =
       decision: "allow" | "deny";
       optionId?: string;
       optionKind?: string;
+      observed_at_ms?: number;
     }
   | {
       /** New process spawn after the initial attach — converter emits fault + gen+1. */
       type: "runtime_restart";
       sessionId: string;
       reason?: string;
+      observed_at_ms?: number;
     }
-  | { type: "session_closed"; sessionId: string; reason?: string };
+  | { type: "session_closed"; sessionId: string; reason?: string; observed_at_ms?: number };
+
+/** Stamp Date.now() at every push into an events buffer (mock + live). */
+export function observe_event<E extends AcpPeerEvent>(ev: E): E & { observed_at_ms: number } {
+  return { ...ev, observed_at_ms: Date.now() };
+}
 
 export interface MockAcpPeerOptions {
   sessionId?: string;
@@ -37,13 +50,17 @@ export class MockAcpPeer {
     this.sessionId = opts.sessionId ?? "fixture-session-1";
   }
 
+  private push(ev: AcpPeerEvent): void {
+    this.events.push(observe_event(ev));
+  }
+
   run_fixture_scenario(): AcpPeerEvent[] {
-    this.events.push({
+    this.push({
       type: "session_update",
       sessionId: this.sessionId,
       update: { kind: "agent_message_chunk", text: "fixture hello" },
     });
-    this.events.push({
+    this.push({
       type: "permission_request",
       sessionId: this.sessionId,
       requestId: "perm-1",
@@ -55,7 +72,7 @@ export class MockAcpPeer {
         { optionId: "reject", kind: "reject_once" },
       ],
     });
-    this.events.push({
+    this.push({
       type: "permission_response",
       sessionId: this.sessionId,
       requestId: "perm-1",
@@ -63,7 +80,7 @@ export class MockAcpPeer {
       optionId: "allow-once",
       optionKind: "allow_once",
     });
-    this.events.push({
+    this.push({
       type: "session_update",
       sessionId: this.sessionId,
       update: {
@@ -76,12 +93,12 @@ export class MockAcpPeer {
         content: "hello",
       },
     });
-    this.events.push({
+    this.push({
       type: "session_update",
       sessionId: this.sessionId,
       update: { kind: "tool_call", toolName: "Write", status: "completed" },
     });
-    this.events.push({ type: "session_closed", sessionId: this.sessionId, reason: "fixture_done" });
+    this.push({ type: "session_closed", sessionId: this.sessionId, reason: "fixture_done" });
     return [...this.events];
   }
 
@@ -96,12 +113,12 @@ export class MockAcpPeer {
       { optionId: "allow-with-updates", kind: "allow_always" },
       { optionId: "reject", kind: "reject_once" },
     ];
-    this.events.push({
+    this.push({
       type: "session_update",
       sessionId: this.sessionId,
       update: { kind: "session_new", note: "gen1" },
     });
-    this.events.push({
+    this.push({
       type: "permission_request",
       sessionId: this.sessionId,
       requestId: "perm-gen1",
@@ -110,7 +127,7 @@ export class MockAcpPeer {
       input: { path: "repo/gen1.txt", content: "gen1" },
       options,
     });
-    this.events.push({
+    this.push({
       type: "permission_response",
       sessionId: this.sessionId,
       requestId: "perm-gen1",
@@ -118,7 +135,7 @@ export class MockAcpPeer {
       optionId: "allow-once",
       optionKind: "allow_once",
     });
-    this.events.push({
+    this.push({
       type: "session_update",
       sessionId: this.sessionId,
       update: {
@@ -131,17 +148,17 @@ export class MockAcpPeer {
         content: "gen1",
       },
     });
-    this.events.push({
+    this.push({
       type: "runtime_restart",
       sessionId: this.sessionId,
       reason: "fixture_SIGTERM_gen1",
     });
-    this.events.push({
+    this.push({
       type: "session_update",
       sessionId: this.sessionId,
       update: { kind: "session_load", note: "gen2" },
     });
-    this.events.push({
+    this.push({
       type: "permission_request",
       sessionId: this.sessionId,
       requestId: "perm-gen2",
@@ -150,7 +167,7 @@ export class MockAcpPeer {
       input: { path: "repo/gen2.txt", content: "gen2" },
       options,
     });
-    this.events.push({
+    this.push({
       type: "permission_response",
       sessionId: this.sessionId,
       requestId: "perm-gen2",
@@ -158,7 +175,7 @@ export class MockAcpPeer {
       optionId: "allow-once",
       optionKind: "allow_once",
     });
-    this.events.push({
+    this.push({
       type: "session_update",
       sessionId: this.sessionId,
       update: {
@@ -171,7 +188,7 @@ export class MockAcpPeer {
         content: "gen2",
       },
     });
-    this.events.push({
+    this.push({
       type: "session_closed",
       sessionId: this.sessionId,
       reason: "fixture_restart_done",

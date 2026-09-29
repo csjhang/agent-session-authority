@@ -283,6 +283,21 @@ describe("capability_vector generation", () => {
         expect(cap[k], `${g.target}:${k}`).not.toBe(fv);
       }
       expect(g.checker_explanation).toBeTruthy();
+
+      // Non-not_tested capability labels must cite a real non-fixture history source.
+      const sources = (g.capability_sources ?? {}) as Record<string, string>;
+      expect(sources).toBeTruthy();
+      for (const [k, v] of Object.entries(cap)) {
+        if (v === "not_tested") continue;
+        const src = sources[k];
+        expect(src, `${g.target}:${k} missing capability_sources`).toBeTruthy();
+        const base = path.basename(src);
+        expect(base.toLowerCase().includes("fixture"), `${g.target}:${k} source is fixture: ${src}`).toBe(
+          false,
+        );
+        const abs = path.isAbsolute(src) ? src : path.join(repo_root, src);
+        expect(fs.existsSync(abs), `${g.target}:${k} source missing: ${abs}`).toBe(true);
+      }
     }
   });
 });
