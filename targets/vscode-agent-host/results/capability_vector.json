@@ -52,7 +52,7 @@
     "AUTH-01a": "No generation_model declared in profile.",
     "AUTH-01b": "No generation monotonicity violation observed.",
     "AUTH-01c": "Required prerequisite observations are absent.",
-    "AUTH-02": "Not enough observations for a positive conclusion.",
+    "AUTH-02": "Required prerequisite observations are absent.",
     "AUTH-03a": "Required prerequisite observations are absent.",
     "AUTH-03b": "Required prerequisite observations are absent.",
     "AUTH-03c": "Required prerequisite observations are absent.",

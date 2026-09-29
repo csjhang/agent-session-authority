@@ -1,0 +1,4 @@
+{"seq":1,"ts":"2026-09-06T02:00:00Z","kind":"ok","op":"action.bind","actor_id":"agent","attrs":{"action_type":"file.write","target":"repo/a.ts","args":{"content":"x"},"policy_version":"p1","runtime_generation":1,"nonce":"n1","action_digest":"digest_once"}}
+{"seq":2,"ts":"2026-09-06T02:00:01Z","kind":"ok","op":"approval.grant","actor_id":"approver","attrs":{"approver":"approver","action_digest":"digest_once","decision":"grant","option_kind":"allow_once","runtime_generation":1}}
+{"seq":3,"ts":"2026-09-06T02:00:02Z","kind":"ok","op":"effect.receipt","attrs":{"effect_id":"eff_a","action_digest":"digest_once","runtime_generation":1,"outcome":"committed"}}
+{"seq":4,"ts":"2026-09-06T02:00:03Z","kind":"ok","op":"effect.receipt","attrs":{"effect_id":"eff_b","action_digest":"digest_once","runtime_generation":1,"outcome":"committed","note":"second effect_id reuses allow_once grant"}}

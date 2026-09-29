@@ -60,12 +60,19 @@ function bind_target(
   return { target: toolName, target_kind: "tool_name" };
 }
 
-/** Resolve relative paths against session cwd; leave absolute as normalized. */
+/**
+ * Resolve relative paths against session cwd; leave absolute as normalized.
+ * Always emit "/" separators so `fs:` effect_id path parts are platform-stable
+ * (win32-style inputs like `C:\\ws\\a.txt` never introduce backslashes).
+ */
 function normalize_path(p: string, session_cwd: string | undefined): string {
   if (!p) return p;
-  if (path.isAbsolute(p)) return path.normalize(p);
-  if (session_cwd) return path.normalize(path.resolve(session_cwd, p));
-  return path.normalize(p);
+  const s = p.replace(/\\/g, "/");
+  const cwd = session_cwd ? session_cwd.replace(/\\/g, "/") : undefined;
+  const is_abs = s.startsWith("/") || /^[A-Za-z]:\//.test(s);
+  if (is_abs) return path.posix.normalize(s);
+  if (cwd) return path.posix.normalize(path.posix.join(cwd, s));
+  return path.posix.normalize(s);
 }
 
 /** Match action.bind target to receipt path; win32 is case-insensitive only. */

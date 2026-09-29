@@ -1,0 +1,4 @@
+{"seq":1,"ts":"2026-09-06T02:00:00Z","kind":"ok","op":"action.bind","actor_id":"agent","attrs":{"action_type":"file.write","target":"repo/a.ts","args":{"content":"x"},"policy_version":"p1","runtime_generation":1,"nonce":"n1","action_digest":"digest_ok"}}
+{"seq":2,"ts":"2026-09-06T02:00:01Z","kind":"ok","op":"approval.grant","actor_id":"approver","attrs":{"approver":"approver","action_digest":"digest_ok","decision":"grant","runtime_generation":1,"option_kind":"allow_once"}}
+{"seq":3,"ts":"2026-09-06T02:00:02Z","kind":"ok","op":"effect.receipt","attrs":{"effect_id":"eff_ok","action_digest":"digest_ok","runtime_generation":1,"outcome":"committed"}}
+{"seq":4,"ts":"2026-09-06T02:00:03Z","kind":"ok","op":"effect.receipt","attrs":{"effect_id":"eff_unlink","outcome":"committed","binding":"unlinked","note":"unlinked sibling"}}

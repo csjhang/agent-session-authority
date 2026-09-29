@@ -1,0 +1,5 @@
+{"seq":1,"ts":"2026-09-06T01:00:00Z","kind":"ok","op":"lease.acquire","actor_id":"c1","attrs":{"scope_id":"workspace","holder":"c1","fence_epoch":1,"accepted":true,"expires_at":"2026-09-06T01:30:00Z"}}
+{"seq":2,"ts":"2026-09-06T01:10:00Z","kind":"ok","op":"control.handoff","actor_id":"c1","attrs":{"scope_id":"workspace","holder":"c2","successor":"c2","fence_epoch":1}}
+{"seq":3,"ts":"2026-09-06T01:20:00Z","kind":"ok","op":"effect.receipt","attrs":{"effect_id":"e_old","outcome":"committed","scope_id":"workspace","controller":"c1","note":"old holder after handoff"}}
+{"seq":4,"ts":"2026-09-06T02:00:00Z","kind":"ok","op":"lease.acquire","actor_id":"c2","attrs":{"scope_id":"workspace","holder":"c2","fence_epoch":1,"accepted":true,"expires_at":"2026-09-06T02:30:00Z"}}
+{"seq":5,"ts":"2026-09-06T03:00:00Z","kind":"ok","op":"effect.receipt","attrs":{"effect_id":"e_exp","outcome":"committed","scope_id":"workspace","controller":"c2","note":"past expires_at"}}

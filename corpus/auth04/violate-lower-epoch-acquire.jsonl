@@ -1,0 +1,4 @@
+{"seq":1,"ts":"2026-09-06T02:40:00Z","kind":"ok","op":"lease.acquire","actor_id":"c1","attrs":{"scope_id":"workspace","holder":"c1","fence_epoch":1,"accepted":true}}
+{"seq":2,"ts":"2026-09-06T02:40:01Z","kind":"ok","op":"control.handoff","actor_id":"c1","attrs":{"scope_id":"workspace","holder":"c2","successor":"c2","fence_epoch":2}}
+{"seq":3,"ts":"2026-09-06T02:40:02Z","kind":"ok","op":"lease.acquire","actor_id":"c1","attrs":{"scope_id":"workspace","holder":"c1","fence_epoch":1,"accepted":true,"note":"stale lower-epoch acquire must not update live holder"}}
+{"seq":4,"ts":"2026-09-06T02:40:03Z","kind":"ok","op":"effect.receipt","attrs":{"effect_id":"e_stale_holder","outcome":"committed","scope_id":"workspace","fence_epoch":2,"controller":"c1","note":"c1 commits at epoch 2 after stale acquire"}}

@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   collect_history,
   MockAcpPeer,
@@ -733,5 +736,109 @@ describe("@asa/adapter-acp fixture", () => {
     expect(header_attach?.attrs?.field_provenance).toMatchObject({ ts: "derived" });
   });
 
+  it("fs: effect_id path part always uses / for win32-style input (no backslashes)", () => {
+    const win_events = [
+      {
+        type: "session_update" as const,
+        sessionId: "s-win-fs",
+        update: {
+          kind: "effect_receipt",
+          sink: "fixture_fs",
+          path: String.raw`C:\ws\a.txt`,
+          present: true,
+          matched: true,
+          expected: "x",
+          content: "x",
+        },
+      },
+    ];
+    const posix_events = [
+      {
+        type: "session_update" as const,
+        sessionId: "s-win-fs",
+        update: {
+          kind: "effect_receipt",
+          sink: "fixture_fs",
+          path: "C:/ws/a.txt",
+          present: true,
+          matched: true,
+          expected: "x",
+          content: "x",
+        },
+      },
+    ];
+    const win_hist = acp_events_to_history(win_events);
+    const posix_hist = acp_events_to_history(posix_events);
+    const win_r = win_hist.find((e) => e.op === "effect.receipt");
+    const posix_r = posix_hist.find((e) => e.op === "effect.receipt");
+    const win_eid = String(win_r?.attrs?.effect_id ?? "");
+    const posix_eid = String(posix_r?.attrs?.effect_id ?? "");
+    expect(win_eid.startsWith("fs:")).toBe(true);
+    expect(win_eid.includes("\\")).toBe(false);
+    expect(String(win_r?.attrs?.path ?? "").includes("\\")).toBe(false);
+    expect(win_eid).toBe(posix_eid);
+    expect(win_eid).toBe("fs:C:/ws/a.txt");
+  });
 
+});
+
+describe("acp-shaped corpus regeneration", () => {
+  it("in-process generate_acp_shaped_corpus matches committed files (ignore ts; normalize paths)", async () => {
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const repo = path.resolve(here, "../../../..");
+    const dir = path.join(repo, "corpus", "acp-shaped");
+    const { generate_acp_shaped_corpus } = await import(
+      pathToFileURL(path.join(repo, "scripts/generate-acp-shaped-corpus.ts")).href
+    );
+    const generated = generate_acp_shaped_corpus() as Record<string, string>;
+    const names = Object.keys(generated).sort();
+    expect(names).toEqual(
+      expect.arrayContaining([
+        "a1-reask-after-restart.jsonl",
+        "a2-stale-grant-no-reask.jsonl",
+        "a3-deny-then-committed.jsonl",
+        "a4-no-request-committed.jsonl",
+        "a5-unknown-only.jsonl",
+        "a6-orphan-only.jsonl",
+        "a7-deny-restart-reask-same-action.jsonl",
+      ]),
+    );
+
+    const PATH_KEYS = new Set(["path", "target", "file_path", "cwd", "session_cwd"]);
+
+    const normalize_path_string = (s: string): string =>
+      s.replace(/^[A-Za-z]:/, "").split(String.fromCharCode(92)).join("/");
+
+    const normalize_paths = (value: unknown, key?: string): unknown => {
+      if (typeof value === "string") {
+        if (key && (PATH_KEYS.has(key) || key.endsWith("_path"))) {
+          return normalize_path_string(value);
+        }
+        return value;
+      }
+      if (Array.isArray(value)) return value.map((v) => normalize_paths(v, key));
+      if (value && typeof value === "object") {
+        const out: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+          out[k] = normalize_paths(v, k);
+        }
+        return out;
+      }
+      return value;
+    };
+
+    const normalize_line = (line: string): string => {
+      const o = JSON.parse(line) as Record<string, unknown>;
+      delete o.ts;
+      delete o.ts_unix_nano;
+      return JSON.stringify(normalize_paths(o));
+    };
+
+    for (const name of names) {
+      const committed = fs.readFileSync(path.join(dir, name), "utf8");
+      const prev_lines = committed.trim().split("\n").filter(Boolean).map(normalize_line);
+      const next_lines = generated[name]!.trim().split("\n").filter(Boolean).map(normalize_line);
+      expect(next_lines, name).toEqual(prev_lines);
+    }
+  });
 });
