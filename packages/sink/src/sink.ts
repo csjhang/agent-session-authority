@@ -172,6 +172,11 @@ export class MockEffectSink {
   private reservedApprovals = new Map<string, string>();
   /** approval_id → full grant() history (latest wins). */
   private grantHistory = new Map<string, IssuedGrant[]>();
+  /** effectId → latest grant()/deny decision (effect-level deny tracking). */
+  private effectLatestDecision = new Map<
+    string,
+    { decision: "grant" | "deny"; approvalId: string }
+  >();
   private faultMode: FaultMode = "none";
   private delayMs = 0;
   private defaultRuntimeGeneration: number;
@@ -266,7 +271,11 @@ export class MockEffectSink {
    * sequence_number assigned by sink write order (1-based).
    */
   exportAgentEffectRecords(): AgentEffectRecord[] {
-    return this.ledger.map((r, i) => {
+    const seqByStream = new Map<string, number>();
+    return this.ledger.map((r) => {
+      const stream_id = `boundary/${r.boundaryId}`;
+      const sequence_number = (seqByStream.get(stream_id) ?? 0) + 1;
+      seqByStream.set(stream_id, sequence_number);
       const rec: AgentEffectRecord = {
         schema_version: "asa.agent-effect/0.1",
         effect_id: r.effectId,
@@ -275,8 +284,8 @@ export class MockEffectSink {
         fence_epoch: r.fenceEpoch,
         boundary_id: r.boundaryId,
         outcome: r.outcome,
-        stream_id: `boundary/${r.boundaryId}`,
-        sequence_number: i + 1,
+        stream_id,
+        sequence_number,
         ts_unix_nano: iso_to_unix_nano(r.observedAt),
         ts: r.observedAt,
         external_reference: r.externalReference,
@@ -418,6 +427,7 @@ export class MockEffectSink {
 
   private rebuildGrantHistoryFromLedger(): void {
     this.grantHistory.clear();
+    this.effectLatestDecision.clear();
     for (const r of this.ledger) {
       if (r.recordKind !== "approval") continue;
       if (!r.approvalId || (r.approvalDecision !== "grant" && r.approvalDecision !== "deny")) {
@@ -435,6 +445,10 @@ export class MockEffectSink {
       const list = this.grantHistory.get(r.approvalId) ?? [];
       list.push(issued);
       this.grantHistory.set(r.approvalId, list);
+      this.effectLatestDecision.set(r.effectId, {
+        decision: r.approvalDecision,
+        approvalId: r.approvalId,
+      });
     }
   }
 
@@ -602,6 +616,10 @@ export class MockEffectSink {
     const hist = this.grantHistory.get(req.approvalId) ?? [];
     hist.push(issued);
     this.grantHistory.set(req.approvalId, hist);
+    this.effectLatestDecision.set(req.effectId, {
+      decision,
+      approvalId: req.approvalId,
+    });
     this.observe("sink.grant", {
       effectId: req.effectId,
       approvalId: req.approvalId,
@@ -747,6 +765,15 @@ export class MockEffectSink {
         approvalId,
         approvalDecision: issued.decision,
         approvalRuntimeGeneration: issued.runtimeGeneration,
+      });
+    }
+    // Effect-level deny via a *different* approval_id on this effectId → effect_denied.
+    // Same-id deny is already approval_denied above. A later grant clears the deny.
+    const effectDec = this.effectLatestDecision.get(req.effectId);
+    if (effectDec && effectDec.decision === "deny") {
+      return this.reject(req, "effect_denied", {
+        approvalId,
+        approvalDecision: "deny",
       });
     }
     if (issued.effectId !== req.effectId) {

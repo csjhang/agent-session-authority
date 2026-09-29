@@ -1,0 +1,52 @@
+{
+  "id": "cross-reject-10-self-declared-generation-overrides-issuance-legacy",
+  "expect": "reject",
+  "kind": "cross_record",
+  "rules": [
+    3
+  ],
+  "description": "Legacy grant a1 (rg=1, no approval_runtime_generation); legacy committed rg=2 self-declares approval_runtime_generation=2 \u2192 cross_generation_reuse",
+  "records": [
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "e1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 1,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "outcome": "unknown",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000000",
+      "approval_decision": "grant",
+      "approval_id": "a1"
+    },
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "e1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 2,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "outcome": "committed",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 2,
+      "ts_unix_nano": "1759107600000000001",
+      "approval_decision": "grant",
+      "approval_id": "a1",
+      "approval_runtime_generation": 2,
+      "external_reference": "file:///tmp/w.txt"
+    }
+  ],
+  "expected": {
+    "ok": false,
+    "violation_codes": [
+      "cross_generation_reuse"
+    ],
+    "report_codes": [],
+    "gap_streams": [],
+    "unknown_effect_ids": [
+      "e1"
+    ]
+  }
+}

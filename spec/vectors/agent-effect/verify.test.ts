@@ -22,6 +22,13 @@ describe("agent-effect JCS vectors", () => {
       "reject-01-numeric-ts-unix-nano",
       "reject-02-missing-action-digest",
       "reject-03-integrity-in-hashed-form",
+      "reject-04-approval-runtime-generation-string",
+      "reject-05-approval-runtime-generation-negative",
+      "reject-06-runtime-generation-non-integer",
+      "reject-07-approval-id-number",
+      "reject-08-record-kind-wrong-case",
+      "reject-09-approval-missing-approval-id",
+      "reject-10-approval-outcome-committed",
     ]);
   });
 
@@ -75,6 +82,69 @@ describe("agent-effect cross-record authority", () => {
     expect(result.violations).toEqual([]);
     expect(result.unknowns.map((u) => u.effect_id)).toEqual(["eff-u"]);
   });
+});
+
+
+describe("agent-effect cross-record permutation invariance", () => {
+  const cross = loadCrossVectors();
+
+  function mulberry32(seed: number): () => number {
+    let a = seed >>> 0;
+    return () => {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function permutations<T>(arr: T[]): T[][] {
+    if (arr.length <= 1) return [arr.slice()];
+    const out: T[][] = [];
+    for (let i = 0; i < arr.length; i++) {
+      const rest = arr.slice(0, i).concat(arr.slice(i + 1));
+      for (const p of permutations(rest)) out.push([arr[i]!, ...p]);
+    }
+    return out;
+  }
+
+  function shuffle<T>(arr: T[], rng: () => number): T[] {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [a[i], a[j]] = [a[j]!, a[i]!];
+    }
+    return a;
+  }
+
+  function summary(records: unknown[], options?: { requireIssuance?: boolean }) {
+    const r = verifyCrossRecords(records, options);
+    return {
+      ok: r.ok,
+      violations: [...new Set(r.violations.map((v) => v.code))].sort(),
+      reports: [...new Set(r.reports.map((x) => x.code))].sort(),
+      gaps: [...new Set(r.gaps.map((g) => g.stream_id))].sort(),
+      unknowns: [...new Set(r.unknowns.map((u) => u.effect_id))].sort(),
+    };
+  }
+
+  for (const v of cross) {
+    it(`permutation-invariant: ${v.id}`, () => {
+      const options = (v as { options?: { requireIssuance?: boolean } }).options;
+      const baseline = summary(v.records, options);
+      const n = v.records.length;
+      const variants: unknown[][] =
+        n <= 6
+          ? permutations(v.records)
+          : Array.from({ length: 200 }, (_, i) => shuffle(v.records, mulberry32(0xae00 + i)));
+      for (const recs of variants) {
+        expect(summary(recs, options), `order=${JSON.stringify(recs.map((r, i) => i))}`).toEqual(
+          baseline,
+        );
+      }
+    });
+  }
 });
 
 describe("jcs basics", () => {

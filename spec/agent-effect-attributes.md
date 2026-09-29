@@ -152,38 +152,45 @@ After exclusion, `signature` is gone; JCS is taken over the remaining object (ke
 
 ## Cross-record authority checks
 
-Offline verifier: [`vectors/agent-effect/cross-verify.ts`](vectors/agent-effect/cross-verify.ts) (`verifyCrossRecords`).
+Offline verifier: [`vectors/agent-effect/cross-verify.ts`](vectors/agent-effect/cross-verify.ts) (`verifyCrossRecords(records, options?)`).
 Fixtures: `cross-pass-*` / `cross-reject-*` / `cross-report-*` under [`vectors/agent-effect/`](vectors/agent-effect/).
 
 Given a **set** of `AgentEffectRecord` objects (JSONL lines or a JSON array), the verifier checks mutual authority consistency.
 
-**Indexing:** approvals are keyed by `approval_id`, not by `effect_id`. A committed effect's referenced `approval_id` must resolve to an **issuance** (a prior `approval_decision=grant` for that id that is an approval record — `record_kind=approval`, or legacy non-committed decision without `record_kind` — never `record_kind=effect`). Self-declared approval fields on a committed / effect-kind record are only a **claim** of use, not independent issuance evidence for generation binding — including when another effect's committed record self-declares the same `approval_id`.
+**Indexing:** approvals are keyed by `approval_id`, not by `effect_id`. **Independent issuance** is only: `record_kind=approval`, or legacy (absent `record_kind`) **non-committed** decision+id. `outcome=committed` and `record_kind=effect` **never** enter decision / issuance candidate sets — including when a commit self-declares `approval_decision=grant`. Self-declared approval fields on a committed record are a **claim of use**, not issuance.
 
-1. **Committed needs approval** — every `outcome=committed` must resolve to a prior **issuance** grant for its `approval_id` (`approval_decision=grant` + non-empty `approval_id`, and **not** `record_kind=effect`). If the commit omits approval fields, the verifier may recover an `approval_id` only from prior grant/deny **issuance** decisions on the **same** `effect_id` (so commit-after-revoke is visible). Committed records' approval fields only **claim which `approval_id` was used** — they are never treated as independent issuance. `record_kind=effect` never counts as approval/issuance on any approval-finding path (`resolveApprovalId`, decisions lists, `separateGrants`, `resolveIssuanceGeneration`, `pickLatest` candidates). Otherwise → `unauthorized_effect`.
-2. **Action digest consistency** — among **committed effects** and **approval records** (`record_kind=approval`, or legacy non-committed decision issuances without `record_kind`) sharing an `effect_id`, digests must match; the approval-bound digest must equal the committed effect's digest. A `rejected`/`failed` record with a different digest is a soft report `rejected_digest_variant` (does **not** flip `ok`) — the honest "sink rejected digest reuse" case.
-3. **Generation binding** — the approval's **issuance generation** must equal the landing effect's `runtime_generation`. Issuance generation is taken from `approval_runtime_generation` when present on the committed claim; otherwise from a **separate** issuance record's `approval_runtime_generation` or `runtime_generation`. Issuance candidates exclude `record_kind=effect` (effect receipts that echo approval fields are claims of use, not issuance). Reusing an approval across generations → `cross_generation_reuse`. If neither `approval_runtime_generation` nor a separate issuance record exists → soft report `approval_generation_unverifiable` (does **not** fail `ok`). Same-record self-declaration alone is not enough to decide generation.
+**Loose vs strict:** default (loose) allows a claim-only commit (self-declared `approval_id`) with soft `approval_generation_unverifiable`. `options.requireIssuance=true` (strict) rejects claim-only commits as `unauthorized_effect`.
+
+1. **Committed needs approval** — every `outcome=committed` must resolve to a prior **independent issuance** grant for its `approval_id`, or (loose only) a self-declared claim. If the commit omits approval fields, recover `approval_id` only from prior independent decisions on the **same** `effect_id`. Otherwise → `unauthorized_effect` (always under `requireIssuance`).
+2. **Action digest consistency** — among **committed effects** and **approval records** sharing an `effect_id`, digests must match; the approval-bound digest must equal the committed effect's digest. A `rejected`/`failed` record with a different digest → soft `rejected_digest_variant` (does **not** flip `ok`).
+3. **Generation binding** — issuance generation comes from **independent issuance only** (`approval_runtime_generation` on the issuance record, else its `runtime_generation`). A committed record's self-declared `approval_runtime_generation` must **not** override independent evidence. Mismatch with landing `runtime_generation` → `cross_generation_reuse`. No independent issuance → soft `approval_generation_unverifiable`; if the claim nonetheless self-declares a mismatched `approval_runtime_generation` → also hard `cross_generation_reuse`.
 4. **Fence monotonicity** —
-   - **4a (stream):** within one `stream_id`, `fence_epoch` must not go backwards when ordered by `sequence_number`, counting **only committed + approval** records. A `rejected`/`failed` (non-approval) record with a lower `fence_epoch` than the prior hard fence → soft report `rejected_stale_fence` (does **not** flip `ok`).
+   - **4a (stream):** within one `stream_id`, `fence_epoch` must not go backwards when ordered by `sequence_number`, counting **only committed + approval** records. A `rejected`/`failed` (non-approval) record with a lower `fence_epoch` than the prior hard fence → soft `rejected_stale_fence`.
    - **4b (binding):** a committed effect's `fence_epoch` must not be lower than its approval issuance's `fence_epoch` → hard `effect_fence_before_approval`.
-5. **Unauthorized / revoked / reuse / duplicate commit** —
-   - no resolvable prior **issuance** grant (`record_kind=effect` never counts) → `unauthorized_effect`;
-   - **latest prior issuance decision wins** for the same `approval_id` (not earliest; effect-kind records excluded): if the latest decision before the effect is `deny`, a subsequent commit → `revoked_approval_used`;
-   - same `approval_id` used by multiple different `effect_id`s among committed records → `approval_reused_across_effects` (committed approval fields are the use claim);
+5. **Unauthorized / revoked / deny / bind / reuse / duplicate commit** —
+   - no resolvable prior independent grant (strict, or loose without claim) → `unauthorized_effect`;
+   - **latest prior independent decision wins** for the same `approval_id`: latest `deny` then commit → `revoked_approval_used` (a commit cannot “reclaim” a revoked id by self-declaring grant);
+   - effect-level latest independent decision is `deny` (possibly a different `approval_id`) while commit claims another id → `committed_after_deny` (fresh grant after deny is allowed — see `cross-pass-10-deny-then-fresh-grant`);
+   - independent grant's `effect_id` ≠ committed `effect_id` → `approval_effect_mismatch`;
+   - same `approval_id` on multiple committed `effect_id`s → `approval_reused_across_effects`;
    - more than one `outcome=committed` for the same `effect_id` → `duplicate_commit`.
+6. **Unknown is first-class** — `outcome=unknown` with `record_kind` absent or `"effect"` is listed in `unknowns`. `record_kind=approval` issuances are **not** listed. Unknown is not treated as committed or failed. (Legacy unknown issuances remain listed — not changed in this profile.)
+7. **Sequence integrity** — duplicate `sequence_number` → hard `duplicate_sequence`; adjacent gaps → soft `sequence_gap` (does **not** flip `ok`). Adjacent-difference only (no min→max walk).
 
-6. **Unknown is first-class** — `outcome=unknown` with `record_kind` absent or `"effect"` is listed in a separate `unknowns` report. Records with `record_kind=approval` are **not** listed there (they are issuance, not stranded effects). Unknown is **not** treated as committed (does not require approval) and **not** treated as failed.
-7. **Sequence integrity** — within one `stream_id`, a duplicate `sequence_number` is a hard violation (`duplicate_sequence`). Gaps are detected by **adjacent differences** only (sort unique sequence numbers; report when `next - prev > 1`). The verifier does **not** walk every integer from the observed min to max (large jumps would hang or exhaust memory). Each gap is a soft `sequence_gap` report (does **not** flip `ok` to false). When the gap span is small, `missing` may list the absent numbers; for huge spans only `from`/`to` are reliable.
+### Ordering (`order_ts`)
 
-### Ordering limitation (cross-stream)
+Within one `stream_id`, records are ordered by `sequence_number`. Each stream assigns a monotonic-max **`order_ts`**: walking by sequence, `order_ts = max(prior_order_ts, ts_unix_nano)`. A raw `ts_unix_nano` regression within the stream → soft `stream_ts_regression` (does **not** flip `ok`). Global prior/later uses `(order_ts, stream_id, sequence_number, JCS)`. Cross-stream grant+deny at the **same** `order_ts` → soft `ambiguous_decision_order` and **fail-closed** as deny. `ts_unix_nano` remains a reference clock only — not causal order across producers.
 
-Within one `stream_id`, prior/later decisions use `sequence_number`. Across different streams, the offline verifier falls back to comparing `ts_unix_nano`. That is a **reference clock only**: the field table already says `ts` / wall-clock hints are **not** causal order. Cross-stream “prior” checks based on timestamps therefore carry the same limitation — they are a practical tie-break for offline fixtures, not a happened-before proof across producers.
+### Single-record type / kind checks (profile)
+
+Optional fields when present: `approval_runtime_generation` and MUST numbers must be finite non-negative **integers**; `approval_id` must be a string. `record_kind` must be `"effect"`|`"approval"`; `record_kind=approval` requires non-empty `approval_id` and must not use `outcome=committed` → else `bad_record_kind`.
 
 ### Boundary (what this does *not* prove)
 
 - The verifier only proves that the **records are mutually consistent** with these rules.
 - It does **not** prove that any external side effect really happened (FS write, API call, ticket, …).
 - It does **not** verify signatures, hash chains, checkpoints, or key rotation — those belong to the signingprocessor / OTEP custody layer. Integrity keys remain excluded from the single-record hashed form; this cross-record pass does not add them.
-- Cross-stream ordering via `ts_unix_nano` does **not** prove causal order (see Ordering limitation above).
+- Cross-stream ordering via `order_ts` / `ts_unix_nano` does **not** prove causal order.
 
 ### Placement note
 

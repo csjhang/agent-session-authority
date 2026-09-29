@@ -1,0 +1,71 @@
+{
+  "id": "cross-reject-17-cross-stream-tie-grant-deny",
+  "expect": "reject",
+  "kind": "cross_record",
+  "rules": [
+    5
+  ],
+  "description": "Grant and deny at same order_ts across streams \u2192 fail-closed ambiguous_decision_order + revoked_approval_used",
+  "records": [
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "e1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 1,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "outcome": "unknown",
+      "stream_id": "approvals/s1",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000100",
+      "record_kind": "approval",
+      "approval_decision": "grant",
+      "approval_id": "a1",
+      "approval_runtime_generation": 1
+    },
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "e1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 1,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "outcome": "unknown",
+      "stream_id": "approvals/s2",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000100",
+      "record_kind": "approval",
+      "approval_decision": "deny",
+      "approval_id": "a1",
+      "approval_runtime_generation": 1
+    },
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "e1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 1,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "outcome": "committed",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000200",
+      "record_kind": "effect",
+      "approval_decision": "grant",
+      "approval_id": "a1",
+      "approval_runtime_generation": 1,
+      "external_reference": "file:///tmp/w.txt"
+    }
+  ],
+  "expected": {
+    "ok": false,
+    "violation_codes": [
+      "revoked_approval_used"
+    ],
+    "report_codes": [
+      "ambiguous_decision_order"
+    ],
+    "gap_streams": [],
+    "unknown_effect_ids": []
+  }
+}

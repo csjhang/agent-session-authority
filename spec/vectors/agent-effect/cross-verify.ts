@@ -6,8 +6,11 @@
  *
  * Approvals are indexed by approval_id (not effect_id). Self-declared approval
  * fields on a committed record are a claim, not independent issuance evidence.
+ * Independent issuance = record_kind=approval, or legacy (absent record_kind)
+ * non-committed decision+id. outcome=committed never counts as a decision candidate.
  */
 import { verifyAgentEffectRecord } from "./profile.js";
+import { canonicalize } from "./jcs.js";
 
 export type CrossViolationCode =
   | "unauthorized_effect"
@@ -20,12 +23,16 @@ export type CrossViolationCode =
   | "duplicate_commit"
   | "revoked_approval_used"
   | "approval_reused_across_effects"
+  | "committed_after_deny"
+  | "approval_effect_mismatch"
   | "invalid_record";
 
 export type CrossReportCode =
   | "approval_generation_unverifiable"
   | "rejected_digest_variant"
-  | "rejected_stale_fence";
+  | "rejected_stale_fence"
+  | "stream_ts_regression"
+  | "ambiguous_decision_order";
 
 export interface CrossViolation {
   code: CrossViolationCode;
@@ -69,6 +76,11 @@ export interface CrossVerifyResult {
   reports: CrossSoftReport[];
 }
 
+export interface CrossVerifyOptions {
+  /** When true, committed effects require independent issuance (no claim-only). */
+  requireIssuance?: boolean;
+}
+
 export interface AgentEffectFields {
   effect_id: string;
   action_digest: string;
@@ -89,6 +101,11 @@ export interface AgentEffectFields {
 interface IndexedRecord {
   index: number;
   fields: AgentEffectFields;
+  /** Monotonic-max logical clock within stream (BigInt decimal string). */
+  order_ts: bigint;
+  /** JCS of raw record for deterministic global tie-break. */
+  jcs: string;
+  raw: Record<string, unknown>;
 }
 
 function asFields(raw: Record<string, unknown>): AgentEffectFields {
@@ -121,34 +138,34 @@ function hasApprovalId(f: AgentEffectFields): boolean {
 }
 
 /**
- * Grant issuance decision. record_kind="effect" never counts — committed/rejected
- * effect receipts may echo approval fields as a claim of use, not issuance.
+ * Independent issuance only: approval records, or legacy non-committed decision+id.
+ * outcome=committed and record_kind=effect never count as decision/issuance.
  */
+function isIndependentDecision(f: AgentEffectFields): boolean {
+  if (f.outcome === "committed") return false;
+  if (f.record_kind === "effect") return false;
+  if (!(f.approval_decision === "grant" || f.approval_decision === "deny")) return false;
+  if (!hasApprovalId(f)) return false;
+  if (f.record_kind === "approval") return true;
+  // legacy (absent record_kind): non-committed decision+id
+  return f.record_kind === undefined;
+}
+
 function isGrant(f: AgentEffectFields): boolean {
-  if (f.record_kind === "effect") return false;
-  return f.approval_decision === "grant" && hasApprovalId(f);
+  return isIndependentDecision(f) && f.approval_decision === "grant";
 }
 
-/** Deny issuance decision. record_kind="effect" never counts (see isGrant). */
 function isDeny(f: AgentEffectFields): boolean {
-  if (f.record_kind === "effect") return false;
-  return f.approval_decision === "deny" && hasApprovalId(f);
-}
-
-function isDecision(f: AgentEffectFields): boolean {
-  return isGrant(f) || isDeny(f);
+  return isIndependentDecision(f) && f.approval_decision === "deny";
 }
 
 /**
  * Explicit approval records, or legacy issuance (decision + non-committed, no record_kind).
- * record_kind="effect" MUST NOT be treated as approval even if approval fields are present
- * (e.g. a rejected accept that echoed approval_id). Legacy only when record_kind absent.
  */
 function isApprovalRecord(f: AgentEffectFields): boolean {
   if (f.record_kind === "approval") return true;
   if (f.record_kind === "effect") return false;
-  // absent record_kind: treat non-committed decisions as approval issuance (legacy vectors)
-  return isDecision(f) && f.outcome !== "committed";
+  return isIndependentDecision(f);
 }
 
 /** Unknowns report lists only effect-kind records (default when record_kind absent). */
@@ -156,92 +173,66 @@ function isEffectKindForUnknowns(f: AgentEffectFields): boolean {
   return f.record_kind !== "approval";
 }
 
-/**
- * True when approval/decision A is at-or-before committed effect C (same record counts).
- * Same-stream order uses sequence_number. Cross-stream order falls back to ts_unix_nano
- * as a *reference* clock only — the profile treats ts as non-causal; do not treat this
- * ordering as proof of happened-before across streams.
- */
-function isPriorOrSame(a: IndexedRecord, c: IndexedRecord): boolean {
-  if (a.index === c.index) return true;
-  if (a.fields.stream_id === c.fields.stream_id) {
-    return a.fields.sequence_number <= c.fields.sequence_number;
-  }
+function parseTs(ts: string): bigint {
   try {
-    return BigInt(a.fields.ts_unix_nano) <= BigInt(c.fields.ts_unix_nano);
+    return BigInt(ts);
   } catch {
-    return a.fields.ts_unix_nano <= c.fields.ts_unix_nano;
+    return 0n;
   }
 }
 
-/** Sort key: later records come first when sorting descending. */
-function compareAscending(a: IndexedRecord, b: IndexedRecord): number {
-  if (a.fields.stream_id === b.fields.stream_id) {
-    if (a.fields.sequence_number !== b.fields.sequence_number) {
-      return a.fields.sequence_number - b.fields.sequence_number;
-    }
-    return a.index - b.index;
+/** Global ascending: order_ts, stream_id, sequence_number, JCS. */
+function compareGlobal(a: IndexedRecord, b: IndexedRecord): number {
+  if (a.order_ts < b.order_ts) return -1;
+  if (a.order_ts > b.order_ts) return 1;
+  if (a.fields.stream_id < b.fields.stream_id) return -1;
+  if (a.fields.stream_id > b.fields.stream_id) return 1;
+  if (a.fields.sequence_number !== b.fields.sequence_number) {
+    return a.fields.sequence_number - b.fields.sequence_number;
   }
-  try {
-    const d = BigInt(a.fields.ts_unix_nano) - BigInt(b.fields.ts_unix_nano);
-    if (d < 0n) return -1;
-    if (d > 0n) return 1;
-  } catch {
-    if (a.fields.ts_unix_nano < b.fields.ts_unix_nano) return -1;
-    if (a.fields.ts_unix_nano > b.fields.ts_unix_nano) return 1;
-  }
+  if (a.jcs < b.jcs) return -1;
+  if (a.jcs > b.jcs) return 1;
   return a.index - b.index;
 }
 
-/** Latest prior decision wins (not earliest). */
-function pickLatest(recs: IndexedRecord[]): IndexedRecord | undefined {
-  if (recs.length === 0) return undefined;
-  const sorted = [...recs].sort(compareAscending);
-  return sorted[sorted.length - 1];
+function isPriorOrSame(a: IndexedRecord, c: IndexedRecord): boolean {
+  if (a.index === c.index) return true;
+  return compareGlobal(a, c) <= 0;
 }
 
 /**
- * Issuance generation for approval_id as bound to committed c.
- * Prefer explicit approval_runtime_generation; else a separate issuance grant record.
- * Same-record self-declaration alone is not independent evidence → undefined.
+ * Latest prior decision. Fail-closed on grant+deny at the same global order key:
+ * returns the deny and sets ambiguous=true.
  */
-function resolveIssuanceGeneration(
-  approvalId: string,
-  committed: IndexedRecord,
-  indexed: IndexedRecord[],
-): { generation: number; evidence: IndexedRecord } | undefined {
-  if (typeof committed.fields.approval_runtime_generation === "number") {
-    return {
-      generation: committed.fields.approval_runtime_generation,
-      evidence: committed,
-    };
+function pickLatest(
+  recs: IndexedRecord[],
+): { latest: IndexedRecord | undefined; ambiguous: boolean } {
+  if (recs.length === 0) return { latest: undefined, ambiguous: false };
+  const sorted = [...recs].sort(compareGlobal);
+  const last = sorted[sorted.length - 1]!;
+  const maxTs = last.order_ts;
+  const atMax = sorted.filter((r) => r.order_ts === maxTs);
+  // Same-stream ties are broken by sequence_number (already in compareGlobal).
+  // Cross-stream grant+deny at the same order_ts → fail-closed ambiguous.
+  const streams = new Set(atMax.map((r) => r.fields.stream_id));
+  if (streams.size > 1) {
+    const hasGrant = atMax.some((r) => isGrant(r.fields));
+    const hasDeny = atMax.some((r) => isDeny(r.fields));
+    if (hasGrant && hasDeny) {
+      const deny = atMax.filter((r) => isDeny(r.fields)).sort(compareGlobal).pop()!;
+      return { latest: deny, ambiguous: true };
+    }
   }
+  return { latest: last, ambiguous: false };
+}
 
-  // Issuance evidence: grant records that are not themselves committed uses.
-  // Another effect's committed self-declaration is a claim of use, not issuance.
-  const separateIssuances = indexed.filter(
-    (r) =>
-      r.index !== committed.index &&
-      isGrant(r.fields) &&
-      r.fields.outcome !== "committed" &&
-      r.fields.approval_id === approvalId &&
-      isPriorOrSame(r, committed),
-  );
-  const issuance = pickLatest(separateIssuances);
-  if (!issuance) return undefined;
-
-  const gen =
-    typeof issuance.fields.approval_runtime_generation === "number"
-      ? issuance.fields.approval_runtime_generation
-      : issuance.fields.runtime_generation;
-  return { generation: gen, evidence: issuance };
+function claimsGrantUse(f: AgentEffectFields, approvalId: string): boolean {
+  return f.approval_decision === "grant" && f.approval_id === approvalId;
 }
 
 /**
  * Resolve which approval_id a committed effect claims.
- * Prefer the record's own approval_id; if absent, fall back to the latest prior
- * grant/deny decision on the same effect_id (covers commit-after-revoke with
- * stripped approval fields). Does not invent approvals from unrelated effects.
+ * Prefer the record's own approval_id; else latest prior independent decision on same effect_id.
  */
 function resolveApprovalId(
   committed: IndexedRecord,
@@ -254,17 +245,27 @@ function resolveApprovalId(
     (r) =>
       r.index !== committed.index &&
       r.fields.effect_id === committed.fields.effect_id &&
-      isDecision(r.fields) &&
+      isIndependentDecision(r.fields) &&
       isPriorOrSame(r, committed),
   );
-  const latest = pickLatest(priorOnEffect);
+  const { latest } = pickLatest(priorOnEffect);
   return latest?.fields.approval_id;
+}
+
+function issuanceGeneration(issuance: IndexedRecord): number {
+  return typeof issuance.fields.approval_runtime_generation === "number"
+    ? issuance.fields.approval_runtime_generation
+    : issuance.fields.runtime_generation;
 }
 
 /**
  * Verify a set of AgentEffectRecord objects (JSONL lines parsed to objects).
  */
-export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
+export function verifyCrossRecords(
+  rawRecords: unknown[],
+  options: CrossVerifyOptions = {},
+): CrossVerifyResult {
+  const requireIssuance = options.requireIssuance === true;
   const violations: CrossViolation[] = [];
   const gaps: CrossGapReport[] = [];
   const unknowns: CrossUnknownReport[] = [];
@@ -282,11 +283,22 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
       });
       continue;
     }
-    const fields = asFields(raw as Record<string, unknown>);
-    indexed.push({ index: i, fields });
+    const obj = raw as Record<string, unknown>;
+    const fields = asFields(obj);
+    let jcs: string;
+    try {
+      jcs = canonicalize(obj);
+    } catch {
+      jcs = JSON.stringify(obj);
+    }
+    indexed.push({
+      index: i,
+      fields,
+      order_ts: 0n, // filled below
+      jcs,
+      raw: obj,
+    });
 
-    // Rule 6: list unknowns separately; never treat as committed or failed.
-    // Only record_kind=effect (default) — approval issuances are not listed.
     if (fields.outcome === "unknown" && isEffectKindForUnknowns(fields)) {
       unknowns.push({
         effect_id: fields.effect_id,
@@ -301,6 +313,40 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
     return { ok: false, violations, gaps, unknowns, reports };
   }
 
+  // Assign order_ts: per-stream monotonic max of ts_unix_nano by sequence_number.
+  const byStreamAssign = new Map<string, IndexedRecord[]>();
+  for (const rec of indexed) {
+    const list = byStreamAssign.get(rec.fields.stream_id) ?? [];
+    list.push(rec);
+    byStreamAssign.set(rec.fields.stream_id, list);
+  }
+  for (const [streamId, group] of byStreamAssign) {
+    const ordered = [...group].sort((a, b) => {
+      if (a.fields.sequence_number !== b.fields.sequence_number) {
+        return a.fields.sequence_number - b.fields.sequence_number;
+      }
+      return a.index - b.index;
+    });
+    let maxTs = 0n;
+    let haveMax = false;
+    for (const rec of ordered) {
+      const rawTs = parseTs(rec.fields.ts_unix_nano);
+      if (haveMax && rawTs < maxTs) {
+        reports.push({
+          code: "stream_ts_regression",
+          message: `stream_id=${streamId}: ts_unix_nano regresses at sequence_number=${rec.fields.sequence_number}`,
+          effect_id: rec.fields.effect_id,
+          indices: [rec.index],
+        });
+      }
+      // monotonic max
+      const order = haveMax ? (rawTs > maxTs ? rawTs : maxTs) : rawTs;
+      rec.order_ts = order;
+      maxTs = order;
+      haveMax = true;
+    }
+  }
+
   // Group by effect_id for digest consistency + duplicate commits.
   const byEffect = new Map<string, IndexedRecord[]>();
   for (const rec of indexed) {
@@ -310,7 +356,6 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
   }
 
   for (const [effectId, group] of byEffect) {
-    // Rule 2: digest consistency only among committed effects + approval records.
     const hard = group.filter(
       (r) => r.fields.outcome === "committed" || isApprovalRecord(r.fields),
     );
@@ -324,7 +369,6 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
       });
     }
 
-    // rejected/failed with a digest that diverges from the hard set → soft report only.
     const soft = group.filter(
       (r) => r.fields.outcome === "rejected" || r.fields.outcome === "failed",
     );
@@ -352,7 +396,7 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
     }
   }
 
-  // approval_reused_across_effects: same approval_id on committed records of different effect_ids.
+  // approval_reused_across_effects
   const committedByApproval = new Map<string, IndexedRecord[]>();
   for (const rec of indexed) {
     if (rec.fields.outcome !== "committed" || !hasApprovalId(rec.fields)) continue;
@@ -373,7 +417,6 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
     }
   }
 
-  // Per committed: resolve approval_id → latest prior decision; generation via issuance evidence.
   const committedAll = indexed.filter((r) => r.fields.outcome === "committed");
   for (const c of committedAll) {
     const approvalId = resolveApprovalId(c, indexed);
@@ -387,29 +430,93 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
       continue;
     }
 
-    // isDecision excludes record_kind="effect" — committed receipt approval
-    // fields are a claim of which approval_id was used, not issuance evidence.
     const decisions = indexed.filter(
       (r) =>
-        isDecision(r.fields) &&
+        isIndependentDecision(r.fields) &&
         r.fields.approval_id === approvalId &&
         isPriorOrSame(r, c),
     );
-    const latest = pickLatest(decisions);
+    const { latest, ambiguous } = pickLatest(decisions);
+    if (ambiguous) {
+      reports.push({
+        code: "ambiguous_decision_order",
+        message: `approval_id=${approvalId}: grant and deny tied at same order_ts (fail-closed as deny)`,
+        effect_id: c.fields.effect_id,
+        approval_id: approvalId,
+        indices: decisions.map((d) => d.index),
+      });
+    }
+
+    const effectDecisions = indexed.filter(
+      (r) =>
+        isIndependentDecision(r.fields) &&
+        r.fields.effect_id === c.fields.effect_id &&
+        isPriorOrSame(r, c),
+    );
+    const { latest: latestEffect } = pickLatest(effectDecisions);
+
+    if (latest && isDeny(latest.fields)) {
+      violations.push({
+        code: "revoked_approval_used",
+        message: `committed effect_id=${c.fields.effect_id} uses approval_id=${approvalId} after latest prior decision=deny`,
+        effect_id: c.fields.effect_id,
+        approval_id: approvalId,
+        indices: [latest.index, c.index],
+      });
+      continue;
+    }
 
     if (!latest || !isGrant(latest.fields)) {
-      if (latest && isDeny(latest.fields)) {
+      // No independent grant for this approval_id.
+      if (requireIssuance) {
         violations.push({
-          code: "revoked_approval_used",
-          message: `committed effect_id=${c.fields.effect_id} uses approval_id=${approvalId} after latest prior decision=deny`,
+          code: "unauthorized_effect",
+          message: `committed effect_id=${c.fields.effect_id} requires independent issuance for approval_id=${approvalId} (requireIssuance)`,
           effect_id: c.fields.effect_id,
           approval_id: approvalId,
-          indices: [latest.index, c.index],
+          indices: [c.index],
         });
-      } else {
+        continue;
+      }
+
+      // Loose claim-only: allow when commit claims this approval_id (or resolved from prior).
+      if (latestEffect && isDeny(latestEffect.fields)) {
+        violations.push({
+          code: "committed_after_deny",
+          message: `committed effect_id=${c.fields.effect_id} after effect-level deny (approval_id=${approvalId} never independently granted)`,
+          effect_id: c.fields.effect_id,
+          approval_id: approvalId,
+          indices: [latestEffect.index, c.index],
+        });
+      } else if (!hasApprovalId(c.fields) && !claimsGrantUse(c.fields, approvalId)) {
+        // Resolved id from prior decisions but those weren't grants (shouldn't reach here often)
         violations.push({
           code: "unauthorized_effect",
           message: `committed effect_id=${c.fields.effect_id} has no prior grant for approval_id=${approvalId}`,
+          effect_id: c.fields.effect_id,
+          approval_id: approvalId,
+          indices: [c.index],
+        });
+        continue;
+      }
+
+      // Soft: generation unverifiable without independent issuance.
+      reports.push({
+        code: "approval_generation_unverifiable",
+        message: `committed effect_id=${c.fields.effect_id} approval_id=${approvalId}: no independent issuance record to establish approval generation`,
+        effect_id: c.fields.effect_id,
+        approval_id: approvalId,
+        indices: [c.index],
+      });
+
+      // Self-admitted generation mismatch → hard cross_generation_reuse.
+      if (
+        typeof c.fields.approval_runtime_generation === "number" &&
+        c.fields.approval_runtime_generation !== c.fields.runtime_generation
+      ) {
+        violations.push({
+          code: "cross_generation_reuse",
+          message: `self-declared approval_runtime_generation=${c.fields.approval_runtime_generation} != effect runtime_generation=${c.fields.runtime_generation} for effect_id=${c.fields.effect_id} approval_id=${approvalId}`,
           effect_id: c.fields.effect_id,
           approval_id: approvalId,
           indices: [c.index],
@@ -418,16 +525,33 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
       continue;
     }
 
-    // Binding grant for digest / fence: prefer separate non-committed issuance; else same-record claim.
-    const separateGrants = decisions.filter(
-      (r) =>
-        isGrant(r.fields) &&
-        r.index !== c.index &&
-        r.fields.outcome !== "committed",
-    );
-    const bindingGrant = pickLatest(separateGrants) ?? latest;
+    // Independent grant is latest for approval_id.
+    // Effect-level deny (any approval_id) after/at latest effect decision → committed_after_deny.
+    if (latestEffect && isDeny(latestEffect.fields)) {
+      violations.push({
+        code: "committed_after_deny",
+        message: `committed effect_id=${c.fields.effect_id} after later effect-level deny (claimed approval_id=${approvalId})`,
+        effect_id: c.fields.effect_id,
+        approval_id: approvalId,
+        indices: [latestEffect.index, c.index],
+      });
+      continue;
+    }
 
-    // Rule 2 (approval-bound): approval digest must equal effect digest.
+    // Binding grant for digest / fence / generation / effect match.
+    const bindingGrant = latest;
+
+    if (bindingGrant.fields.effect_id !== c.fields.effect_id) {
+      violations.push({
+        code: "approval_effect_mismatch",
+        message: `approval_id=${approvalId} issued for effect_id=${bindingGrant.fields.effect_id} but used by committed effect_id=${c.fields.effect_id}`,
+        effect_id: c.fields.effect_id,
+        approval_id: approvalId,
+        indices: [bindingGrant.index, c.index],
+      });
+      continue;
+    }
+
     if (bindingGrant.fields.action_digest !== c.fields.action_digest) {
       violations.push({
         code: "approval_digest_mismatch",
@@ -438,7 +562,6 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
       });
     }
 
-    // Rule 4b: effect fence_epoch must not be lower than approval fence_epoch.
     if (c.fields.fence_epoch < bindingGrant.fields.fence_epoch) {
       violations.push({
         code: "effect_fence_before_approval",
@@ -449,23 +572,15 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
       });
     }
 
-    // Rule 3: generation binding via approval_runtime_generation or separate issuance.
-    const issuance = resolveIssuanceGeneration(approvalId, c, indexed);
-    if (!issuance) {
-      reports.push({
-        code: "approval_generation_unverifiable",
-        message: `committed effect_id=${c.fields.effect_id} approval_id=${approvalId}: no approval_runtime_generation and no separate issuance record to establish approval generation`,
-        effect_id: c.fields.effect_id,
-        approval_id: approvalId,
-        indices: [c.index],
-      });
-    } else if (issuance.generation !== c.fields.runtime_generation) {
+    // Generation binding: independent issuance ONLY (never committed self-declare).
+    const gen = issuanceGeneration(bindingGrant);
+    if (gen !== c.fields.runtime_generation) {
       violations.push({
         code: "cross_generation_reuse",
-        message: `approval runtime_generation=${issuance.generation} != effect runtime_generation=${c.fields.runtime_generation} for effect_id=${c.fields.effect_id} approval_id=${approvalId}`,
+        message: `approval runtime_generation=${gen} != effect runtime_generation=${c.fields.runtime_generation} for effect_id=${c.fields.effect_id} approval_id=${approvalId}`,
         effect_id: c.fields.effect_id,
         approval_id: approvalId,
-        indices: [issuance.evidence.index, c.index],
+        indices: [bindingGrant.index, c.index],
       });
     }
   }
@@ -486,7 +601,6 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
       return a.index - b.index;
     });
 
-    // Rule 7: duplicates (hard violation) and gaps (soft report).
     const seqCounts = new Map<number, number[]>();
     for (const rec of ordered) {
       const idxs = seqCounts.get(rec.fields.sequence_number) ?? [];
@@ -504,8 +618,6 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
       }
     }
 
-    // Adjacent differences only — never walk every integer from min..max
-    // (a jump like 1 → 1e12 would hang or OOM).
     const seqs = [...seqCounts.keys()].sort((a, b) => a - b);
     const MAX_ENUMERATED_MISSING = 4096;
     for (let i = 1; i < seqs.length; i++) {
@@ -526,9 +638,6 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
       });
     }
 
-    // Rule 4a: fence_epoch non-decreasing among committed + approval records only
-    // (by sequence_number). rejected/failed non-approval with a lower fence_epoch
-    // → soft report rejected_stale_fence (does not flip ok).
     let lastEpoch: number | undefined;
     let lastIdx: number | undefined;
     let lastSeq: number | undefined;
