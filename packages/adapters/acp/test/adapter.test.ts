@@ -699,4 +699,39 @@ describe("@asa/adapter-acp fixture", () => {
     }
   });
 
+
+  it("restart fixture with observed_at_ms ~10s past: history ts_unix_nano non-decreasing with seq", () => {
+    const peer = new MockAcpPeer({ sessionId: "s-restart-ts" });
+    const raw = peer.run_restart_fixture_scenario();
+    const shift_ms = 10_000;
+    const conversion_approx = Date.now();
+    const shifted = raw.map((e) => ({
+      ...e,
+      observed_at_ms:
+        (typeof e.observed_at_ms === "number" ? e.observed_at_ms : conversion_approx) - shift_ms,
+    }));
+    // Sanity: all peer stamps sit ~10s before conversion time
+    for (const e of shifted) {
+      expect(e.observed_at_ms!).toBeLessThan(conversion_approx - 5_000);
+    }
+    const history = acp_events_to_history(shifted);
+    expect(history.length).toBeGreaterThan(3);
+    for (let i = 1; i < history.length; i++) {
+      const prev = history[i - 1]!;
+      const cur = history[i]!;
+      expect(prev.ts_unix_nano, `seq ${prev.seq} missing ts_unix_nano`).toBeTruthy();
+      expect(cur.ts_unix_nano, `seq ${cur.seq} missing ts_unix_nano`).toBeTruthy();
+      expect(
+        BigInt(cur.ts_unix_nano!),
+        `ts_unix_nano not non-decreasing at seq ${prev.seq}→${cur.seq}: ${prev.ts_unix_nano} > ${cur.ts_unix_nano}`,
+      ).toBeGreaterThanOrEqual(BigInt(prev.ts_unix_nano!));
+    }
+    // Header observe/attach must mark ts as derived (synthetic, not a peer observation)
+    const header_observe = history.find((e) => e.op === "generation.observe");
+    const header_attach = history.find((e) => e.op === "session.attach");
+    expect(header_observe?.attrs?.field_provenance).toMatchObject({ ts: "derived" });
+    expect(header_attach?.attrs?.field_provenance).toMatchObject({ ts: "derived" });
+  });
+
+
 });
