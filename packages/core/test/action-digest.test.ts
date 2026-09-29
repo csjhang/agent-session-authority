@@ -63,4 +63,26 @@ describe("action_digest goldens", () => {
       }),
     ).toThrow();
   });
+
+  it("args containing a lone surrogate throws", () => {
+    expect(() =>
+      action_digest({
+        action_type: "tool.Write",
+        target: "/ws/a.txt",
+        args: { x: "\uD800" },
+        policy_version: "acp-permission-ext",
+      }),
+    ).toThrow();
+  });
+
+  it("args containing U+FFFD is ok and matches the PR-5 digest", () => {
+    expect(
+      action_digest({
+        action_type: "tool.Write",
+        target: "/ws/a.txt",
+        args: { x: "\uFFFD" },
+        policy_version: "acp-permission-ext",
+      }),
+    ).toBe("sha256:aa7fdf6ebbfd5be52adab6378f5cf63b5bb861d07805927d3dfb963ec1cfec58");
+  });
 });

@@ -60,7 +60,6 @@
     "violation_codes": [],
     "gap_streams": [],
     "unknown_effect_ids": [
-      "eff-a",
       "eff-b"
     ]
   }

@@ -63,8 +63,6 @@
       "revoked_approval_used"
     ],
     "gap_streams": [],
-    "unknown_effect_ids": [
-      "eff-1"
-    ]
+    "unknown_effect_ids": []
   }
 }
