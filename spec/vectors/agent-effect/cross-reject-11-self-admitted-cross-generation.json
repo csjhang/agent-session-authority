@@ -1,0 +1,38 @@
+{
+  "id": "cross-reject-11-self-admitted-cross-generation",
+  "expect": "reject",
+  "kind": "cross_record",
+  "rules": [
+    3
+  ],
+  "description": "Only legacy committed rg=2 grant a1 approval_runtime_generation=1 (self-admitted mismatch) \u2192 cross_generation_reuse + soft approval_generation_unverifiable",
+  "records": [
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "e1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 2,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "outcome": "committed",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000000",
+      "approval_decision": "grant",
+      "approval_id": "a1",
+      "approval_runtime_generation": 1,
+      "external_reference": "file:///tmp/w.txt"
+    }
+  ],
+  "expected": {
+    "ok": false,
+    "violation_codes": [
+      "cross_generation_reuse"
+    ],
+    "report_codes": [
+      "approval_generation_unverifiable"
+    ],
+    "gap_streams": [],
+    "unknown_effect_ids": []
+  }
+}

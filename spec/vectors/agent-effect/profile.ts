@@ -4,6 +4,7 @@ export const SCHEMA_VERSION = "asa.agent-effect/0.1";
 
 export const OUTCOMES = new Set(["committed", "rejected", "failed", "unknown"]);
 export const APPROVAL_DECISIONS = new Set(["grant", "deny", "none"]);
+export const RECORD_KINDS = new Set(["effect", "approval"]);
 
 /** Top-level keys excluded from the hashed form (OTEP case C lesson). */
 export const INTEGRITY_EXCLUSION = new Set([
@@ -27,6 +28,7 @@ export type RejectCode =
   | "bad_type"
   | "bad_outcome"
   | "bad_approval_decision"
+  | "bad_record_kind"
   | "numeric_ts_unix_nano"
   | "bad_ts_unix_nano"
   | "integrity_in_hashed_form";
@@ -64,6 +66,10 @@ export function stripIntegrity(record: Record<string, unknown>): Record<string, 
     out[k] = v;
   }
   return out;
+}
+
+function isNonNegativeSafeInteger(n: unknown): n is number {
+  return typeof n === "number" && Number.isSafeInteger(n) && n >= 0;
 }
 
 export function verifyAgentEffectRecord(
@@ -104,11 +110,12 @@ export function verifyAgentEffectRecord(
     if (!(key in record) || record[key] === undefined || record[key] === null) {
       return { ok: false, code: "missing_required", message: `missing required field ${key}` };
     }
-    if (typeof record[key] !== "number" || !Number.isFinite(record[key] as number)) {
-      return { ok: false, code: "bad_type", message: `${key} must be a finite number` };
-    }
-    if ((record[key] as number) < 0) {
-      return { ok: false, code: "bad_type", message: `${key} must be >= 0` };
+    if (!isNonNegativeSafeInteger(record[key])) {
+      return {
+        ok: false,
+        code: "bad_type",
+        message: `${key} must be a non-negative safe integer`,
+      };
     }
   }
 
@@ -141,6 +148,61 @@ export function verifyAgentEffectRecord(
         code: "bad_approval_decision",
         message: 'approval_decision must be "grant"|"deny"|"none"',
       };
+    }
+  }
+
+  if ("approval_id" in record) {
+    if (typeof record.approval_id !== "string" || record.approval_id.length === 0) {
+      return {
+        ok: false,
+        code: "bad_type",
+        message: "approval_id must be a non-empty string when present",
+      };
+    }
+  }
+
+  if ("approval_runtime_generation" in record) {
+    if (!isNonNegativeSafeInteger(record.approval_runtime_generation)) {
+      return {
+        ok: false,
+        code: "bad_type",
+        message: "approval_runtime_generation must be a non-negative safe integer when present",
+      };
+    }
+  }
+
+  if ("record_kind" in record) {
+    if (typeof record.record_kind !== "string" || !RECORD_KINDS.has(record.record_kind as string)) {
+      return {
+        ok: false,
+        code: "bad_record_kind",
+        message: 'record_kind must be "effect"|"approval" when present',
+      };
+    }
+    if (record.record_kind === "approval") {
+      if (record.outcome === "committed") {
+        return {
+          ok: false,
+          code: "bad_record_kind",
+          message: 'record_kind="approval" must not have outcome="committed"',
+        };
+      }
+      const hasId =
+        typeof record.approval_id === "string" && (record.approval_id as string).length > 0;
+      if (!hasId) {
+        return {
+          ok: false,
+          code: "bad_record_kind",
+          message: 'record_kind="approval" requires non-empty approval_id',
+        };
+      }
+      if (record.approval_decision !== "grant" && record.approval_decision !== "deny") {
+        return {
+          ok: false,
+          code: "bad_record_kind",
+          message: 'record_kind="approval" requires approval_decision "grant"|"deny"',
+        };
+      }
     }
   }
 

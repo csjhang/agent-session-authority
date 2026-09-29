@@ -756,6 +756,190 @@ describe("PR-2: export asa.agent-effect/0.1", () => {
   });
 });
 
+describe("PR-4: effect_denied + per-stream sequence", () => {
+  it("grant then deny on same effect → accept with prior grant is effect_denied", async () => {
+    const sink = new MockEffectSink({
+      enforce: true,
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      holders: { s: "c1" },
+    });
+    expect(
+      sink.grant({
+        effectId: "e1",
+        actionDigest: "d1",
+        approvalId: "a1",
+        decision: "grant",
+      }).accepted,
+    ).toBe(true);
+    expect(
+      sink.grant({
+        effectId: "e1",
+        actionDigest: "d1",
+        approvalId: "a2",
+        decision: "deny",
+      }).accepted,
+    ).toBe(true);
+    const r = await sink.accept({
+      effectId: "e1",
+      actionDigest: "d1",
+      controller: "c1",
+      scopeId: "s",
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      approval: { approval_id: "a1" },
+    });
+    expect(r.accepted).toBe(false);
+    expect(r.reason).toBe("effect_denied");
+  });
+
+  it("deny then fresh grant → accept with fresh grant succeeds", async () => {
+    const sink = new MockEffectSink({
+      enforce: true,
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      holders: { s: "c1" },
+    });
+    sink.grant({
+      effectId: "e1",
+      actionDigest: "d1",
+      approvalId: "a1",
+      decision: "deny",
+    });
+    sink.grant({
+      effectId: "e1",
+      actionDigest: "d1",
+      approvalId: "a2",
+      decision: "grant",
+    });
+    const r = await sink.accept({
+      effectId: "e1",
+      actionDigest: "d1",
+      controller: "c1",
+      scopeId: "s",
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      approval: { approval_id: "a2" },
+    });
+    expect(r.accepted).toBe(true);
+    expect(r.receipt?.outcome).toBe("committed");
+  });
+
+  it("two boundaries: per stream_id sequence from 1 contiguous; no sequence_gap", async () => {
+    const sink = new MockEffectSink({
+      enforce: true,
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      holders: { s: "c1" },
+      boundaryId: "b-default",
+    });
+    sink.grant({
+      effectId: "e1",
+      actionDigest: "d1",
+      approvalId: "a1",
+      decision: "grant",
+      boundaryId: "bound-a",
+    });
+    sink.grant({
+      effectId: "e2",
+      actionDigest: "d2",
+      approvalId: "a2",
+      decision: "grant",
+      boundaryId: "bound-b",
+    });
+    await sink.accept({
+      effectId: "e1",
+      actionDigest: "d1",
+      controller: "c1",
+      scopeId: "s",
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      boundaryId: "bound-a",
+      approval: { approval_id: "a1" },
+    });
+    await sink.accept({
+      effectId: "e2",
+      actionDigest: "d2",
+      controller: "c1",
+      scopeId: "s",
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      boundaryId: "bound-b",
+      approval: { approval_id: "a2" },
+    });
+    const records = sink.exportAgentEffectRecords();
+    const byStream = new Map<string, number[]>();
+    for (const r of records) {
+      const list = byStream.get(r.stream_id) ?? [];
+      list.push(r.sequence_number);
+      byStream.set(r.stream_id, list);
+    }
+    expect(byStream.get("boundary/bound-a")).toEqual([1, 2]);
+    expect(byStream.get("boundary/bound-b")).toEqual([1, 2]);
+
+    const crossPath = join(repoRoot, "spec/vectors/agent-effect/cross-verify.ts");
+    const mod = await import(pathToFileURL(crossPath).href);
+    const verifyCrossRecords = mod.verifyCrossRecords as (recs: unknown[]) => {
+      ok: boolean;
+      gaps: { stream_id: string }[];
+      violations: { code: string }[];
+    };
+    const cross = verifyCrossRecords(records);
+    expect(cross.ok).toBe(true);
+    expect(cross.gaps).toEqual([]);
+  });
+
+  it("restore rebuilds effect-level deny tracking", async () => {
+    const sink = new MockEffectSink({
+      enforce: true,
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      holders: { s: "c1" },
+    });
+    sink.grant({
+      effectId: "e1",
+      actionDigest: "d1",
+      approvalId: "a1",
+      decision: "grant",
+    });
+    const snap = sink.snapshot();
+    sink.grant({
+      effectId: "e1",
+      actionDigest: "d1",
+      approvalId: "a2",
+      decision: "deny",
+    });
+    const denied = await sink.accept({
+      effectId: "e1",
+      actionDigest: "d1",
+      controller: "c1",
+      scopeId: "s",
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      approval: { approval_id: "a1" },
+    });
+    expect(denied.reason).toBe("effect_denied");
+    sink.restore(snap);
+    // After restore to pre-deny snapshot, grant a1 is latest again (and gen bumped under enforce).
+    sink.grant({
+      effectId: "e1",
+      actionDigest: "d1",
+      approvalId: "a1b",
+      decision: "grant",
+    });
+    const r = await sink.accept({
+      effectId: "e1",
+      actionDigest: "d1",
+      controller: "c1",
+      scopeId: "s",
+      fenceEpoch: sink.getFenceEpoch(),
+      runtimeGeneration: sink.getRuntimeGeneration(),
+      approval: { approval_id: "a1b" },
+    });
+    expect(r.accepted).toBe(true);
+  });
+});
+
 describe("PR-2: jcs re-export still works for vectors", () => {
   it("spec jcs re-exports canonicalize from core", async () => {
     const jcsPath = join(repoRoot, "spec/vectors/agent-effect/jcs.ts");

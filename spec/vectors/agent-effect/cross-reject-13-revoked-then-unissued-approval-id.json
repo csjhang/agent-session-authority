@@ -1,0 +1,67 @@
+{
+  "id": "cross-reject-13-revoked-then-unissued-approval-id",
+  "expect": "reject",
+  "kind": "cross_record",
+  "rules": [
+    5
+  ],
+  "description": "Legacy grant a1, deny a1, then committed with never-issued a2 \u2192 committed_after_deny",
+  "records": [
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "e1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 1,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "outcome": "unknown",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000000",
+      "approval_decision": "grant",
+      "approval_id": "a1"
+    },
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "e1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 1,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "outcome": "rejected",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 2,
+      "ts_unix_nano": "1759107600000000001",
+      "approval_decision": "deny",
+      "approval_id": "a1"
+    },
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "e1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 1,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "outcome": "committed",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 3,
+      "ts_unix_nano": "1759107600000000002",
+      "approval_decision": "grant",
+      "approval_id": "a2",
+      "external_reference": "file:///tmp/w.txt"
+    }
+  ],
+  "expected": {
+    "ok": false,
+    "violation_codes": [
+      "committed_after_deny"
+    ],
+    "report_codes": [
+      "approval_generation_unverifiable"
+    ],
+    "gap_streams": [],
+    "unknown_effect_ids": [
+      "e1"
+    ]
+  }
+}

@@ -49,6 +49,8 @@ export interface CrossVectorFile {
   rules?: number[];
   records: unknown[];
   expected: CrossVectorExpected;
+  /** Optional verifier options (e.g. requireIssuance strict mode). */
+  options?: { requireIssuance?: boolean };
 }
 
 export function sha256Hex(s: string): string {
@@ -107,7 +109,7 @@ function sortedUnique<T extends string | number>(xs: T[]): T[] {
 }
 
 export function runCrossVector(v: CrossVectorFile): { ok: boolean; detail: string } {
-  const result = verifyCrossRecords(v.records);
+  const result = verifyCrossRecords(v.records, v.options);
   const gotCodes = sortedUnique(result.violations.map((x) => x.code));
   const wantCodes = sortedUnique(v.expected.violation_codes);
   const gotGaps = sortedUnique(result.gaps.map((g) => g.stream_id));

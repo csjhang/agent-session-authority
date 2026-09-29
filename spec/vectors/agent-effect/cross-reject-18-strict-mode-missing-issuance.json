@@ -1,0 +1,41 @@
+{
+  "id": "cross-reject-18-strict-mode-missing-issuance",
+  "expect": "reject",
+  "kind": "cross_record",
+  "rules": [
+    1
+  ],
+  "description": "Same records as cross-report-03; options.requireIssuance=true \u2192 unauthorized_effect (no independent issuance)",
+  "options": {
+    "requireIssuance": true
+  },
+  "records": [
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "eff-1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 2,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "outcome": "committed",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000000",
+      "session_id": "s1",
+      "controller": "runtime_a",
+      "approval_decision": "grant",
+      "approval_id": "appr-1",
+      "approver": "human:alice",
+      "external_reference": "file:///tmp/w.txt"
+    }
+  ],
+  "expected": {
+    "ok": false,
+    "violation_codes": [
+      "unauthorized_effect"
+    ],
+    "report_codes": [],
+    "gap_streams": [],
+    "unknown_effect_ids": []
+  }
+}

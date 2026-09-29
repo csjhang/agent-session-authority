@@ -1,0 +1,20 @@
+{
+  "id": "reject-16-sequence-number-unsafe-integer",
+  "expect": "reject",
+  "reject_code": "bad_type",
+  "description": "sequence_number=9007199254740992 (not a safe integer) → bad_type",
+  "record": {
+    "schema_version": "asa.agent-effect/0.1",
+    "effect_id": "e1",
+    "action_digest": "sha256:deadbeef",
+    "runtime_generation": 1,
+    "fence_epoch": 1,
+    "boundary_id": "fs-gateway",
+    "stream_id": "boundary/fs-gateway",
+    "outcome": "committed",
+    "sequence_number": 9007199254740992,
+    "ts_unix_nano": "1759107600000000000",
+    "approval_decision": "grant",
+    "approval_id": "a1"
+  }
+}

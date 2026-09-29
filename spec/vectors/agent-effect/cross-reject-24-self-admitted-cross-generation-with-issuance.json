@@ -1,0 +1,53 @@
+{
+  "id": "cross-reject-24-self-admitted-cross-generation-with-issuance",
+  "expect": "reject",
+  "kind": "cross_record",
+  "rules": [
+    3
+  ],
+  "description": "Independent issuance grant a1 with approval_runtime_generation=2 at runtime_generation=2; committed effect runtime_generation=2 but self-declares approval_runtime_generation=1 → cross_generation_reuse (self-admitted mismatch always hard, even with independent issuance)",
+  "records": [
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "e1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 2,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "stream_id": "boundary/fs-gateway",
+      "outcome": "unknown",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000000",
+      "record_kind": "approval",
+      "approval_decision": "grant",
+      "approval_id": "a1",
+      "approval_runtime_generation": 2
+    },
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "e1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 2,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "stream_id": "boundary/fs-gateway",
+      "outcome": "committed",
+      "sequence_number": 2,
+      "ts_unix_nano": "1759107600000000001",
+      "record_kind": "effect",
+      "approval_decision": "grant",
+      "approval_id": "a1",
+      "approval_runtime_generation": 1,
+      "external_reference": "file:///tmp/w.txt"
+    }
+  ],
+  "expected": {
+    "ok": false,
+    "violation_codes": [
+      "cross_generation_reuse"
+    ],
+    "report_codes": [],
+    "gap_streams": [],
+    "unknown_effect_ids": []
+  }
+}

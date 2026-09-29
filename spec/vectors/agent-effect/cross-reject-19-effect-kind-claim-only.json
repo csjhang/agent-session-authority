@@ -1,0 +1,37 @@
+{
+  "id": "cross-reject-19-effect-kind-claim-only",
+  "expect": "reject",
+  "kind": "cross_record",
+  "rules": [
+    1
+  ],
+  "description": "Single committed record_kind=effect self-claims grant a1 with approval_runtime_generation=1 and no independent issuance → unauthorized_effect (loose mode does not accept effect-kind claims)",
+  "records": [
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "e1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 1,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "stream_id": "boundary/fs-gateway",
+      "outcome": "committed",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000000",
+      "record_kind": "effect",
+      "approval_decision": "grant",
+      "approval_id": "a1",
+      "approval_runtime_generation": 1,
+      "external_reference": "file:///tmp/w.txt"
+    }
+  ],
+  "expected": {
+    "ok": false,
+    "violation_codes": [
+      "unauthorized_effect"
+    ],
+    "report_codes": [],
+    "gap_streams": [],
+    "unknown_effect_ids": []
+  }
+}

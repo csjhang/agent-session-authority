@@ -19,6 +19,7 @@ const OPS_PER_SEQUENCE = 25;
 const KINDS = [
   "grant",
   "grant_deny",
+  "deny_existing",
   "accept",
   "accept_resend",
   "bad_digest",
@@ -47,6 +48,7 @@ const EXPECTED_REASONS = [
   "approval_effect_mismatch",
   "approval_denied",
   "digest_mismatch",
+  "effect_denied",
 ];
 
 /** mulberry32 */
@@ -70,10 +72,14 @@ describe("multi-seed generative enforce sequences", () => {
       const mod = await import(
         pathToFileURL(join(repoRoot, "spec/vectors/agent-effect/cross-verify.ts")).href
       );
-      const verifyCrossRecords = mod.verifyCrossRecords as (recs: unknown[]) => {
+      const verifyCrossRecords = mod.verifyCrossRecords as (
+        recs: unknown[],
+        options?: { requireIssuance?: boolean },
+      ) => {
         ok: boolean;
         violations: { code: string }[];
       };
+      const crossOpts = { requireIssuance: true };
 
       const failures: string[] = [];
       const reasonsSeen = new Set<string>();
@@ -123,6 +129,20 @@ describe("multi-seed generative enforce sequences", () => {
                   decision: k === "grant" ? "grant" : "deny",
                 });
                 grants.push({ a, e, d });
+                break;
+              }
+              case "deny_existing": {
+                if (g) {
+                  n += 1;
+                  const a = `a${n}`;
+                  sink.grant({
+                    effectId: g.e,
+                    actionDigest: g.d,
+                    approvalId: a,
+                    decision: "deny",
+                  });
+                  grants.push({ a, e: g.e, d: g.d });
+                }
                 break;
               }
               case "accept":
@@ -179,7 +199,7 @@ describe("multi-seed generative enforce sequences", () => {
 
           const chain = verify_chain(sink.exportLedger(), sink.getLastEvidenceHash());
           const records = sink.exportAgentEffectRecords() as unknown as Record<string, unknown>[];
-          const cross = verifyCrossRecords(records);
+          const cross = verifyCrossRecords(records, crossOpts);
           if (!chain.ok || !cross.ok) {
             failures.push(
               `seed=${seed} chain_ok=${chain.ok} chain_reason=${chain.reason ?? ""} violations=${cross.violations
@@ -196,8 +216,33 @@ describe("multi-seed generative enforce sequences", () => {
               tampered[ci]![field] =
                 field === "action_digest" ? "TAMPERED" : (tampered[ci]![field] as number) + 7;
               tamperChecks += 1;
-              if (verifyCrossRecords(tampered).ok) {
+              if (verifyCrossRecords(tampered, crossOpts).ok) {
                 failures.push(`seed=${seed} tamper ${field} at record ${ci} not detected ops=${ops.join(",")}`);
+              }
+            }
+            // Approval-swap tamper: find an approval grant for a different effect_id,
+            // replace target commit's approval_id AND approval_runtime_generation.
+            // Skip (do not count) when no such record exists.
+            const otherAppr = records.find(
+              (r) =>
+                r.record_kind === "approval" &&
+                r.approval_decision === "grant" &&
+                typeof r.approval_id === "string" &&
+                typeof r.effect_id === "string" &&
+                r.effect_id !== records[ci]!.effect_id,
+            );
+            if (otherAppr && records[ci]!.approval_id) {
+              const swapped = records.map((r) => ({ ...r }));
+              swapped[ci] = {
+                ...swapped[ci]!,
+                approval_id: otherAppr.approval_id,
+                approval_runtime_generation: otherAppr.approval_runtime_generation,
+              };
+              tamperChecks += 1;
+              if (verifyCrossRecords(swapped, crossOpts).ok) {
+                failures.push(
+                  `seed=${seed} tamper approval-swap at record ${ci} not detected ops=${ops.join(",")}`,
+                );
               }
             }
           }

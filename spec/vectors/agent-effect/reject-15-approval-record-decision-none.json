@@ -1,0 +1,21 @@
+{
+  "id": "reject-15-approval-record-decision-none",
+  "expect": "reject",
+  "reject_code": "bad_record_kind",
+  "description": "record_kind=\"approval\" with outcome=unknown and approval_decision=\"none\" → bad_record_kind",
+  "record": {
+    "schema_version": "asa.agent-effect/0.1",
+    "effect_id": "e1",
+    "action_digest": "sha256:deadbeef",
+    "runtime_generation": 1,
+    "fence_epoch": 1,
+    "boundary_id": "fs-gateway",
+    "stream_id": "boundary/fs-gateway",
+    "outcome": "unknown",
+    "sequence_number": 1,
+    "ts_unix_nano": "1759107600000000000",
+    "record_kind": "approval",
+    "approval_decision": "none",
+    "approval_id": "a1"
+  }
+}

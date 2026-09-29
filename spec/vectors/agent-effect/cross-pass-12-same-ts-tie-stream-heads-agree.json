@@ -1,0 +1,83 @@
+{
+  "id": "cross-pass-12-same-ts-tie-stream-heads-agree",
+  "expect": "pass",
+  "kind": "cross_record",
+  "rules": [
+    5
+  ],
+  "description": "On approvals/s1 deny then later-seq grant at same order_ts; approvals/s2 grant at same order_ts; effect later → ok (superseded deny does not participate; both stream heads are grant)",
+  "records": [
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "e1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 1,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "stream_id": "approvals/s1",
+      "outcome": "unknown",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000100",
+      "record_kind": "approval",
+      "approval_decision": "deny",
+      "approval_id": "a1",
+      "approval_runtime_generation": 1
+    },
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "e1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 1,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "stream_id": "approvals/s1",
+      "outcome": "unknown",
+      "sequence_number": 2,
+      "ts_unix_nano": "1759107600000000100",
+      "record_kind": "approval",
+      "approval_decision": "grant",
+      "approval_id": "a1",
+      "approval_runtime_generation": 1
+    },
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "e1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 1,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "stream_id": "approvals/s2",
+      "outcome": "unknown",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000100",
+      "record_kind": "approval",
+      "approval_decision": "grant",
+      "approval_id": "a1",
+      "approval_runtime_generation": 1
+    },
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "e1",
+      "action_digest": "sha256:deadbeef",
+      "runtime_generation": 1,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "stream_id": "boundary/fs-gateway",
+      "outcome": "committed",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000200",
+      "record_kind": "effect",
+      "approval_decision": "grant",
+      "approval_id": "a1",
+      "approval_runtime_generation": 1,
+      "external_reference": "file:///tmp/w.txt"
+    }
+  ],
+  "expected": {
+    "ok": true,
+    "violation_codes": [],
+    "report_codes": [],
+    "gap_streams": [],
+    "unknown_effect_ids": []
+  }
+}
