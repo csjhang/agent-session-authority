@@ -250,3 +250,37 @@ describe("targets/**/results/*.jsonl", () => {
     }
   });
 });
+
+describe("capability_vector generation", () => {
+  it("regenerated vectors match committed files except generated_at", async () => {
+    const { generate_all } = await import(
+      "../../../scripts/generate-capability-vectors.ts"
+    );
+    const generated = generate_all({ write: false });
+    expect(generated.length).toBeGreaterThan(0);
+    for (const g of generated) {
+      const committed_path = path.join(
+        repo_root,
+        "targets",
+        g.target,
+        "results",
+        "capability_vector.json",
+      );
+      expect(fs.existsSync(committed_path), committed_path).toBe(true);
+      const committed = JSON.parse(fs.readFileSync(committed_path, "utf8")) as Record<
+        string,
+        unknown
+      >;
+      const { generated_at: _a, ...got } = g as Record<string, unknown>;
+      const { generated_at: _b, ...want } = committed;
+      expect(got).toEqual(want);
+      // capability_vector must not promote fixture asa-check results
+      const cap = g.capability_vector as Record<string, string>;
+      for (const v of Object.values(cap)) {
+        expect(v).toBe("not_tested");
+      }
+      expect(g.fixture_vector).toBeTruthy();
+      expect(g.checker_explanation).toBeTruthy();
+    }
+  });
+});

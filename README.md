@@ -38,6 +38,8 @@ pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode live --scenario reject
 
 Write-probe prompts wait up to 180s client-side by default (override upward with `live_observe_ms`). See `packages/adapters/acp/README.md`.
 
+**Live history `runtime_generation`:** derived by the probe from process spawn count (`issuer_id=acp_adapter_live`), not from native target generations. Under this encoding, AUTH-01b / AUTH-01c only validate the probe itself — they are not evidence of native RuntimeGeneration support in claude-agent-acp.
+
 ## Quick start (fixtures)
 
 ```bash

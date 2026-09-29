@@ -3,11 +3,21 @@
  * For each target with a history artifact, run asa check and emit
  * targets/<target>/results/capability_vector.json.
  *
- * Hand-written explanations live in the `notes` field (and optional
- * per-invariant `explanation`). Live-derived conclusions for
- * claude-agent-acp are recorded as not_tested — withdrawn pending
- * re-run with the fixed multi-generation adapter. Wording: not
- * supported by reproducible evidence (not "found a defect").
+ * Separation of axes:
+ * - `fixture_vector` — asa-check results against fixture history
+ *   (adapter+checker self-consistency only; digests/fence_epoch may be
+ *   adapter-synthesized).
+ * - `capability_vector` — target capability labels. Remains all
+ *   `not_tested` until live/native evidence exists. Fixture asa-check
+ *   results MUST NOT be promoted here.
+ * - `claim_status_vector` — from profile claims. `load_profile(undefined)`
+ *   currently loads no target profile, so every invariant is
+ *   `not_declared`.
+ * - `checker_explanation` — verbatim explanations from the checker run.
+ * - `notes.invariants` / `notes.summary` — handwritten notes; never
+ *   overwritten by checker text (and vice versa).
+ *
+ * `generated_at` is the calendar date of the run (YYYY-MM-DD, Asia/Taipei).
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -17,6 +27,7 @@ import { load_profile } from "../packages/core/src/declaration.js";
 import { load_assessment, default_assessment } from "../packages/core/src/assessment.js";
 import { run_checkers } from "../packages/core/src/index.js";
 import { build_report } from "../packages/core/src/report.js";
+import type { ResultLabel } from "../packages/core/src/assessment.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo_root = path.resolve(here, "..");
@@ -135,7 +146,46 @@ const TARGETS: Array<{
   },
 ];
 
-function main(): void {
+function today_ymd(): string {
+  // Box clock is Asia/Taipei; prefer explicit Taipei calendar date.
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function not_tested_vector(keys: string[]): Record<string, ResultLabel> {
+  const out: Record<string, ResultLabel> = {};
+  for (const k of keys) out[k] = "not_tested";
+  return out;
+}
+
+export type CapabilityVectorDoc = {
+  target: string;
+  profile_version: string;
+  test_basis: string;
+  capability_vector: Record<string, ResultLabel>;
+  fixture_vector: Record<string, ResultLabel>;
+  claim_status_vector: Record<string, string>;
+  checker_explanation: Record<string, string>;
+  notes?: {
+    summary: string;
+    live_status?: string;
+    invariants?: Record<string, string>;
+  };
+  history_artifact: string;
+  generated_by: string;
+  generated_at: string;
+  [extra: string]: unknown;
+};
+
+export function generate_all(opts: { write?: boolean } = {}): CapabilityVectorDoc[] {
+  const write = opts.write !== false;
+  const generated_at = today_ymd();
+  const docs: CapabilityVectorDoc[] = [];
+
   for (const t of TARGETS) {
     const history_path = path.join(repo_root, t.history);
     if (!fs.existsSync(history_path)) {
@@ -148,44 +198,61 @@ function main(): void {
       default_assessment();
     assessment.target = assessment.target ?? t.id;
     assessment.test_basis = assessment.test_basis ?? "synthetic_fixture";
+    // No per-target profile path is loaded today → claim_status stays not_declared.
     const profile = load_profile(undefined);
     const findings = run_checkers(events, profile, assessment);
     const report = build_report(findings, assessment, profile);
 
-    // Live-derived path for claude-agent-acp: do not promote live conclusions;
-    // record withdrawal on the notes axis. Fixture asa-check results remain.
-    const notes = HAND_NOTES[t.id];
-    const explanation: Record<string, string> = { ...(notes?.invariants ?? {}) };
+    const checker_explanation: Record<string, string> = {};
     for (const f of findings) {
-      if (!explanation[f.invariant] && f.explanation) {
-        explanation[f.invariant] = f.explanation;
-      }
+      if (f.explanation) checker_explanation[f.invariant] = f.explanation;
     }
 
-    const out = {
+    const notes = HAND_NOTES[t.id];
+    const keys = Object.keys(report.capability_vector);
+
+    const out: CapabilityVectorDoc = {
       target: t.id,
       profile_version: report.profile_version,
       test_basis: report.test_basis,
       ...t.extra,
-      capability_vector: report.capability_vector,
+      // Target capability: withheld until live/native evidence (not fixture asa-check).
+      capability_vector: not_tested_vector(keys),
+      // Adapter+checker self-consistency against fixture history only.
+      fixture_vector: report.capability_vector,
       claim_status_vector: report.claim_status_vector,
-      explanation,
+      checker_explanation,
       notes: notes
         ? {
             summary: notes.summary,
             ...(notes.live_status ? { live_status: notes.live_status } : {}),
+            ...(notes.invariants ? { invariants: notes.invariants } : {}),
           }
         : undefined,
       history_artifact: t.history,
       generated_by: "scripts/generate-capability-vectors.ts",
-      generated_at: "2026-09-29",
+      generated_at,
     };
 
-    const out_path = path.join(repo_root, "targets", t.id, "results", "capability_vector.json");
-    fs.mkdirSync(path.dirname(out_path), { recursive: true });
-    fs.writeFileSync(out_path, JSON.stringify(out, null, 2) + "\n", "utf8");
-    console.log(`wrote ${path.relative(repo_root, out_path)}`);
+    docs.push(out);
+
+    if (write) {
+      const out_path = path.join(repo_root, "targets", t.id, "results", "capability_vector.json");
+      fs.mkdirSync(path.dirname(out_path), { recursive: true });
+      fs.writeFileSync(out_path, JSON.stringify(out, null, 2) + "\n", "utf8");
+      console.log(`wrote ${path.relative(repo_root, out_path)}`);
+    }
   }
+  return docs;
 }
 
-main();
+function main(): void {
+  generate_all({ write: true });
+}
+
+const is_direct =
+  Boolean(process.argv[1]) &&
+  fileURLToPath(import.meta.url) === path.resolve(process.argv[1]!);
+if (is_direct) {
+  main();
+}
