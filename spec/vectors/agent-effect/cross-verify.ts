@@ -3,6 +3,9 @@
  *
  * Proves mutual consistency among AgentEffectRecord emissions.
  * Does NOT prove external effects happened; does NOT verify signatures or hash chains.
+ *
+ * Approvals are indexed by approval_id (not effect_id). Self-declared approval
+ * fields on a committed record are a claim, not independent issuance evidence.
  */
 import { verifyAgentEffectRecord } from "./profile.js";
 
@@ -14,13 +17,19 @@ export type CrossViolationCode =
   | "fence_epoch_regression"
   | "effect_fence_before_approval"
   | "duplicate_sequence"
+  | "duplicate_commit"
+  | "revoked_approval_used"
+  | "approval_reused_across_effects"
   | "invalid_record";
+
+export type CrossReportCode = "approval_generation_unverifiable";
 
 export interface CrossViolation {
   code: CrossViolationCode;
   message: string;
   effect_id?: string;
   stream_id?: string;
+  approval_id?: string;
   indices?: number[];
 }
 
@@ -39,12 +48,22 @@ export interface CrossUnknownReport {
   index: number;
 }
 
+export interface CrossSoftReport {
+  code: CrossReportCode;
+  message: string;
+  effect_id?: string;
+  approval_id?: string;
+  indices?: number[];
+}
+
 export interface CrossVerifyResult {
-  /** False when any hard violation is present. Gaps alone do not fail. */
+  /** False when any hard violation is present. Soft reports / gaps alone do not fail. */
   ok: boolean;
   violations: CrossViolation[];
   gaps: CrossGapReport[];
   unknowns: CrossUnknownReport[];
+  /** Soft authority reports (do not flip ok). */
+  reports: CrossSoftReport[];
 }
 
 export interface AgentEffectFields {
@@ -58,6 +77,8 @@ export interface AgentEffectFields {
   ts_unix_nano: string;
   approval_decision?: string;
   approval_id?: string;
+  /** Generation when the referenced approval was issued (SHOULD). */
+  approval_runtime_generation?: number;
 }
 
 interface IndexedRecord {
@@ -78,14 +99,31 @@ function asFields(raw: Record<string, unknown>): AgentEffectFields {
     approval_decision:
       typeof raw.approval_decision === "string" ? raw.approval_decision : undefined,
     approval_id: typeof raw.approval_id === "string" ? raw.approval_id : undefined,
+    approval_runtime_generation:
+      typeof raw.approval_runtime_generation === "number" &&
+      Number.isFinite(raw.approval_runtime_generation)
+        ? (raw.approval_runtime_generation as number)
+        : undefined,
   };
 }
 
-function isGrant(f: AgentEffectFields): boolean {
-  return f.approval_decision === "grant" && typeof f.approval_id === "string" && f.approval_id.length > 0;
+function hasApprovalId(f: AgentEffectFields): boolean {
+  return typeof f.approval_id === "string" && f.approval_id.length > 0;
 }
 
-/** True when approval A is at-or-before committed effect C (same record counts). */
+function isGrant(f: AgentEffectFields): boolean {
+  return f.approval_decision === "grant" && hasApprovalId(f);
+}
+
+function isDeny(f: AgentEffectFields): boolean {
+  return f.approval_decision === "deny" && hasApprovalId(f);
+}
+
+function isDecision(f: AgentEffectFields): boolean {
+  return isGrant(f) || isDeny(f);
+}
+
+/** True when approval/decision A is at-or-before committed effect C (same record counts). */
 function isPriorOrSame(a: IndexedRecord, c: IndexedRecord): boolean {
   if (a.index === c.index) return true;
   if (a.fields.stream_id === c.fields.stream_id) {
@@ -98,24 +136,91 @@ function isPriorOrSame(a: IndexedRecord, c: IndexedRecord): boolean {
   }
 }
 
-function pickPriorGrant(grants: IndexedRecord[], committed: IndexedRecord): IndexedRecord | undefined {
-  const priors = grants.filter((g) => isPriorOrSame(g, committed));
-  if (priors.length === 0) return undefined;
-  // Earliest prior grant is the binding authority (first grant wins).
-  // Prefer a strictly earlier record when one exists so same-record grant
-  // fields on the commit do not mask a mismatched earlier approval.
-  const earlier = priors.filter((g) => g.index !== committed.index);
-  const pool = earlier.length > 0 ? earlier : priors;
-  pool.sort((x, y) => {
-    if (x.fields.stream_id === y.fields.stream_id) {
-      if (x.fields.sequence_number !== y.fields.sequence_number) {
-        return x.fields.sequence_number - y.fields.sequence_number;
-      }
-      return x.index - y.index;
+/** Sort key: later records come first when sorting descending. */
+function compareAscending(a: IndexedRecord, b: IndexedRecord): number {
+  if (a.fields.stream_id === b.fields.stream_id) {
+    if (a.fields.sequence_number !== b.fields.sequence_number) {
+      return a.fields.sequence_number - b.fields.sequence_number;
     }
-    return x.index - y.index;
-  });
-  return pool[0];
+    return a.index - b.index;
+  }
+  try {
+    const d = BigInt(a.fields.ts_unix_nano) - BigInt(b.fields.ts_unix_nano);
+    if (d < 0n) return -1;
+    if (d > 0n) return 1;
+  } catch {
+    if (a.fields.ts_unix_nano < b.fields.ts_unix_nano) return -1;
+    if (a.fields.ts_unix_nano > b.fields.ts_unix_nano) return 1;
+  }
+  return a.index - b.index;
+}
+
+/** Latest prior decision wins (not earliest). */
+function pickLatest(recs: IndexedRecord[]): IndexedRecord | undefined {
+  if (recs.length === 0) return undefined;
+  const sorted = [...recs].sort(compareAscending);
+  return sorted[sorted.length - 1];
+}
+
+/**
+ * Issuance generation for approval_id as bound to committed c.
+ * Prefer explicit approval_runtime_generation; else a separate issuance grant record.
+ * Same-record self-declaration alone is not independent evidence → undefined.
+ */
+function resolveIssuanceGeneration(
+  approvalId: string,
+  committed: IndexedRecord,
+  indexed: IndexedRecord[],
+): { generation: number; evidence: IndexedRecord } | undefined {
+  if (typeof committed.fields.approval_runtime_generation === "number") {
+    return {
+      generation: committed.fields.approval_runtime_generation,
+      evidence: committed,
+    };
+  }
+
+  // Issuance evidence: grant records that are not themselves committed uses.
+  // Another effect's committed self-declaration is a claim of use, not issuance.
+  const separateIssuances = indexed.filter(
+    (r) =>
+      r.index !== committed.index &&
+      isGrant(r.fields) &&
+      r.fields.outcome !== "committed" &&
+      r.fields.approval_id === approvalId &&
+      isPriorOrSame(r, committed),
+  );
+  const issuance = pickLatest(separateIssuances);
+  if (!issuance) return undefined;
+
+  const gen =
+    typeof issuance.fields.approval_runtime_generation === "number"
+      ? issuance.fields.approval_runtime_generation
+      : issuance.fields.runtime_generation;
+  return { generation: gen, evidence: issuance };
+}
+
+/**
+ * Resolve which approval_id a committed effect claims.
+ * Prefer the record's own approval_id; if absent, fall back to the latest prior
+ * grant/deny decision on the same effect_id (covers commit-after-revoke with
+ * stripped approval fields). Does not invent approvals from unrelated effects.
+ */
+function resolveApprovalId(
+  committed: IndexedRecord,
+  indexed: IndexedRecord[],
+): string | undefined {
+  if (hasApprovalId(committed.fields)) {
+    return committed.fields.approval_id;
+  }
+  const priorOnEffect = indexed.filter(
+    (r) =>
+      r.index !== committed.index &&
+      r.fields.effect_id === committed.fields.effect_id &&
+      isDecision(r.fields) &&
+      isPriorOrSame(r, committed),
+  );
+  const latest = pickLatest(priorOnEffect);
+  return latest?.fields.approval_id;
 }
 
 /**
@@ -125,6 +230,7 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
   const violations: CrossViolation[] = [];
   const gaps: CrossGapReport[] = [];
   const unknowns: CrossUnknownReport[] = [];
+  const reports: CrossSoftReport[] = [];
   const indexed: IndexedRecord[] = [];
 
   for (let i = 0; i < rawRecords.length; i++) {
@@ -153,10 +259,10 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
   }
 
   if (violations.some((v) => v.code === "invalid_record")) {
-    return { ok: false, violations, gaps, unknowns };
+    return { ok: false, violations, gaps, unknowns, reports };
   }
 
-  // Group by effect_id for digest consistency + approval binding.
+  // Group by effect_id for digest consistency + duplicate commits.
   const byEffect = new Map<string, IndexedRecord[]>();
   for (const rec of indexed) {
     const list = byEffect.get(rec.fields.effect_id) ?? [];
@@ -176,51 +282,130 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
       });
     }
 
-    const grants = group.filter((r) => isGrant(r.fields));
     const committed = group.filter((r) => r.fields.outcome === "committed");
+    if (committed.length > 1) {
+      violations.push({
+        code: "duplicate_commit",
+        message: `effect_id=${effectId} has ${committed.length} outcome=committed records`,
+        effect_id: effectId,
+        indices: committed.map((r) => r.index),
+      });
+    }
+  }
 
-    for (const c of committed) {
-      // Rules 1 + 5: committed requires a corresponding prior grant + approval_id.
-      const grant = pickPriorGrant(grants, c);
-      if (!grant) {
+  // approval_reused_across_effects: same approval_id on committed records of different effect_ids.
+  const committedByApproval = new Map<string, IndexedRecord[]>();
+  for (const rec of indexed) {
+    if (rec.fields.outcome !== "committed" || !hasApprovalId(rec.fields)) continue;
+    const aid = rec.fields.approval_id!;
+    const list = committedByApproval.get(aid) ?? [];
+    list.push(rec);
+    committedByApproval.set(aid, list);
+  }
+  for (const [approvalId, commits] of committedByApproval) {
+    const effectIds = new Set(commits.map((c) => c.fields.effect_id));
+    if (effectIds.size > 1) {
+      violations.push({
+        code: "approval_reused_across_effects",
+        message: `approval_id=${approvalId} used by multiple committed effect_ids: ${[...effectIds].join(", ")}`,
+        approval_id: approvalId,
+        indices: commits.map((c) => c.index),
+      });
+    }
+  }
+
+  // Per committed: resolve approval_id → latest prior decision; generation via issuance evidence.
+  const committedAll = indexed.filter((r) => r.fields.outcome === "committed");
+  for (const c of committedAll) {
+    const approvalId = resolveApprovalId(c, indexed);
+    if (!approvalId) {
+      violations.push({
+        code: "unauthorized_effect",
+        message: `committed effect_id=${c.fields.effect_id} has no prior approval (approval_decision=grant with approval_id)`,
+        effect_id: c.fields.effect_id,
+        indices: [c.index],
+      });
+      continue;
+    }
+
+    const decisions = indexed.filter(
+      (r) =>
+        isDecision(r.fields) &&
+        r.fields.approval_id === approvalId &&
+        isPriorOrSame(r, c),
+    );
+    const latest = pickLatest(decisions);
+
+    if (!latest || !isGrant(latest.fields)) {
+      if (latest && isDeny(latest.fields)) {
+        violations.push({
+          code: "revoked_approval_used",
+          message: `committed effect_id=${c.fields.effect_id} uses approval_id=${approvalId} after latest prior decision=deny`,
+          effect_id: c.fields.effect_id,
+          approval_id: approvalId,
+          indices: [latest.index, c.index],
+        });
+      } else {
         violations.push({
           code: "unauthorized_effect",
-          message: `committed effect_id=${effectId} has no prior approval (approval_decision=grant with approval_id)`,
-          effect_id: effectId,
+          message: `committed effect_id=${c.fields.effect_id} has no prior grant for approval_id=${approvalId}`,
+          effect_id: c.fields.effect_id,
+          approval_id: approvalId,
           indices: [c.index],
         });
-        continue;
       }
+      continue;
+    }
 
-      // Rule 2 (approval-bound): approval digest must equal effect digest.
-      if (grant.fields.action_digest !== c.fields.action_digest) {
-        violations.push({
-          code: "approval_digest_mismatch",
-          message: `approval action_digest=${grant.fields.action_digest} != effect action_digest=${c.fields.action_digest} for effect_id=${effectId}`,
-          effect_id: effectId,
-          indices: [grant.index, c.index],
-        });
-      }
+    // Binding grant for digest / fence: prefer separate non-committed issuance; else same-record claim.
+    const separateGrants = decisions.filter(
+      (r) =>
+        isGrant(r.fields) &&
+        r.index !== c.index &&
+        r.fields.outcome !== "committed",
+    );
+    const bindingGrant = pickLatest(separateGrants) ?? latest;
 
-      // Rule 3: approval runtime_generation must equal landing generation.
-      if (grant.fields.runtime_generation !== c.fields.runtime_generation) {
-        violations.push({
-          code: "cross_generation_reuse",
-          message: `approval runtime_generation=${grant.fields.runtime_generation} != effect runtime_generation=${c.fields.runtime_generation} for effect_id=${effectId}`,
-          effect_id: effectId,
-          indices: [grant.index, c.index],
-        });
-      }
+    // Rule 2 (approval-bound): approval digest must equal effect digest.
+    if (bindingGrant.fields.action_digest !== c.fields.action_digest) {
+      violations.push({
+        code: "approval_digest_mismatch",
+        message: `approval action_digest=${bindingGrant.fields.action_digest} != effect action_digest=${c.fields.action_digest} for effect_id=${c.fields.effect_id}`,
+        effect_id: c.fields.effect_id,
+        approval_id: approvalId,
+        indices: [bindingGrant.index, c.index],
+      });
+    }
 
-      // Rule 4b: effect fence_epoch must not be lower than approval fence_epoch.
-      if (c.fields.fence_epoch < grant.fields.fence_epoch) {
-        violations.push({
-          code: "effect_fence_before_approval",
-          message: `effect fence_epoch=${c.fields.fence_epoch} < approval fence_epoch=${grant.fields.fence_epoch} for effect_id=${effectId}`,
-          effect_id: effectId,
-          indices: [grant.index, c.index],
-        });
-      }
+    // Rule 4b: effect fence_epoch must not be lower than approval fence_epoch.
+    if (c.fields.fence_epoch < bindingGrant.fields.fence_epoch) {
+      violations.push({
+        code: "effect_fence_before_approval",
+        message: `effect fence_epoch=${c.fields.fence_epoch} < approval fence_epoch=${bindingGrant.fields.fence_epoch} for effect_id=${c.fields.effect_id}`,
+        effect_id: c.fields.effect_id,
+        approval_id: approvalId,
+        indices: [bindingGrant.index, c.index],
+      });
+    }
+
+    // Rule 3: generation binding via approval_runtime_generation or separate issuance.
+    const issuance = resolveIssuanceGeneration(approvalId, c, indexed);
+    if (!issuance) {
+      reports.push({
+        code: "approval_generation_unverifiable",
+        message: `committed effect_id=${c.fields.effect_id} approval_id=${approvalId}: no approval_runtime_generation and no separate issuance record to establish approval generation`,
+        effect_id: c.fields.effect_id,
+        approval_id: approvalId,
+        indices: [c.index],
+      });
+    } else if (issuance.generation !== c.fields.runtime_generation) {
+      violations.push({
+        code: "cross_generation_reuse",
+        message: `approval runtime_generation=${issuance.generation} != effect runtime_generation=${c.fields.runtime_generation} for effect_id=${c.fields.effect_id} approval_id=${approvalId}`,
+        effect_id: c.fields.effect_id,
+        approval_id: approvalId,
+        indices: [issuance.evidence.index, c.index],
+      });
     }
   }
 
@@ -280,7 +465,6 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
     let lastIdx: number | undefined;
     let lastSeq: number | undefined;
     for (const rec of ordered) {
-      // Skip same-seq siblings after first when comparing monotonicity of epoch along seq order.
       if (lastSeq !== undefined && rec.fields.sequence_number === lastSeq) {
         if (lastEpoch !== undefined && rec.fields.fence_epoch < lastEpoch) {
           violations.push({
@@ -311,6 +495,7 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
     violations,
     gaps,
     unknowns,
+    reports,
   };
 }
 
@@ -320,7 +505,7 @@ export function parseJsonl(text: string): unknown[] {
   const lines = text.split(/\r?\n/);
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!.trim();
-    if (!line) continue;
+    if (line === "") continue;
     try {
       out.push(JSON.parse(line));
     } catch (e) {
