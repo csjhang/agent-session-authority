@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"],
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
+  "include": [
+    "packages/**/src/**/*.ts",
+    "packages/**/test/**/*.ts",
+    "spec/**/*.ts",
+    "scripts/**/*.ts"
+  ],
+  "exclude": ["**/node_modules/**"]
+}

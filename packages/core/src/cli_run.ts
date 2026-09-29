@@ -87,7 +87,7 @@ export function run_cli(argv: string[], io: CliIo): number {
 
     let events;
     try {
-      events = load_history_file(history_path);
+      events = load_history_file(history_path, { warn: (m) => io.stderr(m + "\n") });
     } catch (err) {
       io.stderr(`history parse failed for ${history_path}: ${String(err)}\n`);
       return 2;

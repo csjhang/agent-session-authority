@@ -254,7 +254,7 @@ describe("targets/**/results/*.jsonl", () => {
 describe("capability_vector generation", () => {
   it("regenerated vectors match committed files except generated_at", async () => {
     const { generate_all } = await import(
-      "../../../scripts/generate-capability-vectors.ts"
+      "../../../scripts/generate-capability-vectors.js"
     );
     const generated = generate_all({ write: false });
     expect(generated.length).toBeGreaterThan(0);
@@ -284,11 +284,11 @@ describe("capability_vector generation", () => {
         if (v === "not_tested") continue;
         const src = sources[k];
         expect(src, `${g.target}:${k} missing capability_sources`).toBeTruthy();
-        const base = path.basename(src);
+        const base = path.basename(src!);
         expect(base.toLowerCase().includes("fixture"), `${g.target}:${k} source is fixture: ${src}`).toBe(
           false,
         );
-        const abs = path.isAbsolute(src) ? src : path.join(repo_root, src);
+        const abs = path.isAbsolute(src!) ? src! : path.join(repo_root, src!);
         expect(fs.existsSync(abs), `${g.target}:${k} source missing: ${abs}`).toBe(true);
       }
     }

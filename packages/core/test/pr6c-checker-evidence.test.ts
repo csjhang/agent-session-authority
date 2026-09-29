@@ -209,7 +209,7 @@ describe("PR-6c: AUTH-01c all branches reachable", () => {
 
   it("4. other generation_model → underspecified", () => {
     const f = inv_of(
-      check([attach], { profile_version: "0.2", target: "t", generation_model: "G9" } as AuthorityProfile),
+      check([attach], { profile_version: "0.2", target: "t", generation_model: "G9" } as unknown as AuthorityProfile),
       "AUTH-01c",
     );
     expect(f.observed_result).toBe("underspecified");
