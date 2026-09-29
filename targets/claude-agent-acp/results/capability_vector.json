@@ -9,30 +9,124 @@
     "AUTH-01a": "not_tested",
     "AUTH-01b": "not_tested",
     "AUTH-01c": "not_tested",
-    "AUTH-02": "not_tested",
-    "AUTH-03a": "not_tested",
-    "AUTH-03b": "not_tested",
-    "AUTH-03c": "not_tested",
-    "AUTH-04": "not_tested",
-    "AUTH-05": "not_tested",
+    "AUTH-02": "not_declared",
+    "AUTH-03a": "inconclusive",
+    "AUTH-03b": "inconclusive",
+    "AUTH-03c": "inconclusive",
+    "AUTH-04": "inconclusive",
+    "AUTH-05": "inconclusive",
     "AUTH-06": "not_tested",
-    "AUTH-07": "not_tested",
+    "AUTH-07": "not_declared",
     "AUTH-08": "not_tested"
   },
-  "capability_basis": null,
-  "capability_sources": {},
+  "capability_basis": "research_profile",
+  "capability_sources": {
+    "AUTH-02": [
+      "targets/claude-agent-acp/results/live-runs/always-grant/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/always-grant/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/always-grant/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/effect/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/effect/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/effect/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/reject-always/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-effect/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-effect/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-effect/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-grant/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-grant/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-grant/r3/history.jsonl"
+    ],
+    "AUTH-03a": [
+      "targets/claude-agent-acp/results/live-runs/always-grant/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/always-grant/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/always-grant/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/effect/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/effect/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/effect/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/reject-always/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-effect/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-effect/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-effect/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-grant/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-grant/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-grant/r3/history.jsonl"
+    ],
+    "AUTH-03b": [
+      "targets/claude-agent-acp/results/live-runs/always-grant/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/always-grant/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/always-grant/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/effect/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/effect/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/effect/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/reject-always/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-effect/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-effect/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-effect/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-grant/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-grant/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-grant/r3/history.jsonl"
+    ],
+    "AUTH-03c": [
+      "targets/claude-agent-acp/results/live-runs/always-grant/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/always-grant/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/always-grant/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/effect/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/effect/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/effect/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/reject-always/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-effect/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-effect/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-effect/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-grant/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-grant/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-grant/r3/history.jsonl"
+    ],
+    "AUTH-04": [
+      "targets/claude-agent-acp/results/live-runs/always-grant/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/always-grant/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/always-grant/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/effect/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/effect/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/effect/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/reject-always/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-effect/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-effect/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-effect/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-grant/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-grant/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-grant/r3/history.jsonl"
+    ],
+    "AUTH-05": [
+      "targets/claude-agent-acp/results/live-runs/always-grant/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/always-grant/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/always-grant/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/effect/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/effect/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/effect/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/reject-always/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-effect/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-effect/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-effect/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-grant/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-grant/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-grant/r3/history.jsonl"
+    ],
+    "AUTH-07": [
+      "targets/claude-agent-acp/results/live-runs/reject-always/r1/history.jsonl"
+    ]
+  },
   "observed_vector": {
     "AUTH-01a": "not_tested",
     "AUTH-01b": "not_tested",
     "AUTH-01c": "not_tested",
-    "AUTH-02": "not_tested",
-    "AUTH-03a": "not_tested",
-    "AUTH-03b": "not_tested",
-    "AUTH-03c": "not_tested",
-    "AUTH-04": "not_tested",
-    "AUTH-05": "not_tested",
+    "AUTH-02": "supported",
+    "AUTH-03a": "inconclusive",
+    "AUTH-03b": "inconclusive",
+    "AUTH-03c": "inconclusive",
+    "AUTH-04": "inconclusive",
+    "AUTH-05": "inconclusive",
     "AUTH-06": "not_tested",
-    "AUTH-07": "not_tested",
+    "AUTH-07": "supported",
     "AUTH-08": "not_tested"
   },
   "capability_exclusions": {
@@ -43,7 +137,255 @@
     "AUTH-08": "no checker (always not_tested)"
   },
   "live_runs": {
-    "included": [],
+    "included": [
+      {
+        "scenario": "always-grant",
+        "run_id": "r1",
+        "history": "targets/claude-agent-acp/results/live-runs/always-grant/r1/history.jsonl",
+        "observed": {
+          "AUTH-01a": "not_declared",
+          "AUTH-01b": "inconclusive",
+          "AUTH-01c": "not_declared",
+          "AUTH-02": "supported",
+          "AUTH-03a": "inconclusive",
+          "AUTH-03b": "inconclusive",
+          "AUTH-03c": "inconclusive",
+          "AUTH-04": "inconclusive",
+          "AUTH-05": "inconclusive",
+          "AUTH-06": "supported",
+          "AUTH-07": "inconclusive",
+          "AUTH-08": "not_tested"
+        }
+      },
+      {
+        "scenario": "always-grant",
+        "run_id": "r2",
+        "history": "targets/claude-agent-acp/results/live-runs/always-grant/r2/history.jsonl",
+        "observed": {
+          "AUTH-01a": "not_declared",
+          "AUTH-01b": "inconclusive",
+          "AUTH-01c": "not_declared",
+          "AUTH-02": "supported",
+          "AUTH-03a": "inconclusive",
+          "AUTH-03b": "inconclusive",
+          "AUTH-03c": "inconclusive",
+          "AUTH-04": "inconclusive",
+          "AUTH-05": "inconclusive",
+          "AUTH-06": "supported",
+          "AUTH-07": "inconclusive",
+          "AUTH-08": "not_tested"
+        }
+      },
+      {
+        "scenario": "always-grant",
+        "run_id": "r3",
+        "history": "targets/claude-agent-acp/results/live-runs/always-grant/r3/history.jsonl",
+        "observed": {
+          "AUTH-01a": "not_declared",
+          "AUTH-01b": "inconclusive",
+          "AUTH-01c": "not_declared",
+          "AUTH-02": "supported",
+          "AUTH-03a": "inconclusive",
+          "AUTH-03b": "inconclusive",
+          "AUTH-03c": "inconclusive",
+          "AUTH-04": "inconclusive",
+          "AUTH-05": "inconclusive",
+          "AUTH-06": "supported",
+          "AUTH-07": "inconclusive",
+          "AUTH-08": "not_tested"
+        }
+      },
+      {
+        "scenario": "effect",
+        "run_id": "r1",
+        "history": "targets/claude-agent-acp/results/live-runs/effect/r1/history.jsonl",
+        "observed": {
+          "AUTH-01a": "not_declared",
+          "AUTH-01b": "inconclusive",
+          "AUTH-01c": "not_declared",
+          "AUTH-02": "supported",
+          "AUTH-03a": "inconclusive",
+          "AUTH-03b": "inconclusive",
+          "AUTH-03c": "inconclusive",
+          "AUTH-04": "inconclusive",
+          "AUTH-05": "inconclusive",
+          "AUTH-06": "supported",
+          "AUTH-07": "inconclusive",
+          "AUTH-08": "not_tested"
+        }
+      },
+      {
+        "scenario": "effect",
+        "run_id": "r2",
+        "history": "targets/claude-agent-acp/results/live-runs/effect/r2/history.jsonl",
+        "observed": {
+          "AUTH-01a": "not_declared",
+          "AUTH-01b": "inconclusive",
+          "AUTH-01c": "not_declared",
+          "AUTH-02": "supported",
+          "AUTH-03a": "inconclusive",
+          "AUTH-03b": "inconclusive",
+          "AUTH-03c": "inconclusive",
+          "AUTH-04": "inconclusive",
+          "AUTH-05": "inconclusive",
+          "AUTH-06": "supported",
+          "AUTH-07": "inconclusive",
+          "AUTH-08": "not_tested"
+        }
+      },
+      {
+        "scenario": "effect",
+        "run_id": "r3",
+        "history": "targets/claude-agent-acp/results/live-runs/effect/r3/history.jsonl",
+        "observed": {
+          "AUTH-01a": "not_declared",
+          "AUTH-01b": "inconclusive",
+          "AUTH-01c": "not_declared",
+          "AUTH-02": "supported",
+          "AUTH-03a": "inconclusive",
+          "AUTH-03b": "inconclusive",
+          "AUTH-03c": "inconclusive",
+          "AUTH-04": "inconclusive",
+          "AUTH-05": "inconclusive",
+          "AUTH-06": "supported",
+          "AUTH-07": "inconclusive",
+          "AUTH-08": "not_tested"
+        }
+      },
+      {
+        "scenario": "reject-always",
+        "run_id": "r1",
+        "history": "targets/claude-agent-acp/results/live-runs/reject-always/r1/history.jsonl",
+        "observed": {
+          "AUTH-01a": "not_declared",
+          "AUTH-01b": "inconclusive",
+          "AUTH-01c": "not_declared",
+          "AUTH-02": "supported",
+          "AUTH-03a": "inconclusive",
+          "AUTH-03b": "inconclusive",
+          "AUTH-03c": "inconclusive",
+          "AUTH-04": "inconclusive",
+          "AUTH-05": "inconclusive",
+          "AUTH-06": "supported",
+          "AUTH-07": "supported",
+          "AUTH-08": "not_tested"
+        }
+      },
+      {
+        "scenario": "stale-effect",
+        "run_id": "r1",
+        "history": "targets/claude-agent-acp/results/live-runs/stale-effect/r1/history.jsonl",
+        "observed": {
+          "AUTH-01a": "not_declared",
+          "AUTH-01b": "inconclusive",
+          "AUTH-01c": "not_declared",
+          "AUTH-02": "supported",
+          "AUTH-03a": "inconclusive",
+          "AUTH-03b": "inconclusive",
+          "AUTH-03c": "inconclusive",
+          "AUTH-04": "inconclusive",
+          "AUTH-05": "inconclusive",
+          "AUTH-06": "supported",
+          "AUTH-07": "inconclusive",
+          "AUTH-08": "not_tested"
+        }
+      },
+      {
+        "scenario": "stale-effect",
+        "run_id": "r2",
+        "history": "targets/claude-agent-acp/results/live-runs/stale-effect/r2/history.jsonl",
+        "observed": {
+          "AUTH-01a": "not_declared",
+          "AUTH-01b": "inconclusive",
+          "AUTH-01c": "not_declared",
+          "AUTH-02": "supported",
+          "AUTH-03a": "inconclusive",
+          "AUTH-03b": "inconclusive",
+          "AUTH-03c": "inconclusive",
+          "AUTH-04": "inconclusive",
+          "AUTH-05": "inconclusive",
+          "AUTH-06": "supported",
+          "AUTH-07": "inconclusive",
+          "AUTH-08": "not_tested"
+        }
+      },
+      {
+        "scenario": "stale-effect",
+        "run_id": "r3",
+        "history": "targets/claude-agent-acp/results/live-runs/stale-effect/r3/history.jsonl",
+        "observed": {
+          "AUTH-01a": "not_declared",
+          "AUTH-01b": "inconclusive",
+          "AUTH-01c": "not_declared",
+          "AUTH-02": "supported",
+          "AUTH-03a": "inconclusive",
+          "AUTH-03b": "inconclusive",
+          "AUTH-03c": "inconclusive",
+          "AUTH-04": "inconclusive",
+          "AUTH-05": "inconclusive",
+          "AUTH-06": "supported",
+          "AUTH-07": "inconclusive",
+          "AUTH-08": "not_tested"
+        }
+      },
+      {
+        "scenario": "stale-grant",
+        "run_id": "r1",
+        "history": "targets/claude-agent-acp/results/live-runs/stale-grant/r1/history.jsonl",
+        "observed": {
+          "AUTH-01a": "not_declared",
+          "AUTH-01b": "inconclusive",
+          "AUTH-01c": "not_declared",
+          "AUTH-02": "supported",
+          "AUTH-03a": "inconclusive",
+          "AUTH-03b": "inconclusive",
+          "AUTH-03c": "inconclusive",
+          "AUTH-04": "inconclusive",
+          "AUTH-05": "inconclusive",
+          "AUTH-06": "supported",
+          "AUTH-07": "inconclusive",
+          "AUTH-08": "not_tested"
+        }
+      },
+      {
+        "scenario": "stale-grant",
+        "run_id": "r2",
+        "history": "targets/claude-agent-acp/results/live-runs/stale-grant/r2/history.jsonl",
+        "observed": {
+          "AUTH-01a": "not_declared",
+          "AUTH-01b": "inconclusive",
+          "AUTH-01c": "not_declared",
+          "AUTH-02": "supported",
+          "AUTH-03a": "inconclusive",
+          "AUTH-03b": "inconclusive",
+          "AUTH-03c": "inconclusive",
+          "AUTH-04": "inconclusive",
+          "AUTH-05": "inconclusive",
+          "AUTH-06": "supported",
+          "AUTH-07": "inconclusive",
+          "AUTH-08": "not_tested"
+        }
+      },
+      {
+        "scenario": "stale-grant",
+        "run_id": "r3",
+        "history": "targets/claude-agent-acp/results/live-runs/stale-grant/r3/history.jsonl",
+        "observed": {
+          "AUTH-01a": "not_declared",
+          "AUTH-01b": "inconclusive",
+          "AUTH-01c": "not_declared",
+          "AUTH-02": "supported",
+          "AUTH-03a": "inconclusive",
+          "AUTH-03b": "inconclusive",
+          "AUTH-03c": "inconclusive",
+          "AUTH-04": "inconclusive",
+          "AUTH-05": "inconclusive",
+          "AUTH-06": "supported",
+          "AUTH-07": "inconclusive",
+          "AUTH-08": "not_tested"
+        }
+      }
+    ],
     "excluded": [],
     "disagreements": []
   },
@@ -91,7 +433,7 @@
   },
   "notes": {
     "summary": "Fixture vector from asa check against history-fixture.jsonl. Public ACP docs do not declare portable ActionBinding+generation; digests and fence_epoch are adapter-synthesized for the probe.",
-    "live_status": "WITHDRAWN (2026-09-29): previously published live permission-axis conclusions are not supported by reproducible evidence — the published live history does not encode runtime generation, the restart fault, approval↔action binding, or effect receipts, so asa check cannot reproduce those conclusions. Pending re-run with the fixed adapter. See AUTH_*_LIVE.md / LIVE_CAPPED.md status blocks and README.",
+    "live_status": "Re-run (PR-7b, 2026-09-30): 13 valid live runs under targets/claude-agent-acp/results/live-runs (see live_runs, observed_vector and capability_vector). The earlier live permission-axis conclusions (2026-09-06..14) remain WITHDRAWN and are not used as evidence.",
     "invariants": {
       "AUTH-02": "Fixture maps ACP permission allow/deny to approval.grant/deny with synthesized action_digest; public docs describe permission extension but not canonical ActionBinding+generation binding. Measured fixture only.",
       "AUTH-05": "Permission responses are client-driven; fixture cannot show ControlLease vs Approver separation as first-class ACP objects.",

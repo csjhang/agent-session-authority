@@ -17,6 +17,82 @@ Previously published live permission-axis conclusions are **not supported by rep
 - [`AUTH_EFFECT_CHAIN.md`](targets/claude-agent-acp/results/AUTH_EFFECT_CHAIN.md) · [`AUTH_ALWAYS_GRANT_LIVE.md`](targets/claude-agent-acp/results/AUTH_ALWAYS_GRANT_LIVE.md) · [`AUTH_REJECT_ALWAYS_LIVE.md`](targets/claude-agent-acp/results/AUTH_REJECT_ALWAYS_LIVE.md) · [`LIVE_CAPPED.md`](targets/claude-agent-acp/results/LIVE_CAPPED.md)
 - Slim witnesses under `targets/claude-agent-acp/results/history-live-*-witnesses.jsonl` (verbose full histories are gitignored)
 
+### Live re-run (PR-7b)
+
+Re-run date: **2026-09-30**. Pin `@agentclientprotocol/claude-agent-acp@0.75.1`. **13** valid live runs under `targets/claude-agent-acp/results/live-runs` (see `live_runs`, `observed_vector` and `capability_vector`). The earlier live permission-axis conclusions (2026-09-06..14) remain **WITHDRAWN** and are not used as evidence.
+
+**Runs** (all `run_valid: true`, `package_version_observed: "0.75.1"`):
+
+- `always-grant/r1` → `targets/claude-agent-acp/results/live-runs/always-grant/r1/history.jsonl`
+- `always-grant/r2` → `targets/claude-agent-acp/results/live-runs/always-grant/r2/history.jsonl`
+- `always-grant/r3` → `targets/claude-agent-acp/results/live-runs/always-grant/r3/history.jsonl`
+- `effect/r1` → `targets/claude-agent-acp/results/live-runs/effect/r1/history.jsonl`
+- `effect/r2` → `targets/claude-agent-acp/results/live-runs/effect/r2/history.jsonl`
+- `effect/r3` → `targets/claude-agent-acp/results/live-runs/effect/r3/history.jsonl`
+- `reject-always/r1` → `targets/claude-agent-acp/results/live-runs/reject-always/r1/history.jsonl`
+- `stale-effect/r1` → `targets/claude-agent-acp/results/live-runs/stale-effect/r1/history.jsonl`
+- `stale-effect/r2` → `targets/claude-agent-acp/results/live-runs/stale-effect/r2/history.jsonl`
+- `stale-effect/r3` → `targets/claude-agent-acp/results/live-runs/stale-effect/r3/history.jsonl`
+- `stale-grant/r1` → `targets/claude-agent-acp/results/live-runs/stale-grant/r1/history.jsonl`
+- `stale-grant/r2` → `targets/claude-agent-acp/results/live-runs/stale-grant/r2/history.jsonl`
+- `stale-grant/r3` → `targets/claude-agent-acp/results/live-runs/stale-grant/r3/history.jsonl`
+
+**observed_vector** (from `pnpm generate:capability-vectors`):
+
+```json
+{
+  "AUTH-01a": "not_tested",
+  "AUTH-01b": "not_tested",
+  "AUTH-01c": "not_tested",
+  "AUTH-02": "supported",
+  "AUTH-03a": "inconclusive",
+  "AUTH-03b": "inconclusive",
+  "AUTH-03c": "inconclusive",
+  "AUTH-04": "inconclusive",
+  "AUTH-05": "inconclusive",
+  "AUTH-06": "not_tested",
+  "AUTH-07": "supported",
+  "AUTH-08": "not_tested"
+}
+```
+
+**capability_vector** (research_profile claim-rewrite):
+
+```json
+{
+  "AUTH-01a": "not_tested",
+  "AUTH-01b": "not_tested",
+  "AUTH-01c": "not_tested",
+  "AUTH-02": "not_declared",
+  "AUTH-03a": "inconclusive",
+  "AUTH-03b": "inconclusive",
+  "AUTH-03c": "inconclusive",
+  "AUTH-04": "inconclusive",
+  "AUTH-05": "inconclusive",
+  "AUTH-06": "not_tested",
+  "AUTH-07": "not_declared",
+  "AUTH-08": "not_tested"
+}
+```
+
+**capability_exclusions**:
+
+```json
+{
+  "AUTH-01a": "profile-only: claude-agent-acp publishes no authority profile or generation_model",
+  "AUTH-01b": "probe-derived: live runtime_generation is counted by the adapter from process spawns (issuer_id=acp_adapter_live), not reported by claude-agent-acp",
+  "AUTH-01c": "probe-derived: the only generation issuer in live history is the adapter itself (acp_adapter_live)",
+  "AUTH-06": "not examined: the adapter does not map claude-agent-acp success claims (tool_call status) into history, so no implicit-success claim is ever checked",
+  "AUTH-08": "no checker (always not_tested)"
+}
+```
+
+**Disagreements:** none (`live_runs.disagreements` is empty).
+
+**Excluded runs:** none (`live_runs.excluded` is empty).
+
+These live results replace the withdrawn permission-axis conclusions as the current evidence for claude-agent-acp on this pin; fixture vectors remain unchanged.
+
 ### Next probe posture
 
 1. **Option-offer survey** — which permission kinds are actually offered vs listed in the ACP kind enum (Hermes / OpenClaw / …; cheap first pass). See [`findings/option-offer-survey.md`](findings/option-offer-survey.md).

@@ -52,7 +52,7 @@ const HAND_NOTES: Record<string, NotesBlock> = {
     summary:
       "Fixture vector from asa check against history-fixture.jsonl. Public ACP docs do not declare portable ActionBinding+generation; digests and fence_epoch are adapter-synthesized for the probe.",
     live_status:
-      "WITHDRAWN (2026-09-29): previously published live permission-axis conclusions are not supported by reproducible evidence — the published live history does not encode runtime generation, the restart fault, approval↔action binding, or effect receipts, so asa check cannot reproduce those conclusions. Pending re-run with the fixed adapter. See AUTH_*_LIVE.md / LIVE_CAPPED.md status blocks and README.",
+      "Re-run (PR-7b, 2026-09-30): 13 valid live runs under targets/claude-agent-acp/results/live-runs (see live_runs, observed_vector and capability_vector). The earlier live permission-axis conclusions (2026-09-06..14) remain WITHDRAWN and are not used as evidence.",
     invariants: {
       "AUTH-02":
         "Fixture maps ACP permission allow/deny to approval.grant/deny with synthesized action_digest; public docs describe permission extension but not canonical ActionBinding+generation binding. Measured fixture only.",
