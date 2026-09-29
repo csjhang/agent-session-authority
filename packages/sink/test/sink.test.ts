@@ -6,6 +6,7 @@ import {
   MockEffectSink,
   chain_hash,
   hash_receipt,
+  snapshot_integrity_hash,
   start_sink_server,
   verify_chain,
   type EffectReceipt,
@@ -1113,5 +1114,438 @@ describe("PR-2 amend: verify_chain expectedHead / head_mismatch", () => {
     const keyed = verify_chain(rewritten, originalHead);
     expect(keyed.ok).toBe(false);
     expect(keyed.reason).toBe("head_mismatch");
+  });
+});
+
+describe("PR-2 amend: restore must not rewind fencing (enforce)", () => {
+  it("snapshot gen1/epoch1/holder c1 → handoff c2+gen2 → restore → gen=3; old c1/gen1 rejected", async () => {
+    const sink = new MockEffectSink({
+      enforce: true,
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      holders: { s: "c1" },
+    });
+    sink.grant({
+      effectId: "e_old",
+      actionDigest: "d",
+      approvalId: "a_old",
+      decision: "grant",
+      runtimeGeneration: 1,
+      fenceEpoch: 1,
+    });
+    const snap = sink.snapshot();
+    expect(snap.defaultRuntimeGeneration).toBe(1);
+    expect(snap.defaultFenceEpoch).toBe(1);
+    expect(snap.holders).toEqual({ s: "c1" });
+
+    // Advance past snap: handoff to c2 + gen2 (holder change also bumps fence under enforce).
+    const handoff = sink.fence({
+      scopeId: "s",
+      holder: "c2",
+      runtimeGeneration: 2,
+    });
+    expect(handoff.ok).toBe(true);
+    expect(sink.getRuntimeGeneration()).toBe(2);
+    expect(sink.getFenceEpoch()).toBeGreaterThan(1);
+    expect(sink.getHolders()).toEqual({ s: "c2" });
+
+    sink.restore(snap);
+    // AUTH-01b: max(current=2, snap=1)+1 = 3; holders keep CURRENT (c2).
+    expect(sink.getRuntimeGeneration()).toBe(3);
+    expect(sink.getFenceEpoch()).toBe(Math.max(handoff.fenceEpoch, snap.defaultFenceEpoch) + 1);
+    expect(sink.getHolders()).toEqual({ s: "c2" });
+    expect(
+      sink.getObservationLog().some((o) => o.type === "sink.restore_bump"),
+    ).toBe(true);
+
+    const stale = await sink.accept({
+      effectId: "e_old",
+      actionDigest: "d",
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      controller: "c1",
+      scopeId: "s",
+      approval: { approval_id: "a_old" },
+    });
+    expect(stale.accepted).toBe(false);
+    expect(["stale_fence", "generation_mismatch", "not_holder"]).toContain(stale.reason);
+    expect(sink.getRuntimeGeneration()).toBe(3);
+  });
+});
+
+describe("PR-2 amend: snapshot integrity covers full state", () => {
+  it("valid snap with only holders or defaultFenceEpoch altered → unknown_snapshot", () => {
+    const sink = new MockEffectSink({
+      enforce: true,
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      holders: { s: "c1" },
+    });
+    sink.grant({
+      effectId: "e1",
+      actionDigest: "d",
+      approvalId: "a1",
+      decision: "grant",
+      runtimeGeneration: 1,
+    });
+    const snap = sink.snapshot();
+    const goodHash = snapshot_integrity_hash(snap);
+    expect(goodHash).toMatch(/^[0-9a-f]{64}$/);
+
+    const holdersAltered = {
+      ...snap,
+      holders: { s: "attacker" },
+    };
+    expect(snapshot_integrity_hash(holdersAltered)).not.toBe(goodHash);
+    expect(() => sink.restore(holdersAltered)).toThrow(/unknown_snapshot/);
+
+    const epochAltered = {
+      ...snap,
+      defaultFenceEpoch: snap.defaultFenceEpoch + 99,
+    };
+    expect(snapshot_integrity_hash(epochAltered)).not.toBe(goodHash);
+    expect(() => sink.restore(epochAltered)).toThrow(/unknown_snapshot/);
+
+    // Untampered snap still restores (with bump).
+    sink.restore(snap);
+    expect(sink.getRuntimeGeneration()).toBe(2); // max(1,1)+1
+    expect(
+      sink.getObservationLog().some(
+        (o) => o.type === "sink.restore_reject" && o.detail.reason === "unknown_snapshot",
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("PR-2 amend: generative enforce sequences", () => {
+  it("fixed seed ≥200 random ops: chain+cross ok; tamper fails", async () => {
+    const SEED = 20260929;
+    const OP_COUNT = 200;
+    /** mulberry32 */
+    function makeRng(seed: number): () => number {
+      let a = seed >>> 0;
+      return () => {
+        a = (a + 0x6d2b79f5) >>> 0;
+        let t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+    const rng = makeRng(SEED);
+    const pick = <T,>(xs: T[]): T => xs[Math.floor(rng() * xs.length)]!;
+    const ops: string[] = [];
+
+    const crossPath = join(repoRoot, "spec/vectors/agent-effect/cross-verify.ts");
+    const mod = await import(pathToFileURL(crossPath).href);
+    const verifyCrossRecords = mod.verifyCrossRecords as (recs: unknown[]) => {
+      ok: boolean;
+      violations: { code: string }[];
+    };
+
+    const sink = new MockEffectSink({
+      enforce: true,
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      holders: { s: "c1" },
+      boundaryId: "gen-boundary",
+      clock: (() => {
+        let n = 0;
+        return () => {
+          n += 1;
+          return new Date(Date.UTC(2026, 8, 29, 12, 0, n)).toISOString();
+        };
+      })(),
+    });
+
+    let effectSeq = 0;
+    let approvalSeq = 0;
+    /** Unused grant slots: approvalId bound to effectId+digest at current gen. */
+    const openGrants: { approvalId: string; effectId: string; digest: string; gen: number }[] =
+      [];
+    let holder = "c1";
+
+    const auth = () => ({
+      fenceEpoch: sink.getFenceEpoch(),
+      runtimeGeneration: sink.getRuntimeGeneration(),
+      controller: holder,
+      scopeId: "s",
+    });
+
+    try {
+      for (let i = 0; i < OP_COUNT; i++) {
+        const kind = pick([
+          "grant",
+          "rejectable_accept",
+          "accept",
+          "fence_advance",
+          "handoff",
+          "concurrent_accepts",
+        ] as const);
+        ops.push(kind);
+
+        if (kind === "grant") {
+          effectSeq += 1;
+          approvalSeq += 1;
+          const effectId = `ge_${effectSeq}`;
+          const approvalId = `ga_${approvalSeq}`;
+          const digest = `d_${effectSeq}`;
+          const g = sink.grant({
+            effectId,
+            actionDigest: digest,
+            approvalId,
+            decision: "grant",
+            runtimeGeneration: sink.getRuntimeGeneration(),
+            fenceEpoch: sink.getFenceEpoch(),
+            controller: holder,
+            scopeId: "s",
+          });
+          if (!g.accepted) throw new Error(`grant failed: ${g.reason}`);
+          openGrants.push({
+            approvalId,
+            effectId,
+            digest,
+            gen: sink.getRuntimeGeneration(),
+          });
+        } else if (kind === "accept") {
+          // Prefer an open grant at current gen; else grant+accept.
+          let slot = openGrants.find((g) => g.gen === sink.getRuntimeGeneration());
+          if (!slot) {
+            effectSeq += 1;
+            approvalSeq += 1;
+            const effectId = `ge_${effectSeq}`;
+            const approvalId = `ga_${approvalSeq}`;
+            const digest = `d_${effectSeq}`;
+            const g = sink.grant({
+              effectId,
+              actionDigest: digest,
+              approvalId,
+              decision: "grant",
+              runtimeGeneration: sink.getRuntimeGeneration(),
+              fenceEpoch: sink.getFenceEpoch(),
+            });
+            if (!g.accepted) throw new Error(`grant-for-accept failed: ${g.reason}`);
+            slot = {
+              approvalId,
+              effectId,
+              digest,
+              gen: sink.getRuntimeGeneration(),
+            };
+            openGrants.push(slot);
+          }
+          const r = await sink.accept({
+            effectId: slot.effectId,
+            actionDigest: slot.digest,
+            ...auth(),
+            approval: { approval_id: slot.approvalId },
+          });
+          if (!r.accepted) throw new Error(`accept failed: ${r.reason}`);
+          const idx = openGrants.indexOf(slot);
+          if (idx >= 0) openGrants.splice(idx, 1);
+        } else if (kind === "rejectable_accept") {
+          // Stale fence / wrong holder / unknown approval — expect reject.
+          const mode = pick(["stale_fence", "not_holder", "unknown_approval"] as const);
+          effectSeq += 1;
+          const effectId = `gr_${effectSeq}`;
+          let reason: string | undefined;
+          if (mode === "stale_fence") {
+            // Need a grant so we pass approval checks after fence — actually
+            // stale_fence is checked before approval. Omit approval ok? missing_approval
+            // comes after fence check... fence is checked before approval.
+            const r = await sink.accept({
+              effectId,
+              actionDigest: "d_reject",
+              fenceEpoch: sink.getFenceEpoch() - 1,
+              runtimeGeneration: sink.getRuntimeGeneration(),
+              controller: holder,
+              scopeId: "s",
+              approval: { approval_id: "nope" },
+            });
+            reason = r.reason;
+            if (r.accepted) throw new Error("expected stale_fence reject");
+            if (reason !== "stale_fence") throw new Error(`expected stale_fence got ${reason}`);
+          } else if (mode === "not_holder") {
+            const r = await sink.accept({
+              effectId,
+              actionDigest: "d_reject",
+              ...auth(),
+              controller: "not_" + holder,
+              approval: { approval_id: "nope" },
+            });
+            reason = r.reason;
+            if (r.accepted) throw new Error("expected not_holder reject");
+            if (reason !== "not_holder") throw new Error(`expected not_holder got ${reason}`);
+          } else {
+            const r = await sink.accept({
+              effectId,
+              actionDigest: "d_reject",
+              ...auth(),
+              approval: { approval_id: `missing_${effectSeq}` },
+            });
+            reason = r.reason;
+            if (r.accepted) throw new Error("expected unknown_approval reject");
+            if (reason !== "unknown_approval") {
+              throw new Error(`expected unknown_approval got ${reason}`);
+            }
+          }
+        } else if (kind === "fence_advance") {
+          const nextEpoch = sink.getFenceEpoch() + 1;
+          const nextGen = sink.getRuntimeGeneration() + (rng() < 0.5 ? 1 : 0);
+          const r = sink.fence({
+            fenceEpoch: nextEpoch,
+            ...(nextGen > sink.getRuntimeGeneration()
+              ? { runtimeGeneration: nextGen }
+              : {}),
+          });
+          if (!r.ok) throw new Error(`fence_advance failed: ${r.reason}`);
+          // Open grants at old gen become unusable (approval_generation_mismatch).
+          for (let j = openGrants.length - 1; j >= 0; j--) {
+            if (openGrants[j]!.gen !== sink.getRuntimeGeneration()) {
+              openGrants.splice(j, 1);
+            }
+          }
+        } else if (kind === "handoff") {
+          const next = holder === "c1" ? "c2" : "c1";
+          const r = sink.fence({
+            scopeId: "s",
+            holder: next,
+            // optionally bump gen
+            ...(rng() < 0.3
+              ? { runtimeGeneration: sink.getRuntimeGeneration() + 1 }
+              : {}),
+          });
+          if (!r.ok) throw new Error(`handoff failed: ${r.reason}`);
+          holder = next;
+          for (let j = openGrants.length - 1; j >= 0; j--) {
+            if (openGrants[j]!.gen !== sink.getRuntimeGeneration()) {
+              openGrants.splice(j, 1);
+            }
+          }
+        } else if (kind === "concurrent_accepts") {
+          // Delay-mode: grant one effect, race same effectId (idempotent resent).
+          effectSeq += 1;
+          approvalSeq += 1;
+          const effectId = `gc_${effectSeq}`;
+          const approvalId = `ga_${approvalSeq}`;
+          const digest = `d_${effectSeq}`;
+          const g = sink.grant({
+            effectId,
+            actionDigest: digest,
+            approvalId,
+            decision: "grant",
+            runtimeGeneration: sink.getRuntimeGeneration(),
+            fenceEpoch: sink.getFenceEpoch(),
+          });
+          if (!g.accepted) throw new Error(`concurrent grant failed: ${g.reason}`);
+          sink.setFaultMode("delay", 15);
+          const base = {
+            effectId,
+            actionDigest: digest,
+            ...auth(),
+            approval: { approval_id: approvalId },
+          };
+          const [a, b] = await Promise.all([sink.accept(base), sink.accept(base)]);
+          sink.setFaultMode("none");
+          const committed = [a, b].filter(
+            (r) => r.accepted && r.receipt?.outcome === "committed" && !r.resent,
+          );
+          const resent = [a, b].filter((r) => r.resent === true);
+          if (sink.getCommitCount() < 1) throw new Error("concurrent: no commit");
+          if (committed.length + resent.length < 2 && ![a, b].every((r) => r.accepted)) {
+            // One first commit + one resent, or both accepted via resent path.
+            const okish = [a, b].filter((r) => r.accepted);
+            if (okish.length < 2) {
+              throw new Error(
+                `concurrent accept failed: ${JSON.stringify([a.reason, b.reason, a.resent, b.resent])}`,
+              );
+            }
+          }
+        }
+      }
+
+      const ledger = sink.exportLedger();
+      const head = sink.getLastEvidenceHash();
+      const chain = verify_chain(ledger, head);
+      if (!chain.ok) {
+        throw new Error(`verify_chain failed: ${chain.reason} breakAt=${chain.breakAt}`);
+      }
+      const cross = verifyCrossRecords(sink.exportAgentEffectRecords());
+      if (!cross.ok) {
+        throw new Error(
+          `verifyCrossRecords failed: ${cross.violations.map((v) => v.code).join(",")}`,
+        );
+      }
+
+      // Tamper suite: corrupt one committed record → verifier must report violation.
+      const committedIdxs = ledger
+        .map((r, i) => (r.outcome === "committed" ? i : -1))
+        .filter((i) => i >= 0);
+      if (committedIdxs.length === 0) {
+        // Force one commit so tamper has a target.
+        effectSeq += 1;
+        approvalSeq += 1;
+        const effectId = `gt_${effectSeq}`;
+        const approvalId = `ga_${approvalSeq}`;
+        sink.grant({
+          effectId,
+          actionDigest: "d_tamper",
+          approvalId,
+          decision: "grant",
+          runtimeGeneration: sink.getRuntimeGeneration(),
+          fenceEpoch: sink.getFenceEpoch(),
+        });
+        const r = await sink.accept({
+          effectId,
+          actionDigest: "d_tamper",
+          ...auth(),
+          approval: { approval_id: approvalId },
+        });
+        if (!r.accepted) throw new Error(`tamper setup accept failed: ${r.reason}`);
+      }
+      const ledger2 = sink.exportLedger();
+      const cIdx =
+        ledger2.map((r, i) => (r.outcome === "committed" ? i : -1)).filter((i) => i >= 0)[
+          Math.floor(rng() * Math.max(1, ledger2.filter((r) => r.outcome === "committed").length))
+        ] ?? ledger2.findIndex((r) => r.outcome === "committed");
+      if (cIdx < 0) throw new Error("no committed record to tamper");
+      const field = pick(["runtimeGeneration", "actionDigest"] as const);
+      const tampered = ledger2.map((r, i) => {
+        if (i !== cIdx) return { ...r };
+        if (field === "runtimeGeneration") {
+          return { ...r, runtimeGeneration: r.runtimeGeneration + 99 };
+        }
+        return { ...r, actionDigest: r.actionDigest + "_TAMPER" };
+      });
+      // Re-link chain pointers so only content tamper is tested via cross-verify /
+      // or leave chain broken — task: verifier must report violation.
+      // Prefer cross-verify on exported agent-effect shape with content corruption.
+      const records = sink.exportAgentEffectRecords().map((rec, i) => {
+        // Map ledger index to export index (same order).
+        if (i !== cIdx) return { ...rec };
+        if (field === "runtimeGeneration") {
+          return { ...rec, runtime_generation: rec.runtime_generation + 99 };
+        }
+        return { ...rec, action_digest: rec.action_digest + "_TAMPER" };
+      });
+      const bad = verifyCrossRecords(records);
+      if (bad.ok) {
+        throw new Error(`tamper of ${field} at ${cIdx} did not produce violation`);
+      }
+      // Also: chain with content change but unbroken pointers should still change
+      // final hash vs expected head.
+      const chainTamper = verify_chain(tampered, sink.getLastEvidenceHash());
+      // Pointers still match structurally but record hashes change → final head differs
+      // OR intermediate break if we didn't recompute. Either ok=false or head_mismatch.
+      if (chainTamper.ok) {
+        throw new Error("tampered ledger still verified against original head");
+      }
+    } catch (e) {
+      // On failure print seed + op sequence (required).
+      // eslint-disable-next-line no-console
+      console.error(
+        `GENERATIVE FAIL seed=${SEED} opCount=${ops.length} ops=${JSON.stringify(ops)}`,
+      );
+      throw e;
+    }
   });
 });

@@ -19,6 +19,7 @@ export {
   hash_receipt,
   chain_hash,
   verify_chain,
+  snapshot_integrity_hash,
 } from "./sink.js";
 export type { MockEffectSinkOptions, VerifyChainResult } from "./sink.js";
 export { start_sink_server } from "./server.js";

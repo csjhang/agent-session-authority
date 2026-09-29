@@ -108,6 +108,18 @@ export function verify_chain(
   return { ok: true, finalChainHash: lastComputed };
 }
 
+
+/**
+ * Integrity hash over the full SinkSnapshot (JCS). Used under enforce so restore
+ * rejects snaps whose holders/fence/generation/ledger/etc. were altered after
+ * snapshot() — not only lastEvidenceHash mismatches.
+ */
+export function snapshot_integrity_hash(snap: SinkSnapshot): string {
+  const h = createHash("sha256");
+  h.update(canonicalize(snap as unknown as Record<string, unknown>));
+  return h.digest("hex");
+}
+
 function iso_to_unix_nano(iso: string): string {
   const ms = Date.parse(iso);
   if (!Number.isFinite(ms)) return "0";
@@ -137,8 +149,11 @@ export interface MockEffectSinkOptions {
  * restore() policy: if snapshot.enforce !== this instance's enforce flag → throw
  * (does not apply a mismatched snapshot). Also verifies the ledger chain and that
  * snap.lastEvidenceHash matches the recomputed head (else chain_invalid). Under
- * enforce, only snapshots this instance produced (via snapshot()) are accepted
- * (else unknown_snapshot).
+ * enforce, only snapshots this instance produced (via snapshot()) are accepted —
+ * integrity is sha256(JCS(full snapshot)) (else unknown_snapshot). Under enforce,
+ * restore must not rewind fencing (AUTH-01b): runtimeGeneration and fenceEpoch
+ * become max(current, snap)+1; holders stay at CURRENT (snap holders ignored);
+ * observes sink.restore_bump.
  */
 export class MockEffectSink {
   private commitCount = 0;
@@ -147,7 +162,13 @@ export class MockEffectSink {
   private committedIds = new Map<string, EffectReceipt>();
   /** approval_id → effectId that committed with it. */
   private usedApprovals = new Map<string, string>();
-  /** approval_id → effectId reserved before await (released if no commit). */
+  /**
+   * approval_id → effectId reserved before await (released if no commit).
+   * After approval↔effect binding (issued.effectId must match req.effectId),
+   * cross-effect races fail at approval_effect_mismatch before reserve, so this
+   * map rarely fires under enforce. Kept for defense-in-depth if binding is
+   * ever relaxed and for the claim-before-await pattern with delay-mode.
+   */
   private reservedApprovals = new Map<string, string>();
   /** approval_id → full grant() history (latest wins). */
   private grantHistory = new Map<string, IssuedGrant[]>();
@@ -164,10 +185,11 @@ export class MockEffectSink {
   /** Per-effectId serialization: claim slot before any await. */
   private readonly effectChains = new Map<string, Promise<unknown>>();
   /**
-   * lastEvidenceHash values this instance has emitted via snapshot().
-   * null head encoded as "". Used under enforce to reject foreign snapshots.
+   * sha256(JCS(full snapshot)) values this instance has emitted via snapshot().
+   * Used under enforce to reject foreign or tampered snapshots (covers holders,
+   * fence/generation, ledger, pending — not only lastEvidenceHash).
    */
-  private readonly knownSnapshotHeads = new Set<string>();
+  private readonly knownSnapshotHashes = new Set<string>();
 
   constructor(opts: MockEffectSinkOptions = {}) {
     this.boundaryId = opts.boundaryId ?? "mock_effect_boundary";
@@ -287,7 +309,7 @@ export class MockEffectSink {
       enforce: this.enforce,
       holders: this.getHolders(),
     };
-    this.knownSnapshotHeads.add(this.lastEvidenceHash ?? "");
+    this.knownSnapshotHashes.add(snapshot_integrity_hash(snap));
     return snap;
   }
 
@@ -295,8 +317,9 @@ export class MockEffectSink {
    * Restore sink state. Observation log is preserved (not rolled back).
    * Throws if snapshot.enforce !== this.enforce (restore policy: hard error).
    * Throws chain_invalid if verify_chain fails or lastEvidenceHash ≠ recomputed head
-   * (does not apply). Under enforce, throws unknown_snapshot if this instance never
-   * produced that lastEvidenceHash via snapshot().
+   * (does not apply). Under enforce, throws unknown_snapshot if sha256(JCS(snap))
+   * was never produced by this instance via snapshot(). Under enforce, fencing is
+   * not rewound (AUTH-01b): gen/epoch = max(current, snap)+1; holders keep CURRENT.
    */
   restore(snap: SinkSnapshot): void {
     const snapEnforce = snap.enforce ?? false;
@@ -323,15 +346,21 @@ export class MockEffectSink {
     }
 
     if (this.enforce) {
-      const key = snap.lastEvidenceHash ?? "";
-      if (!this.knownSnapshotHeads.has(key)) {
+      const key = snapshot_integrity_hash(snap);
+      if (!this.knownSnapshotHashes.has(key)) {
         this.observe("sink.restore_reject", {
           reason: "unknown_snapshot",
+          snapshotIntegrityHash: key,
           snapshotHead: snap.lastEvidenceHash,
         });
-        throw new Error("restore unknown_snapshot: snapshot head not produced by this sink");
+        throw new Error("restore unknown_snapshot: snapshot not produced by this sink");
       }
     }
+
+    // Capture pre-restore fencing/holders before applying snap (enforce bump).
+    const prevGen = this.defaultRuntimeGeneration;
+    const prevEpoch = this.defaultFenceEpoch;
+    const prevHolders = new Map(this.holders);
 
     this.commitCount = snap.commitCount;
     this.ledger = snap.ledger.map((r) => ({ ...r }));
@@ -349,18 +378,41 @@ export class MockEffectSink {
     this.rebuildGrantHistoryFromLedger();
     this.faultMode = snap.faultMode;
     this.delayMs = snap.delayMs;
-    this.defaultRuntimeGeneration = snap.defaultRuntimeGeneration;
-    this.defaultFenceEpoch = snap.defaultFenceEpoch;
     this.boundaryId = snap.boundaryId;
     this.lastEvidenceHash = snap.lastEvidenceHash;
-    this.holders.clear();
-    if (snap.holders) {
-      for (const [k, v] of Object.entries(snap.holders)) this.holders.set(k, v);
+
+    if (this.enforce) {
+      // AUTH-01b: generation/fence strictly increase after restore; holders stay current.
+      const bumpedGen = Math.max(prevGen, snap.defaultRuntimeGeneration) + 1;
+      const bumpedEpoch = Math.max(prevEpoch, snap.defaultFenceEpoch) + 1;
+      this.defaultRuntimeGeneration = bumpedGen;
+      this.defaultFenceEpoch = bumpedEpoch;
+      this.holders.clear();
+      for (const [k, v] of prevHolders) this.holders.set(k, v);
+      this.observe("sink.restore_bump", {
+        prevRuntimeGeneration: prevGen,
+        prevFenceEpoch: prevEpoch,
+        snapRuntimeGeneration: snap.defaultRuntimeGeneration,
+        snapFenceEpoch: snap.defaultFenceEpoch,
+        runtimeGeneration: bumpedGen,
+        fenceEpoch: bumpedEpoch,
+        holders: this.getHolders(),
+      });
+    } else {
+      this.defaultRuntimeGeneration = snap.defaultRuntimeGeneration;
+      this.defaultFenceEpoch = snap.defaultFenceEpoch;
+      this.holders.clear();
+      if (snap.holders) {
+        for (const [k, v] of Object.entries(snap.holders)) this.holders.set(k, v);
+      }
     }
+
     this.observe("sink.restore", {
       commitCount: this.commitCount,
       ledgerLen: this.ledger.length,
       observationLogLen: this.observationLog.length,
+      runtimeGeneration: this.defaultRuntimeGeneration,
+      fenceEpoch: this.defaultFenceEpoch,
     });
   }
 

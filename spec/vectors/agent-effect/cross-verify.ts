@@ -22,7 +22,10 @@ export type CrossViolationCode =
   | "approval_reused_across_effects"
   | "invalid_record";
 
-export type CrossReportCode = "approval_generation_unverifiable" | "rejected_digest_variant";
+export type CrossReportCode =
+  | "approval_generation_unverifiable"
+  | "rejected_digest_variant"
+  | "rejected_stale_fence";
 
 export interface CrossViolation {
   code: CrossViolationCode;
@@ -117,11 +120,18 @@ function hasApprovalId(f: AgentEffectFields): boolean {
   return typeof f.approval_id === "string" && f.approval_id.length > 0;
 }
 
+/**
+ * Grant issuance decision. record_kind="effect" never counts — committed/rejected
+ * effect receipts may echo approval fields as a claim of use, not issuance.
+ */
 function isGrant(f: AgentEffectFields): boolean {
+  if (f.record_kind === "effect") return false;
   return f.approval_decision === "grant" && hasApprovalId(f);
 }
 
+/** Deny issuance decision. record_kind="effect" never counts (see isGrant). */
 function isDeny(f: AgentEffectFields): boolean {
+  if (f.record_kind === "effect") return false;
   return f.approval_decision === "deny" && hasApprovalId(f);
 }
 
@@ -377,6 +387,8 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
       continue;
     }
 
+    // isDecision excludes record_kind="effect" — committed receipt approval
+    // fields are a claim of which approval_id was used, not issuance evidence.
     const decisions = indexed.filter(
       (r) =>
         isDecision(r.fields) &&
@@ -514,11 +526,30 @@ export function verifyCrossRecords(rawRecords: unknown[]): CrossVerifyResult {
       });
     }
 
-    // Rule 4a: fence_epoch must not go backwards within stream (by sequence_number).
+    // Rule 4a: fence_epoch non-decreasing among committed + approval records only
+    // (by sequence_number). rejected/failed non-approval with a lower fence_epoch
+    // → soft report rejected_stale_fence (does not flip ok).
     let lastEpoch: number | undefined;
     let lastIdx: number | undefined;
     let lastSeq: number | undefined;
     for (const rec of ordered) {
+      const hard =
+        rec.fields.outcome === "committed" || isApprovalRecord(rec.fields);
+      if (!hard) {
+        if (
+          (rec.fields.outcome === "rejected" || rec.fields.outcome === "failed") &&
+          lastEpoch !== undefined &&
+          rec.fields.fence_epoch < lastEpoch
+        ) {
+          reports.push({
+            code: "rejected_stale_fence",
+            message: `stream_id=${streamId}: rejected/failed record fence_epoch=${rec.fields.fence_epoch} < prior committed/approval fence_epoch=${lastEpoch} at sequence_number=${rec.fields.sequence_number}`,
+            effect_id: rec.fields.effect_id,
+            indices: lastIdx !== undefined ? [lastIdx, rec.index] : [rec.index],
+          });
+        }
+        continue;
+      }
       if (lastSeq !== undefined && rec.fields.sequence_number === lastSeq) {
         if (lastEpoch !== undefined && rec.fields.fence_epoch < lastEpoch) {
           violations.push({
