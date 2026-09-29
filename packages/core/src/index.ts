@@ -35,3 +35,5 @@ export * from "./history.js";
 export * from "./declaration.js";
 export * from "./assessment.js";
 export * from "./report.js";
+
+export { canonicalize } from "./jcs.js";

@@ -103,6 +103,10 @@ importers:
         version: 2.1.9(@types/node@22.20.1)
 
   packages/sink:
+    dependencies:
+      '@asa/core':
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       '@types/node':
         specifier: ^22.10.1
