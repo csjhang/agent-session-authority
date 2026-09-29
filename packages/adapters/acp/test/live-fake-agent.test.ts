@@ -203,7 +203,7 @@ describe("live harness with offline fake-acp-agent.mjs", () => {
   );
 
   it(
-    "stale-effect with default options → exactly one approval.deny option_kind reject_once; last effect.receipt unknown",
+    "stale-effect with default options → exactly one approval.deny option_kind reject_once; last effect.receipt unknown with reason file_absent",
     async () => {
       const cwd = tmp_dir("stale-effect");
       const result = await collect_history(live_opts("stale-effect", cwd));
@@ -212,6 +212,7 @@ describe("live harness with offline fake-acp-agent.mjs", () => {
       expect(denies[0]?.attrs?.option_kind).toBe("reject_once");
       const receipts = result.history.filter((e) => e.op === "effect.receipt");
       expect(receipts.at(-1)?.attrs?.outcome).toBe("unknown");
+      expect(receipts.at(-1)?.attrs?.reason).toBe("file_absent");
     },
     30000,
   );
@@ -375,6 +376,32 @@ describe("live harness with offline fake-acp-agent.mjs", () => {
       const receipt = history.find((e) => e.op === "effect.receipt");
       expect(receipt?.attrs?.action_digest).toBeTruthy();
       expect(receipt?.attrs?.action_digest).toBe(bind?.attrs?.action_digest);
+    },
+  );
+
+  it(
+    "acp_events_to_history: effect_receipt with absent+matched false → outcome unknown reason file_absent",
+    () => {
+      const events: AcpPeerEvent[] = [
+        {
+          type: "session_update",
+          sessionId: "s",
+          update: {
+            kind: "effect_receipt",
+            sink: "direct_fs_read",
+            path: "/ws/missing.txt",
+            present: false,
+            absent: true,
+            matched: false,
+            expected: "x",
+            content: null,
+          },
+        },
+      ];
+      const history = acp_events_to_history(events);
+      const receipt = history.find((e) => e.op === "effect.receipt");
+      expect(receipt?.attrs?.outcome).toBe("unknown");
+      expect(receipt?.attrs?.reason).toBe("file_absent");
     },
   );
 });

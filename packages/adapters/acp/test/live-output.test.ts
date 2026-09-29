@@ -114,4 +114,84 @@ describe("live_output write_live_run", () => {
     },
     30000,
   );
+
+  it(
+    "write_live_run: run.json events/history_events are counts; peer-events.jsonl has one JSON line per peer event",
+    async () => {
+      const cwd = tmp_dir("counts-cwd");
+      const out_root = tmp_dir("counts-out");
+      const result = await collect_history({
+        mode: "live",
+        scenario: "effect",
+        cwd,
+        live_command: process.execPath,
+        live_args: [fake_agent],
+        env: {
+          ...process.env,
+          ANTHROPIC_API_KEY: "offline-fake-agent-placeholder",
+        },
+        effect_grace_ms: 3000,
+        always_grant_poll_ms: 3000,
+        live_observe_ms: 5000,
+      });
+      const run_dir = write_live_run(result, {
+        out_root,
+        scenario: "effect",
+        run_id: "counts1",
+        env: process.env,
+      });
+      const run = JSON.parse(fs.readFileSync(path.join(run_dir, "run.json"), "utf8"));
+      expect(typeof run.events).toBe("number");
+      expect(typeof run.history_events).toBe("number");
+      expect(run.events).toBe(result.events.length);
+      expect(run.history_events).toBe(result.history.length);
+      const peer_path = path.join(run_dir, "peer-events.jsonl");
+      expect(fs.existsSync(peer_path)).toBe(true);
+      const peer_lines = fs.readFileSync(peer_path, "utf8").split(/\r?\n/).filter((l) => l.trim());
+      expect(peer_lines.length).toBe(result.events.length);
+      for (const line of peer_lines) {
+        expect(() => JSON.parse(line)).not.toThrow();
+      }
+    },
+    30000,
+  );
+
+  it(
+    "write_live_run: secret only in result.events (history_jsonl clean) is refused and writes nothing",
+    async () => {
+      const cwd = tmp_dir("evt-leak-cwd");
+      const out_root = tmp_dir("evt-leak-out");
+      const key = "offline-fake-agent-placeholder";
+      const result = await collect_history({
+        mode: "live",
+        scenario: "effect",
+        cwd,
+        live_command: process.execPath,
+        live_args: [fake_agent],
+        env: {
+          ...process.env,
+          ANTHROPIC_API_KEY: key,
+        },
+        effect_grace_ms: 3000,
+        always_grant_poll_ms: 3000,
+        live_observe_ms: 5000,
+      });
+      expect(result.history_jsonl).not.toContain(key);
+      result.events.push({
+        type: "session_update",
+        sessionId: "leak-session",
+        update: { kind: "agent_message_chunk", text: `key=${key}` },
+      });
+      expect(() =>
+        write_live_run(result, {
+          out_root,
+          scenario: "effect",
+          run_id: "evt-leak1",
+          env: { ...process.env, ANTHROPIC_API_KEY: key },
+        }),
+      ).toThrow(/ANTHROPIC_API_KEY/);
+      expect(fs.readdirSync(out_root)).toHaveLength(0);
+    },
+    30000,
+  );
 });
