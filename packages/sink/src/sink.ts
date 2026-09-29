@@ -67,8 +67,15 @@ export interface VerifyChainResult {
  * Recompute the evidence chain from the start; report the first break.
  * previousEvidenceHash on receipt i must equal the chain hash of receipt i-1
  * (null/absent on the first record; formula uses "" for the first previous).
+ *
+ * When `expectedHead` is passed (including `null`), the final chain hash must
+ * equal it or the result is ok=false with reason=head_mismatch. Omitting the
+ * argument skips the head check (unkeyed chain can be fully rewritten).
  */
-export function verify_chain(ledger: readonly EffectReceipt[]): VerifyChainResult {
+export function verify_chain(
+  ledger: readonly EffectReceipt[],
+  expectedHead?: string | null,
+): VerifyChainResult {
   let prevChain = "";
   let lastComputed: string | null = null;
   for (let i = 0; i < ledger.length; i++) {
@@ -87,6 +94,16 @@ export function verify_chain(ledger: readonly EffectReceipt[]): VerifyChainResul
     const ch = chain_hash(prevChain, rh);
     lastComputed = ch;
     prevChain = ch;
+  }
+  if (expectedHead !== undefined) {
+    const head = expectedHead ?? null;
+    if (lastComputed !== head) {
+      return {
+        ok: false,
+        finalChainHash: lastComputed,
+        reason: "head_mismatch",
+      };
+    }
   }
   return { ok: true, finalChainHash: lastComputed };
 }
@@ -118,7 +135,10 @@ export interface MockEffectSinkOptions {
  * fenceEpoch when the request does not already raise it.
  *
  * restore() policy: if snapshot.enforce !== this instance's enforce flag → throw
- * (does not apply a mismatched snapshot).
+ * (does not apply a mismatched snapshot). Also verifies the ledger chain and that
+ * snap.lastEvidenceHash matches the recomputed head (else chain_invalid). Under
+ * enforce, only snapshots this instance produced (via snapshot()) are accepted
+ * (else unknown_snapshot).
  */
 export class MockEffectSink {
   private commitCount = 0;
@@ -143,6 +163,11 @@ export class MockEffectSink {
   private readonly holders = new Map<string, string>();
   /** Per-effectId serialization: claim slot before any await. */
   private readonly effectChains = new Map<string, Promise<unknown>>();
+  /**
+   * lastEvidenceHash values this instance has emitted via snapshot().
+   * null head encoded as "". Used under enforce to reject foreign snapshots.
+   */
+  private readonly knownSnapshotHeads = new Set<string>();
 
   constructor(opts: MockEffectSinkOptions = {}) {
     this.boundaryId = opts.boundaryId ?? "mock_effect_boundary";
@@ -249,7 +274,7 @@ export class MockEffectSink {
   }
 
   snapshot(): SinkSnapshot {
-    return {
+    const snap: SinkSnapshot = {
       commitCount: this.commitCount,
       ledger: this.exportLedger(),
       pending: Object.fromEntries([...this.pending.entries()].map(([k, v]) => [k, { ...v }])),
@@ -262,11 +287,16 @@ export class MockEffectSink {
       enforce: this.enforce,
       holders: this.getHolders(),
     };
+    this.knownSnapshotHeads.add(this.lastEvidenceHash ?? "");
+    return snap;
   }
 
   /**
    * Restore sink state. Observation log is preserved (not rolled back).
    * Throws if snapshot.enforce !== this.enforce (restore policy: hard error).
+   * Throws chain_invalid if verify_chain fails or lastEvidenceHash ≠ recomputed head
+   * (does not apply). Under enforce, throws unknown_snapshot if this instance never
+   * produced that lastEvidenceHash via snapshot().
    */
   restore(snap: SinkSnapshot): void {
     const snapEnforce = snap.enforce ?? false;
@@ -279,6 +309,30 @@ export class MockEffectSink {
       });
       throw new Error(msg);
     }
+
+    const chain = verify_chain(snap.ledger, snap.lastEvidenceHash ?? null);
+    if (!chain.ok) {
+      this.observe("sink.restore_reject", {
+        reason: "chain_invalid",
+        detail: chain.reason,
+        breakAt: chain.breakAt ?? null,
+        finalChainHash: chain.finalChainHash,
+        snapshotHead: snap.lastEvidenceHash,
+      });
+      throw new Error(`restore chain_invalid: ${chain.reason ?? "verify_chain failed"}`);
+    }
+
+    if (this.enforce) {
+      const key = snap.lastEvidenceHash ?? "";
+      if (!this.knownSnapshotHeads.has(key)) {
+        this.observe("sink.restore_reject", {
+          reason: "unknown_snapshot",
+          snapshotHead: snap.lastEvidenceHash,
+        });
+        throw new Error("restore unknown_snapshot: snapshot head not produced by this sink");
+      }
+    }
+
     this.commitCount = snap.commitCount;
     this.ledger = snap.ledger.map((r) => ({ ...r }));
     this.pending = new Map(Object.entries(snap.pending).map(([k, v]) => [k, { ...v }]));
@@ -414,6 +468,10 @@ export class MockEffectSink {
   /**
    * Record an approval grant/deny issuance (outcome=unknown, record_kind=approval)
    * for agent-effect export and enforce lookup.
+   *
+   * Under enforce: gen/fence are always the sink's current runtimeGeneration and
+   * fenceEpoch. If the request carries different values → grant_generation_mismatch
+   * / grant_fence_mismatch (no ledger write, no grantHistory).
    */
   grant(req: GrantRequest): AcceptResult {
     if (!req.effectId || !req.actionDigest || !req.approvalId) {
@@ -424,8 +482,42 @@ export class MockEffectSink {
       };
     }
     const decision = req.decision ?? "grant";
-    const runtimeGeneration = req.runtimeGeneration ?? this.defaultRuntimeGeneration;
-    const fenceEpoch = req.fenceEpoch ?? this.defaultFenceEpoch;
+    let runtimeGeneration: number;
+    let fenceEpoch: number;
+    if (this.enforce) {
+      runtimeGeneration = this.defaultRuntimeGeneration;
+      fenceEpoch = this.defaultFenceEpoch;
+      if (
+        typeof req.runtimeGeneration === "number" &&
+        req.runtimeGeneration !== runtimeGeneration
+      ) {
+        this.observe("sink.grant_reject", {
+          reason: "grant_generation_mismatch",
+          requested: req.runtimeGeneration,
+          current: runtimeGeneration,
+        });
+        return {
+          accepted: false,
+          receipt: null,
+          reason: "grant_generation_mismatch",
+        };
+      }
+      if (typeof req.fenceEpoch === "number" && req.fenceEpoch !== fenceEpoch) {
+        this.observe("sink.grant_reject", {
+          reason: "grant_fence_mismatch",
+          requested: req.fenceEpoch,
+          current: fenceEpoch,
+        });
+        return {
+          accepted: false,
+          receipt: null,
+          reason: "grant_fence_mismatch",
+        };
+      }
+    } else {
+      runtimeGeneration = req.runtimeGeneration ?? this.defaultRuntimeGeneration;
+      fenceEpoch = req.fenceEpoch ?? this.defaultFenceEpoch;
+    }
     const receipt = this.appendLedger(
       this.buildReceipt(
         {
@@ -543,7 +635,9 @@ export class MockEffectSink {
     },
     detail?: Record<string, unknown>,
   ): AcceptResult {
-    const rejected = this.appendLedger(this.buildReceipt(req, "rejected", approval));
+    const rejected = this.appendLedger(
+      this.buildReceipt(req, "rejected", { ...approval, recordKind: "effect" }),
+    );
     return { accepted: false, receipt: rejected, reason, ...(detail ? { detail } : {}) };
   }
 
@@ -598,6 +692,13 @@ export class MockEffectSink {
     }
     if (issued.decision !== "grant") {
       return this.reject(req, "approval_denied", {
+        approvalId,
+        approvalDecision: issued.decision,
+        approvalRuntimeGeneration: issued.runtimeGeneration,
+      });
+    }
+    if (issued.effectId !== req.effectId) {
+      return this.reject(req, "approval_effect_mismatch", {
         approvalId,
         approvalDecision: issued.decision,
         approvalRuntimeGeneration: issued.runtimeGeneration,
@@ -735,14 +836,16 @@ export class MockEffectSink {
             approvalId: reserveApprovalId,
             approvalDecision: (issued?.decision ?? "grant") as "grant" | "deny" | "none",
             approvalRuntimeGeneration: issued?.runtimeGeneration ?? this.defaultRuntimeGeneration,
+            recordKind: "effect" as const,
           }
         : req.approval
           ? {
               approvalId: req.approval.approval_id,
               approvalDecision: req.approval.decision,
               approvalRuntimeGeneration: req.approval.runtime_generation,
+              recordKind: "effect" as const,
             }
-          : undefined;
+          : { recordKind: "effect" as const };
       const receipt = this.appendLedger(this.buildReceipt(req, outcome, approvalMeta));
 
       if (outcome !== "committed") {

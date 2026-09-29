@@ -54,7 +54,7 @@ Optional but useful (warn-or-allow if present with wrong type):
 | `scope_id` | string | **SHOULD** | Lease / action scope. |
 | `action_type` / `target` | string | **SHOULD** | Human-debug; digest remains authoritative. |
 | `policy_version` | string | **MAY** | Binding policy version. |
-| `record_kind` | string enum | **MAY** | `"effect"` (default when omitted) \| `"approval"`. Sink `grant()` issuance emits `"approval"` so verifiers can distinguish approval records from effect attempts that landed as `outcome=unknown`. |
+| `record_kind` | string enum | **MAY** | `"effect"` (default when omitted) \| `"approval"`. Sink `grant()` issuance emits `"approval"`; accept/reject receipts always emit `"effect"`. Cross-verify: `record_kind="effect"` MUST NOT be treated as approval by `isApprovalRecord` even if approval fields are present; legacy issuance only when `record_kind` is absent. |
 
 ### Integrity / envelope fields (not authority content)
 
@@ -95,7 +95,8 @@ Witness data must not appear inside the bytes being witnessed. If a collector la
 
 - **Record hash** = `sha256(JCS(hashed form))`. Link fields (`previous_evidence_hash`, `signature`, `integrity*`) are excluded so key-order and co-sign envelopes do not change the record hash.
 - **Chain hash** = `sha256(previous_chain_hash_bytes || record_hash_bytes)` over UTF-8 of the hex strings, where the first record’s previous is the **empty string**. The receipt’s `previous_evidence_hash` stores the prior record’s **chain hash** (not its record hash); `lastEvidenceHash` is the latest chain hash.
-- `verify_chain(ledger)` recomputes from the start and reports the first broken link (pointer mismatch).
+- `verify_chain(ledger, expectedHead?)` recomputes from the start and reports the first broken link (pointer mismatch). When `expectedHead` is supplied, the final chain hash must equal it or the result is `ok=false` with reason `head_mismatch`.
+- **Unkeyed chain limitation:** a full rewrite that recomputes every `previous_evidence_hash` pointer will still verify as `ok=true` when no `expectedHead` is supplied. Detecting a full rewrite needs a head anchored **outside** the ledger (signature, public checkpoint, or sink-known snapshot set). This mock has **no signatures**; the mock sink under `enforce` rejects restore of heads it did not produce (`unknown_snapshot`) and always checks chain+head on restore (`chain_invalid`).
 
 ### Validation rules (offline verifier)
 

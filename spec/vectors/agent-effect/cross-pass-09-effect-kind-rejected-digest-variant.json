@@ -1,0 +1,58 @@
+{
+  "id": "cross-pass-09-effect-kind-rejected-digest-variant",
+  "expect": "report",
+  "kind": "cross_record",
+  "rules": [
+    2
+  ],
+  "description": "Sink grant(e1,d) then accept(e1,digest=x) rejected approval_digest_mismatch: rejected receipt has record_kind=effect (MUST NOT count as approval) even with approval fields present; ok=true with rejected_digest_variant soft report. Existing cross-* expectations unchanged.",
+  "records": [
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "e1",
+      "action_digest": "d",
+      "runtime_generation": 1,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "outcome": "unknown",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 1,
+      "ts_unix_nano": "1759107600000000000",
+      "session_id": "s1",
+      "controller": "c1",
+      "scope_id": "s",
+      "approval_decision": "grant",
+      "approval_id": "a-rdv",
+      "approval_runtime_generation": 1,
+      "record_kind": "approval"
+    },
+    {
+      "schema_version": "asa.agent-effect/0.1",
+      "effect_id": "e1",
+      "action_digest": "x",
+      "runtime_generation": 1,
+      "fence_epoch": 1,
+      "boundary_id": "fs-gateway",
+      "outcome": "rejected",
+      "stream_id": "boundary/fs-gateway",
+      "sequence_number": 2,
+      "ts_unix_nano": "1759107601000000000",
+      "session_id": "s1",
+      "controller": "c1",
+      "scope_id": "s",
+      "approval_decision": "grant",
+      "approval_id": "a-rdv",
+      "approval_runtime_generation": 1,
+      "record_kind": "effect"
+    }
+  ],
+  "expected": {
+    "ok": true,
+    "violation_codes": [],
+    "report_codes": [
+      "rejected_digest_variant"
+    ],
+    "gap_streams": [],
+    "unknown_effect_ids": []
+  }
+}

@@ -25,7 +25,8 @@ export interface EffectReceipt {
   /** Generation when the referenced approval was issued (wire: approval_runtime_generation). */
   approvalRuntimeGeneration?: number;
   /**
-   * Wire: record_kind. "approval" for sink grant() issuance; default/omitted = "effect".
+   * Wire: record_kind. Sink grant() issuance = "approval"; accept/reject receipts
+   * always "effect". Omitted only on legacy imported records.
    */
   recordKind?: RecordKind;
 }
@@ -140,7 +141,7 @@ export interface AgentEffectRecord {
   approval_runtime_generation?: number;
   previous_evidence_hash?: string | null;
   signature?: string;
-  /** Optional; default "effect". Sink grant() emits "approval". */
+  /** Optional; default "effect". Sink grant() emits "approval"; accept/reject emit "effect". */
   record_kind?: RecordKind;
 }
 

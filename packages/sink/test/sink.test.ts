@@ -276,7 +276,7 @@ describe("PR-2: enforce approval from grant records", () => {
     scopeId: "s",
   };
 
-  it("missing_approval / unknown_approval / digest / generation / reused via grant records", async () => {
+  it("missing_approval / unknown_approval / digest / reused via grant records", async () => {
     const sink = enforced();
 
     const missing = await sink.accept({ effectId: "e_m", actionDigest: "d", ...base });
@@ -305,21 +305,6 @@ describe("PR-2: enforce approval from grant records", () => {
       approval: { approval_id: "a2" },
     });
     expect(dig.reason).toBe("approval_digest_mismatch");
-
-    sink.grant({
-      effectId: "e_ag",
-      actionDigest: "d",
-      approvalId: "a3",
-      decision: "grant",
-      runtimeGeneration: 0,
-    });
-    const gen = await sink.accept({
-      effectId: "e_ag",
-      actionDigest: "d",
-      ...base,
-      approval: { approval_id: "a3" },
-    });
-    expect(gen.reason).toBe("approval_generation_mismatch");
 
     sink.grant({
       effectId: "e_ok",
@@ -538,7 +523,7 @@ describe("PR-2: enforce must not fail-open", () => {
 });
 
 describe("PR-2: cross-effect approval race", () => {
-  it("delay mode, two different effectIds same approval → one committed, other approval_reused", async () => {
+  it("delay mode, two different effectIds same approval → bound effect commits, other approval_effect_mismatch", async () => {
     const sink2 = new MockEffectSink({
       enforce: true,
       fenceEpoch: 1,
@@ -547,8 +532,9 @@ describe("PR-2: cross-effect approval race", () => {
       faultMode: "delay",
       delayMs: 50,
     });
+    // Approval is bound to race_a; race_b must not steal it (effect mismatch, not reuse race).
     sink2.grant({
-      effectId: "placeholder",
+      effectId: "race_a",
       actionDigest: "d_shared",
       approvalId: "appr_race",
       decision: "grant",
@@ -569,8 +555,9 @@ describe("PR-2: cross-effect approval race", () => {
     const ok = [a, b].filter((r) => r.accepted && r.receipt?.outcome === "committed");
     const bad = [a, b].filter((r) => !r.accepted);
     expect(ok.length).toBe(1);
+    expect(ok[0]!.receipt?.effectId).toBe("race_a");
     expect(bad.length).toBe(1);
-    expect(bad[0]!.reason).toBe("approval_reused");
+    expect(bad[0]!.reason).toBe("approval_effect_mismatch");
   });
 });
 
@@ -775,5 +762,356 @@ describe("PR-2: jcs re-export still works for vectors", () => {
     expect(src).toMatch(/packages\/core\/src\/jcs/);
     const { canonicalize } = await import(pathToFileURL(jcsPath).href);
     expect(canonicalize({ b: 1, a: 2 })).toBe('{"a":2,"b":1}');
+  });
+});
+
+describe("PR-2 amend: effect records recordKind=effect", () => {
+  it("accept committed/rejected/failed and reject() always recordKind=effect; grant stays approval", async () => {
+    const sink = new MockEffectSink({
+      enforce: true,
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      holders: { s: "c1" },
+    });
+    const g = sink.grant({
+      effectId: "e1",
+      actionDigest: "d",
+      approvalId: "a1",
+      decision: "grant",
+      runtimeGeneration: 1,
+    });
+    expect(g.receipt?.recordKind).toBe("approval");
+
+    const bad = await sink.accept({
+      effectId: "e1",
+      actionDigest: "x",
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      controller: "c1",
+      scopeId: "s",
+      approval: { approval_id: "a1" },
+    });
+    expect(bad.accepted).toBe(false);
+    expect(bad.reason).toBe("approval_digest_mismatch");
+    expect(bad.receipt?.recordKind).toBe("effect");
+    expect(bad.receipt?.outcome).toBe("rejected");
+
+    sink.grant({
+      effectId: "e2",
+      actionDigest: "d2",
+      approvalId: "a2",
+      decision: "grant",
+      runtimeGeneration: 1,
+    });
+    const ok = await sink.accept({
+      effectId: "e2",
+      actionDigest: "d2",
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      controller: "c1",
+      scopeId: "s",
+      approval: { approval_id: "a2" },
+    });
+    expect(ok.accepted).toBe(true);
+    expect(ok.receipt?.recordKind).toBe("effect");
+    expect(ok.receipt?.outcome).toBe("committed");
+
+    const sink2 = new MockEffectSink();
+    const failed = await sink2.accept({
+      effectId: "e_f",
+      actionDigest: "d",
+      forceOutcome: "failed",
+    });
+    expect(failed.receipt?.recordKind).toBe("effect");
+    expect(failed.receipt?.outcome).toBe("failed");
+  });
+
+  it("grant(e1,d) → accept digest mismatch → export + verifyCrossRecords ok with rejected_digest_variant", async () => {
+    const sink = new MockEffectSink({
+      enforce: true,
+      boundaryId: "fs-gateway",
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      holders: { s: "c1" },
+      clock: (() => {
+        let n = 0;
+        return () => {
+          n += 1;
+          return new Date(Date.UTC(2026, 8, 29, 0, 0, n)).toISOString();
+        };
+      })(),
+    });
+    sink.grant({
+      effectId: "e1",
+      actionDigest: "d",
+      approvalId: "a-rdv",
+      decision: "grant",
+      runtimeGeneration: 1,
+      fenceEpoch: 1,
+      controller: "c1",
+      scopeId: "s",
+    });
+    const rej = await sink.accept({
+      effectId: "e1",
+      actionDigest: "x",
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      controller: "c1",
+      scopeId: "s",
+      approval: { approval_id: "a-rdv" },
+    });
+    expect(rej.reason).toBe("approval_digest_mismatch");
+    expect(rej.receipt?.recordKind).toBe("effect");
+
+    const records = sink.exportAgentEffectRecords();
+    expect(records[0]!.record_kind).toBe("approval");
+    expect(records[1]!.record_kind).toBe("effect");
+    expect(records[1]!.outcome).toBe("rejected");
+
+    const crossPath = join(repoRoot, "spec/vectors/agent-effect/cross-verify.ts");
+    const mod = await import(pathToFileURL(crossPath).href);
+    const verifyCrossRecords = mod.verifyCrossRecords as (recs: unknown[]) => {
+      ok: boolean;
+      reports: { code: string }[];
+      violations: { code: string }[];
+    };
+    const result = verifyCrossRecords(records);
+    expect(result.ok).toBe(true);
+    expect(result.reports.some((r) => r.code === "rejected_digest_variant")).toBe(true);
+    expect(result.violations).toEqual([]);
+  });
+});
+
+describe("PR-2 amend: grant() gen/fence decided by sink (enforce)", () => {
+  it("at gen1 grant(runtimeGeneration:5) → grant_generation_mismatch; no grantHistory", () => {
+    const sink = new MockEffectSink({
+      enforce: true,
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      holders: { s: "c1" },
+    });
+    const r = sink.grant({
+      effectId: "e1",
+      actionDigest: "d",
+      approvalId: "a_bad_gen",
+      decision: "grant",
+      runtimeGeneration: 5,
+    });
+    expect(r.accepted).toBe(false);
+    expect(r.reason).toBe("grant_generation_mismatch");
+    expect(r.receipt).toBeNull();
+    expect(sink.getLatestGrant("a_bad_gen")).toBeUndefined();
+    expect(sink.exportLedger()).toHaveLength(0);
+  });
+
+  it("grant(fenceEpoch mismatch) → grant_fence_mismatch", () => {
+    const sink = new MockEffectSink({
+      enforce: true,
+      fenceEpoch: 2,
+      runtimeGeneration: 1,
+      holders: { s: "c1" },
+    });
+    const r = sink.grant({
+      effectId: "e1",
+      actionDigest: "d",
+      approvalId: "a_bad_fence",
+      decision: "grant",
+      fenceEpoch: 1,
+    });
+    expect(r.accepted).toBe(false);
+    expect(r.reason).toBe("grant_fence_mismatch");
+    expect(sink.getLatestGrant("a_bad_fence")).toBeUndefined();
+  });
+
+  it("normal grant then advance to gen2 → accept → approval_generation_mismatch", async () => {
+    const sink = new MockEffectSink({
+      enforce: true,
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      holders: { s: "c1" },
+    });
+    const g = sink.grant({
+      effectId: "e1",
+      actionDigest: "d",
+      approvalId: "a_gen",
+      decision: "grant",
+      runtimeGeneration: 1,
+    });
+    expect(g.accepted).toBe(true);
+    expect(g.receipt?.runtimeGeneration).toBe(1);
+    expect(sink.getLatestGrant("a_gen")?.runtimeGeneration).toBe(1);
+
+    sink.fence({ runtimeGeneration: 2 });
+    const a = await sink.accept({
+      effectId: "e1",
+      actionDigest: "d",
+      fenceEpoch: 1,
+      runtimeGeneration: 2,
+      controller: "c1",
+      scopeId: "s",
+      approval: { approval_id: "a_gen" },
+    });
+    expect(a.accepted).toBe(false);
+    expect(a.reason).toBe("approval_generation_mismatch");
+    expect(a.receipt?.recordKind).toBe("effect");
+  });
+});
+
+describe("PR-2 amend: approval bound to effect", () => {
+  it("approval for e1 used on e9 → approval_effect_mismatch", async () => {
+    const sink = new MockEffectSink({
+      enforce: true,
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      holders: { s: "c1" },
+    });
+    sink.grant({
+      effectId: "e1",
+      actionDigest: "d",
+      approvalId: "a_e1",
+      decision: "grant",
+      runtimeGeneration: 1,
+    });
+    const r = await sink.accept({
+      effectId: "e9",
+      actionDigest: "d",
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      controller: "c1",
+      scopeId: "s",
+      approval: { approval_id: "a_e1" },
+    });
+    expect(r.accepted).toBe(false);
+    expect(r.reason).toBe("approval_effect_mismatch");
+    expect(r.receipt?.recordKind).toBe("effect");
+    expect(sink.getCommitCount()).toBe(0);
+  });
+});
+
+describe("PR-2 amend: restore() verifies chain + known snapshots", () => {
+  it("forge grant in snapshot → restore throws chain_invalid; later accept → unknown_approval", async () => {
+    const sink = new MockEffectSink({
+      enforce: true,
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      holders: { s: "c1" },
+    });
+    sink.grant({
+      effectId: "e_real",
+      actionDigest: "d",
+      approvalId: "a_real",
+      decision: "grant",
+      runtimeGeneration: 1,
+    });
+    const snap = sink.snapshot();
+    // Forge an extra grant into the snapshot ledger without fixing the chain.
+    const forged = {
+      effectId: "e_forged",
+      actionDigest: "d_forged",
+      runtimeGeneration: 1,
+      fenceEpoch: 1,
+      boundaryId: snap.boundaryId,
+      outcome: "unknown" as const,
+      externalReference: null,
+      observedAt: "2026-09-29T00:00:00.000Z",
+      previousEvidenceHash: snap.lastEvidenceHash,
+      approvalId: "a_forged",
+      approvalDecision: "grant" as const,
+      approvalRuntimeGeneration: 1,
+      recordKind: "approval" as const,
+    };
+    const forgedSnap = {
+      ...snap,
+      ledger: [...snap.ledger, forged],
+      // leave lastEvidenceHash as pre-forge head → chain/head mismatch
+    };
+    expect(() => sink.restore(forgedSnap)).toThrow(/chain_invalid/);
+    expect(
+      sink.getObservationLog().some(
+        (o) => o.type === "sink.restore_reject" && o.detail.reason === "chain_invalid",
+      ),
+    ).toBe(true);
+    // Restore did not apply — forged approval unknown
+    expect(sink.getLatestGrant("a_forged")).toBeUndefined();
+    const later = await sink.accept({
+      effectId: "e_forged",
+      actionDigest: "d_forged",
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      controller: "c1",
+      scopeId: "s",
+      approval: { approval_id: "a_forged" },
+    });
+    expect(later.reason).toBe("unknown_approval");
+  });
+
+  it("under enforce: snapshot head not produced by this sink → unknown_snapshot", () => {
+    const producer = new MockEffectSink({
+      enforce: true,
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      holders: { s: "c1" },
+    });
+    producer.grant({
+      effectId: "e1",
+      actionDigest: "d",
+      approvalId: "a1",
+      decision: "grant",
+      runtimeGeneration: 1,
+    });
+    const snap = producer.snapshot();
+    // Foreign sink with same enforce never called snapshot() → unknown_snapshot
+    const foreign = new MockEffectSink({
+      enforce: true,
+      fenceEpoch: 1,
+      runtimeGeneration: 1,
+      holders: { s: "c1" },
+    });
+    expect(() => foreign.restore(snap)).toThrow(/unknown_snapshot/);
+    expect(
+      foreign.getObservationLog().some(
+        (o) => o.type === "sink.restore_reject" && o.detail.reason === "unknown_snapshot",
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("PR-2 amend: verify_chain expectedHead / head_mismatch", () => {
+  it("full chain rewrite: without expectedHead ok=true (unkeyed limitation); with original head → head_mismatch", async () => {
+    const sink = new MockEffectSink({
+      clock: (() => {
+        let n = 0;
+        return () => {
+          n += 1;
+          return new Date(Date.UTC(2026, 8, 29, 0, 0, n)).toISOString();
+        };
+      })(),
+    });
+    await sink.accept({ effectId: "e1", actionDigest: "d1" });
+    await sink.accept({ effectId: "e2", actionDigest: "d2" });
+    const ledger = sink.exportLedger();
+    const originalHead = sink.getLastEvidenceHash();
+    expect(verify_chain(ledger).ok).toBe(true);
+    expect(verify_chain(ledger, originalHead).ok).toBe(true);
+
+    // Rewrite whole chain: tamper content and recompute every previousEvidenceHash pointer.
+    // Comment: unkeyed chain limitation — without an external head anchor, a full rewrite verifies.
+    const rewritten = ledger.map((r) => ({ ...r, actionDigest: r.actionDigest + "_rewritten" }));
+    let prevChain = "";
+    for (let i = 0; i < rewritten.length; i++) {
+      rewritten[i]!.previousEvidenceHash = prevChain === "" ? null : prevChain;
+      const rh = hash_receipt(rewritten[i]!);
+      prevChain = chain_hash(prevChain, rh);
+    }
+
+    // Without expectedHead: structurally valid rewritten chain → ok=true (unkeyed chain limitation)
+    const unkeyed = verify_chain(rewritten);
+    expect(unkeyed.ok).toBe(true);
+    expect(unkeyed.finalChainHash).not.toBe(originalHead);
+
+    // With original head anchored outside the ledger → head_mismatch
+    const keyed = verify_chain(rewritten, originalHead);
+    expect(keyed.ok).toBe(false);
+    expect(keyed.reason).toBe("head_mismatch");
   });
 });

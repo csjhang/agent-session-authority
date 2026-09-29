@@ -129,7 +129,11 @@ function isDecision(f: AgentEffectFields): boolean {
   return isGrant(f) || isDeny(f);
 }
 
-/** Explicit approval records, or legacy issuance (decision + non-committed, no record_kind). */
+/**
+ * Explicit approval records, or legacy issuance (decision + non-committed, no record_kind).
+ * record_kind="effect" MUST NOT be treated as approval even if approval fields are present
+ * (e.g. a rejected accept that echoed approval_id). Legacy only when record_kind absent.
+ */
 function isApprovalRecord(f: AgentEffectFields): boolean {
   if (f.record_kind === "approval") return true;
   if (f.record_kind === "effect") return false;
