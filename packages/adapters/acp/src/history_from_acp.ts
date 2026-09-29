@@ -164,6 +164,17 @@ type PendingApproval = {
   runtime_generation: number;
 };
 
+/** Earliest finite observed_at_ms among peer events, if any. */
+function earliest_observed_at_ms(events: readonly AcpPeerEvent[]): number | undefined {
+  let min: number | undefined;
+  for (const ev of events) {
+    if (typeof ev.observed_at_ms === "number" && Number.isFinite(ev.observed_at_ms)) {
+      if (min === undefined || ev.observed_at_ms < min) min = ev.observed_at_ms;
+    }
+  }
+  return min;
+}
+
 /**
  * Convert observable ACP session/permission events into probe history JSONL objects.
  *
@@ -223,19 +234,38 @@ export function acp_events_to_history(
   };
 
   const sid0 = session_id_of(events);
-  next({
-    kind: "observe",
-    op: "generation.observe",
-    session_id: sid0,
-    attrs: { runtime_generation, issuer_id, runtime_id: "claude-agent-acp" },
-  });
-  next({
-    kind: "ok",
-    op: "session.attach",
-    session_id: sid0,
-    actor_id: "adapter",
-    attrs: { mode: "fixture_or_live", fidelity: "reconstructed" },
-  });
+  // Header observe/attach: use earliest peer observed_at_ms so they do not sit
+  // after later events that carry older observed times. Fall back to conversion
+  // time when no observed_at_ms is present. Always mark ts as derived.
+  const header_obs_ms = earliest_observed_at_ms(events);
+  next(
+    {
+      kind: "observe",
+      op: "generation.observe",
+      session_id: sid0,
+      attrs: {
+        runtime_generation,
+        issuer_id,
+        runtime_id: "claude-agent-acp",
+        field_provenance: { ts: "derived" },
+      },
+    },
+    header_obs_ms,
+  );
+  next(
+    {
+      kind: "ok",
+      op: "session.attach",
+      session_id: sid0,
+      actor_id: "adapter",
+      attrs: {
+        mode: "fixture_or_live",
+        fidelity: "reconstructed",
+        field_provenance: { ts: "derived" },
+      },
+    },
+    header_obs_ms,
+  );
 
   /** request_id → action_digest + binding fields from the matching approval.request */
   const pending_by_request = new Map<string, PendingApproval>();
