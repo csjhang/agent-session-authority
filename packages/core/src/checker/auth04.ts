@@ -327,13 +327,7 @@ export const check_auth04: Checker = (ctx) => {
   // Per-receipt: positively evaluated but attributed records not superseded → no fence change
   // Zero positive → no committed receipt evaluated. Do not use whole-history superseded flags.
   const opening = saw_positive_evaluated ? "no fence change examined" : "no committed receipt evaluated";
-  // Order: opening → missing controller → unattributed; single period+space between segments
-  const explanation = opening + "." + missing_note + unattributed_note;
-  // opening already ends without trailing period before notes; notes start with space then capital.
-  // Ensure "opening. Note" form: if missing_note/unattributed_note empty, trim trailing period? Golden expects
-  // "no committed receipt evaluated. Committed..." when missing note present.
-  // When both empty, "no fence change examined." or "no committed receipt evaluated." — existing
-  // corpora match without requiring trailing period on bare opening. Prefer no trailing period when alone.
+  // Order: opening → missing controller → unattributed, joined as "opening. Note ..."; a bare opening has no period.
   const bare = missing_note === "" && unattributed_note === "";
   const final_explanation = bare ? opening : opening + "." + missing_note + unattributed_note;
 

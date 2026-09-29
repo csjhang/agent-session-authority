@@ -3,6 +3,8 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { MockEffectSink } from "./sink.js";
 import type { AcceptRequest, FaultMode, FenceRequest, SinkSnapshot } from "./types.js";
 
+class BadRequestError extends Error {}
+
 function read_json(req: IncomingMessage): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -13,7 +15,7 @@ function read_json(req: IncomingMessage): Promise<unknown> {
       try {
         resolve(JSON.parse(raw));
       } catch (e) {
-        reject(e);
+        reject(new BadRequestError(`invalid JSON body: ${e instanceof Error ? e.message : String(e)}`));
       }
     });
     req.on("error", reject);
@@ -96,7 +98,11 @@ export async function start_sink_server(
       }
       send(res, 404, { error: "not found" });
     } catch (e) {
-      send(res, 500, { error: e instanceof Error ? e.message : String(e) });
+      if (e instanceof BadRequestError) {
+        send(res, 400, { error: e.message });
+      } else {
+        send(res, 500, { error: e instanceof Error ? e.message : String(e) });
+      }
     }
   });
   await new Promise<void>((resolve) => server.listen(port, host, resolve));

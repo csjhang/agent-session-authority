@@ -30,6 +30,7 @@ export const check_auth06: Checker = (ctx) => {
 
   for (const ev of ctx.events) {
     const a = attrs(ev);
+    let judged = false;
     if (ev.op === "effect.receipt") {
       const effect_id = str(a.effect_id);
       const outcome = str(a.outcome);
@@ -46,6 +47,7 @@ export const check_auth06: Checker = (ctx) => {
       const effect_id = str(a.effect_id);
       const status = str(a.status) ?? str(a.effect_status);
       if (status === "committed" || status === "success" || status === "completed") {
+        judged = true;
         if (!effect_id || !committed_receipts.has(effect_id)) {
           if (ev.kind === "fail") continue;
           violations.push({
@@ -63,7 +65,7 @@ export const check_auth06: Checker = (ctx) => {
         }
       }
     }
-    if (str(a.effect_status) === "committed" || str(a.status) === "completed") {
+    if (!judged && (str(a.effect_status) === "committed" || str(a.status) === "completed")) {
       if (ev.op !== "effect.receipt") {
         const effect_id = str(a.effect_id);
         if (ev.kind === "fail") continue;

@@ -9,7 +9,7 @@ import { build_report } from "../src/report.js";
 import { run_checkers } from "../src/index.js";
 import { load_history_file } from "../src/history.js";
 import { load_profile } from "../src/declaration.js";
-import { default_assessment, load_assessment } from "../src/assessment.js";
+import { default_assessment } from "../src/assessment.js";
 
 const repo_root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
