@@ -25,7 +25,7 @@ export function ahp_events_to_history(events: readonly AhpPeerEvent[]): HistoryE
       next({ kind: "invoke", op: "approval.request", session_id: ev.sessionId, actor_id: "agent", attrs: { action_digest: digest, request_id: ev.requestId, tool_name: ev.toolName } });
     }
     else if (ev.type === "tool_confirmation_response") { if (ev.ignored) next({ kind: "observe", op: "approval.deny", session_id: ev.sessionId, actor_id: ev.responderClientId, attrs: { request_id: ev.requestId, ignored: true, reason: "first_wins_already_resolved" }, note: "late confirmation ignored (AHP in-process first-wins)" }); else next({ kind: "ok", op: ev.decision === "allow" ? "approval.grant" : "approval.deny", session_id: ev.sessionId, actor_id: ev.responderClientId, attrs: { approver: ev.responderClientId, decision: ev.decision === "allow" ? "grant" : "deny", request_id: ev.requestId, first_wins: ev.firstWins, fence_epoch: 1, note: "fence_epoch synthesized; AHP has no FenceToken" } }); }
-    else if (ev.type === "host_process_death") next({ kind: "fault", op: "runtime.restart", session_id: ev.sessionId, attrs: { in_progress_turn_id: ev.inProgressTurnId, generation_bumped: false, fencing_defined: false }, note: ev.note });
+    else if (ev.type === "host_process_death") next({ kind: "fault", fault: "runtime.restart", session_id: ev.sessionId, attrs: { in_progress_turn_id: ev.inProgressTurnId, generation_bumped: false, fencing_defined: false }, note: ev.note });
     else if (ev.type === "session_closed") next({ kind: "ok", op: "session.detach", session_id: ev.sessionId, attrs: { reason: ev.reason ?? "closed" } });
   }
   return out;

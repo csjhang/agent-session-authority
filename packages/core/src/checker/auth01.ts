@@ -1,8 +1,18 @@
 import type { Checker } from "./index.js";
-import { attrs, basis, claim_for, finding, num, str, observation_guard } from "./index.js";
+import { attrs, basis, claim_for, finding, join_unique_sentences, num, str, observation_guard } from "./index.js";
 
 function uniq_sort(seqs: number[]): number[] {
   return [...new Set(seqs)].sort((a, b) => a - b);
+}
+
+function is_restart_class(fault: string | undefined): boolean {
+  return fault === "runtime.restart" || fault === "runtime.crash" || fault === "state.restore";
+}
+
+function observe_generation(ev: { kind: string; op?: string; attrs?: Record<string, unknown> }): number | undefined {
+  if (!(ev.kind === "observe" && ev.op === "generation.observe")) return undefined;
+  const a = attrs(ev);
+  return num(a.runtime_generation) ?? num(a.generation);
 }
 
 /** AUTH-01a — declare generation model G0/G1/G2 (profile-only; no event witnesses) */
@@ -45,7 +55,12 @@ function generation_derived_note(ctx: Parameters<Checker>[0]): string {
 export const check_auth01b: Checker = (ctx) => {
   const inv = "AUTH-01b";
   const cs = claim_for(ctx, inv);
-  const guard = observation_guard(ctx, inv, ctx.events.some((e) => e.op === "generation.observe"), ctx.events.some((e) => e.op === "generation.observe"));
+  const guard = observation_guard(
+    ctx,
+    inv,
+    ctx.events.some((e) => e.op === "generation.observe"),
+    ctx.events.some((e) => e.op === "generation.observe"),
+  );
   if (guard) return guard;
   const events = ctx.events;
   let last_gen: number | undefined;
@@ -73,7 +88,7 @@ export const check_auth01b: Checker = (ctx) => {
   for (let i = 0; i < events.length; i++) {
     const fault = events[i]!;
     if (fault.kind !== "fault") continue;
-    if (fault.fault !== "runtime.restart" && fault.fault !== "runtime.crash" && fault.fault !== "state.restore") continue;
+    if (!is_restart_class(fault.fault)) continue;
     compared.push(fault.seq);
     const witnesses: number[] = [fault.seq];
 
@@ -82,7 +97,10 @@ export const check_auth01b: Checker = (ctx) => {
       const e = events[j]!;
       if (e.kind === "observe" && e.op === "generation.observe") {
         gen_before = num(attrs(e).runtime_generation) ?? num(attrs(e).generation);
-        if (gen_before != null) { witnesses.push(e.seq); break; }
+        if (gen_before != null) {
+          witnesses.push(e.seq);
+          break;
+        }
       }
     }
 
@@ -93,7 +111,7 @@ export const check_auth01b: Checker = (ctx) => {
       if (e.kind === "observe" && e.op === "generation.observe") {
         gen_after = num(attrs(e).runtime_generation) ?? num(attrs(e).generation);
         gen_after_seq = e.seq;
-        witnesses.push(e.seq);
+        if (gen_after != null) witnesses.push(e.seq);
         break;
       }
     }
@@ -128,12 +146,65 @@ export const check_auth01b: Checker = (ctx) => {
 
   if (violations.length > 0) {
     const witnesses = uniq_sort(violations.flatMap((v) => v.witnesses));
-    return [finding(inv, cs, "violation", violations.map((v) => v.text).join(" "), witnesses, basis(ctx))];
+    return [
+      finding(inv, cs, "violation", join_unique_sentences(violations.map((v) => v.text)), witnesses, basis(ctx)),
+    ];
   }
 
-  if (cs === "not_declared" && basis(ctx) !== "synthetic_fixture") {
-    return [finding(inv, cs, "not_declared", "Invariant not declared by target profile.", [], basis(ctx))];
+  // A restart-class event is examined only if generation.observe with generation
+  // values exists BOTH before and after it.
+  const restart_idxs: number[] = [];
+  for (let i = 0; i < events.length; i++) {
+    const ev = events[i]!;
+    if (ev.kind === "fault" && is_restart_class(ev.fault)) restart_idxs.push(i);
   }
+
+  if (restart_idxs.length === 0) {
+    return [
+      finding(
+        inv,
+        cs,
+        "inconclusive",
+        "no restart observed, cross-restart increment not examined",
+        [],
+        basis(ctx),
+      ),
+    ];
+  }
+
+  const unexamined: number[] = [];
+  for (const i of restart_idxs) {
+    const fault = events[i]!;
+    let before = false;
+    for (let j = i - 1; j >= 0; j--) {
+      if (observe_generation(events[j]!) != null) {
+        before = true;
+        break;
+      }
+    }
+    let after = false;
+    for (let j = i + 1; j < events.length; j++) {
+      if (observe_generation(events[j]!) != null) {
+        after = true;
+        break;
+      }
+    }
+    if (!(before && after)) unexamined.push(fault.seq);
+  }
+
+  if (unexamined.length > 0) {
+    return [
+      finding(
+        inv,
+        cs,
+        "inconclusive",
+        "unexamined restart-class event(s): cross-restart increment not examined",
+        uniq_sort(unexamined),
+        basis(ctx),
+      ),
+    ];
+  }
+
   const derived = generation_derived_note(ctx);
   return [
     finding(
@@ -151,9 +222,14 @@ export const check_auth01b: Checker = (ctx) => {
 export const check_auth01c: Checker = (ctx) => {
   const inv = "AUTH-01c";
   const cs = claim_for(ctx, inv);
-  const guard = observation_guard(ctx, inv, ctx.profile?.generation_model === "G1" || ctx.profile?.generation_model === "G2", ctx.events.some((e) => e.op === "generation.observe"));
-  if (guard) return guard;
   const model = ctx.profile?.generation_model;
+
+  // 1. empty history → not_tested
+  if (ctx.events.length === 0) {
+    return [finding(inv, cs, "not_tested", "Scenario did not run: history is empty.", [], basis(ctx))];
+  }
+
+  // 2. generation_model G0 → supported (profile-based)
   if (model === "G0") {
     return [
       finding(
@@ -166,10 +242,51 @@ export const check_auth01c: Checker = (ctx) => {
       ),
     ];
   }
-  if (model !== "G1" && model !== "G2") {
-    if (!ctx.profile) return [finding(inv, "not_declared", "not_declared", "No profile/generation_model to evaluate issuer separation.", [], basis(ctx))];
-    return [finding(inv, "underspecified", "underspecified", "generation_model missing or not G1/G2.", [], basis(ctx))];
+
+  // 3. no generation_model (incl. no profile) → observed_result not_declared
+  if (model == null) {
+    return [
+      finding(
+        inv,
+        cs,
+        "not_declared",
+        "No profile/generation_model to evaluate issuer separation.",
+        [],
+        basis(ctx),
+      ),
+    ];
   }
+
+  // 4. other generation_model → underspecified
+  if (model !== "G1" && model !== "G2") {
+    return [
+      finding(
+        inv,
+        "underspecified",
+        "underspecified",
+        "generation_model missing or not G1/G2.",
+        [],
+        basis(ctx),
+      ),
+    ];
+  }
+
+  // 5. G1/G2 but no generation.observe → inconclusive
+  const has_observe = ctx.events.some((e) => e.op === "generation.observe");
+  if (!has_observe) {
+    return [
+      finding(
+        inv,
+        cs,
+        "inconclusive",
+        "Not enough observations for a positive conclusion.",
+        [],
+        basis(ctx),
+      ),
+    ];
+  }
+
+  // 6. else → issuer vs fenced object compare
   const violations: { text: string; witnesses: number[] }[] = [];
   const compared: number[] = [];
   for (const ev of ctx.events) {
@@ -184,7 +301,9 @@ export const check_auth01c: Checker = (ctx) => {
   }
   if (violations.length > 0) {
     const witnesses = uniq_sort(violations.flatMap((v) => v.witnesses));
-    return [finding(inv, cs, "violation", violations.map((v) => v.text).join(" "), witnesses, basis(ctx))];
+    return [
+      finding(inv, cs, "violation", join_unique_sentences(violations.map((v) => v.text)), witnesses, basis(ctx)),
+    ];
   }
   return [
     finding(

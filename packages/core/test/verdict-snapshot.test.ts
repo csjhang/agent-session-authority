@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { load_history_file } from "../src/history.js";
 import { load_profile } from "../src/declaration.js";
-import { default_assessment } from "../src/assessment.js";
+import { default_assessment, type TestBasis } from "../src/assessment.js";
 import { run_checkers } from "../src/index.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -14,27 +14,33 @@ const SNAPSHOT_PATH = path.join(here, "fixtures", "verdict-snapshot.json");
 type SnapshotEntry = {
   file: string;
   invariant: string;
+  test_basis: TestBasis;
   observed_result: string;
   result: string;
 };
+
+const SNAPSHOT_BASES: TestBasis[] = ["synthetic_fixture", "research_profile"];
 
 function collectCurrent(): SnapshotEntry[] {
   const rows: SnapshotEntry[] = [];
 
   function assess(historyPath: string, profilePath: string | null, targetHint: string) {
-    const events = load_history_file(historyPath);
+    const events = load_history_file(historyPath, { warn_unknown_vocab: false });
     const profile = profilePath ? load_profile(profilePath) : null;
-    const assessment = default_assessment();
-    assessment.target = profile?.target ?? targetHint;
-    assessment.test_basis = "synthetic_fixture";
     const file = path.relative(repo_root, historyPath).split(path.sep).join("/");
-    for (const f of run_checkers(events, profile, assessment)) {
-      rows.push({
-        file,
-        invariant: f.invariant,
-        observed_result: f.observed_result,
-        result: f.result,
-      });
+    for (const test_basis of SNAPSHOT_BASES) {
+      const assessment = default_assessment();
+      assessment.target = profile?.target ?? targetHint;
+      assessment.test_basis = test_basis;
+      for (const f of run_checkers(events, profile, assessment)) {
+        rows.push({
+          file,
+          invariant: f.invariant,
+          test_basis,
+          observed_result: f.observed_result,
+          result: f.result,
+        });
+      }
     }
   }
 
@@ -62,7 +68,12 @@ function collectCurrent(): SnapshotEntry[] {
     assess(hist, profilePath, t);
   }
 
-  rows.sort((a, b) => a.file.localeCompare(b.file) || a.invariant.localeCompare(b.invariant));
+  rows.sort(
+    (a, b) =>
+      a.file.localeCompare(b.file) ||
+      a.invariant.localeCompare(b.invariant) ||
+      a.test_basis.localeCompare(b.test_basis),
+  );
   return rows;
 }
 
@@ -74,3 +85,4 @@ describe("verdict snapshot", () => {
     expect(current).toEqual(snapshot);
   });
 });
+

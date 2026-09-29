@@ -28,8 +28,8 @@
   "capability_sources": {},
   "fixture_vector": {
     "AUTH-01a": "not_declared",
-    "AUTH-01b": "supported",
-    "AUTH-01c": "inconclusive",
+    "AUTH-01b": "inconclusive",
+    "AUTH-01c": "not_declared",
     "AUTH-02": "inconclusive",
     "AUTH-03a": "inconclusive",
     "AUTH-03b": "inconclusive",
@@ -37,7 +37,7 @@
     "AUTH-04": "inconclusive",
     "AUTH-05": "inconclusive",
     "AUTH-06": "inconclusive",
-    "AUTH-07": "inconclusive",
+    "AUTH-07": "supported",
     "AUTH-08": "not_tested"
   },
   "claim_status_vector": {
@@ -56,8 +56,8 @@
   },
   "checker_explanation": {
     "AUTH-01a": "No generation_model declared in profile.",
-    "AUTH-01b": "No generation monotonicity violation observed.",
-    "AUTH-01c": "Required prerequisite observations are absent.",
+    "AUTH-01b": "unexamined restart-class event(s): cross-restart increment not examined",
+    "AUTH-01c": "No profile/generation_model to evaluate issuer separation.",
     "AUTH-02": "Required prerequisite observations are absent.",
     "AUTH-03a": "Required prerequisite observations are absent.",
     "AUTH-03b": "Required prerequisite observations are absent.",
@@ -65,7 +65,7 @@
     "AUTH-04": "Required prerequisite observations are absent.",
     "AUTH-05": "Required prerequisite observations are absent.",
     "AUTH-06": "Required prerequisite observations are absent.",
-    "AUTH-07": "Required prerequisite observations are absent.",
+    "AUTH-07": "No ambiguous/wrong terminal race observed.",
     "AUTH-08": "AUTH-08 (Bypass honesty) has no checker yet. Disclosure belongs in profile.known_bypasses and profile.coverage_boundary."
   },
   "notes": {

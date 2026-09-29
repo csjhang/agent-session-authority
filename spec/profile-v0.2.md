@@ -11,8 +11,8 @@ Across people, devices, runtimes, and restarts: who may act now, who approved wh
 | ID | Rule |
 | --- | --- |
 | AUTH-01a | Declare generation model G0/G1/G2 |
-| AUTH-01b | RuntimeGeneration strictly increases across crash, restart, restore-from-backup. When `generation.observe` marks `field_provenance.runtime_generation=derived` (or `issuer_id` ends with `_adapter_`), a supported explanation notes generation was derived by the probe, not target-native — verdict unchanged. |
-| AUTH-01c | G1+ issuer != fenced object |
+| AUTH-01b | RuntimeGeneration strictly increases across crash, restart, restore-from-backup. A restart-class event (`runtime.restart` / `runtime.crash` / `state.restore`) is examined only when `generation.observe` with generation values exists **both before and after** it. Supported requires ≥1 examined restart-class and every restart-class examined; else inconclusive (no restart / unexamined restart). When `generation.observe` marks `field_provenance.runtime_generation=derived` (or `issuer_id` ends with `_adapter_`), a supported explanation notes generation was derived by the probe, not target-native — verdict unchanged. |
+| AUTH-01c | Issuer separation order: (1) empty history → `not_tested`; (2) `generation_model` G0 → `supported` (profile-based, empty witnesses); (3) no `generation_model` / no profile → observed `not_declared`; (4) other model → `underspecified`; (5) G1/G2 without `generation.observe` → `inconclusive`; (6) else compare issuer vs fenced object. |
 | AUTH-02 | Action-bound approval (see below) |
 | AUTH-03a | Scope determinism: publish (actionType,target)->scopeId; no conflicting self-declare |
 | AUTH-03b | <=1 valid ControlLease per (scopeId, fenceEpoch). Supported requires ≥1 accepted `lease.acquire`; else inconclusive. |
@@ -20,7 +20,7 @@ Across people, devices, runtimes, and restarts: who may act now, who approved wh
 | AUTH-04 | Fencing at effect boundary; after handoff, non-live holder receipt/dispatch is a violation even if fence_epoch is unchanged; lower-epoch `lease.acquire`/`handoff` must not update live holder; after handoff, committed receipt missing controller/holder/actor_id cannot count as supported evidence. Supported requires ≥1 positively evaluated committed receipt; else inconclusive. |
 | AUTH-05 | Approval is not control; control is not blanket approval (derive from grant/lease events, not self-reported role) |
 | AUTH-06 | No implicit success without trusted **committed** EffectReceipt; unknown/rejected/failed receipts may not support later success; fail!=info. Supported requires ≥1 committed receipt evaluated; else inconclusive. |
-| AUTH-07 | Deterministic terminal interpretation; restart fault with session_id pairs unfinished effects/tasks; all published `*_wins` rules verified. Supported requires ≥1 subject with a terminal event; else inconclusive. |
+| AUTH-07 | Deterministic terminal interpretation; restart fault with session_id pairs unfinished effects/tasks (restart with no open work creates **no** subject); all published `*_wins` rules verified. `effect.receipt` outcome maps committed→complete, failed→failed, unknown→unknown (`rejected` is not terminal). Supported requires ≥1 examined-terminal-contention subject (≥2 terminal events **or** terminal includes restart/crash); else inconclusive (`no terminal contention examined`). |
 | AUTH-08 | Bypass honesty: If a runtime or tool can bypass the authority enforcement point, the implementation must publicly state its coverage boundary and must not claim end-to-end guarantees. Not implemented: always `not_tested`. Disclosure belongs in `profile.known_bypasses` and `profile.coverage_boundary`. |
 
 AUTH-02/04/07 are implemented checkers (not stubs). Capability vectors remain `not_tested` until live/native evidence exists.
@@ -56,6 +56,8 @@ Principle: the fenced object must not be the fence-token issuer.
 `not_tested` != `not_declared`. Capability vectors only — no A0–A3 grade.
 
 `result` is the claim-rewritten grade; `observed_result` is the checker's raw conclusion. Under `research_profile` / `vendor_claim`, undeclared invariants are **not graded**: `observed_result` `supported` or `violation` rewrites to `result=not_declared` (witnesses and observed outcome kept in explanation). `inconclusive` / `not_tested` are not rewritten. `synthetic_fixture` never rewrites. See `spec/history-format.md` Checker output shape.
+
+Checkers must **not** claim-rewrite undeclared invariants themselves — only `finding()` applies claim rewrite under `research_profile` / `vendor_claim`. Checker `observed_result` stays honest across all `test_basis` values.
 
 ## Claim matching
 

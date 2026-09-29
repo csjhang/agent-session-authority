@@ -1,5 +1,5 @@
 import type { Checker } from "./index.js";
-import { attrs, basis, claim_for, finding, str, observation_guard } from "./index.js";
+import { attrs, basis, claim_for, finding, join_unique_sentences, str, observation_guard } from "./index.js";
 
 function uniq_sort(seqs: number[]): number[] {
   return [...new Set(seqs)].sort((a, b) => a - b);
@@ -19,16 +19,28 @@ function subject_of(a: Record<string, unknown>, ev_session?: string): string | u
 }
 
 function classify(ev_op: string | undefined, a: Record<string, unknown>, fault?: string): TerminalKind | undefined {
+  // Explicit terminal/terminal_kind/status first
   const t = str(a.terminal) ?? str(a.terminal_kind) ?? str(a.status);
   if (t === "cancelled" || t === "canceled" || t === "cancel") return "cancel";
   if (t === "completed" || t === "complete" || t === "committed" || t === "success") return "complete";
   if (t === "timeout" || t === "timed_out") return "timeout";
   if (t === "failed" || t === "fail") return "failed";
   if (t === "unknown" || t === "orphaned") return "unknown";
+
   if (ev_op === "task.cancel" || ev_op === "effect.cancel") return "cancel";
   if (ev_op === "task.complete") return "complete";
   if (ev_op === "task.timeout") return "timeout";
   if (ev_op === "task.reconcile") return undefined;
+
+  // effect.receipt outcome: committed→complete, failed→failed, unknown→unknown; rejected is NOT terminal
+  if (ev_op === "effect.receipt") {
+    const outcome = str(a.outcome);
+    if (outcome === "committed") return "complete";
+    if (outcome === "failed") return "failed";
+    if (outcome === "unknown") return "unknown";
+    return undefined;
+  }
+
   if (fault === "runtime.restart" || fault === "runtime.crash") return "restart";
   return undefined;
 }
@@ -41,6 +53,22 @@ const WIN_RESOLUTION: Record<string, string[]> = {
   failed_wins: ["failed", "fail"],
 };
 
+function is_terminal_class_event(e: {
+  op?: string;
+  kind: string;
+  fault?: string;
+  attrs?: Record<string, unknown>;
+}): boolean {
+  return (
+    e.op === "task.cancel" ||
+    e.op === "task.complete" ||
+    e.op === "task.timeout" ||
+    e.op === "effect.receipt" ||
+    e.op === "effect.cancel" ||
+    (e.kind === "fault" && (e.fault === "runtime.restart" || e.fault === "runtime.crash"))
+  );
+}
+
 /**
  * AUTH-07 — deterministic terminal interpretation.
  * Cancel/complete/timeout/restart races require a published rule or reconciliation.
@@ -50,25 +78,9 @@ const WIN_RESOLUTION: Record<string, string[]> = {
 export const check_auth07: Checker = (ctx) => {
   const inv = "AUTH-07";
   const cs = claim_for(ctx, inv);
-  const guard = observation_guard(
-    ctx,
-    inv,
-    ctx.events.some(
-      (e) =>
-        e.op === "task.cancel" ||
-        e.op === "task.complete" ||
-        e.op === "task.timeout" ||
-        e.op === "effect.receipt" ||
-        (e.kind === "fault" && (e.fault === "runtime.restart" || e.fault === "runtime.crash")),
-    ),
-    ctx.events.some(
-      (e) =>
-        e.op === "task.reconcile" ||
-        e.op === "effect.reconcile" ||
-        e.attrs?.terminal != null ||
-        (e.kind === "fault" && (e.fault === "runtime.restart" || e.fault === "runtime.crash")),
-    ),
-  );
+  const has_terminal_class = ctx.events.some((e) => is_terminal_class_event(e));
+  // Second prerequisite = same as first: any terminal-class event continues.
+  const guard = observation_guard(ctx, inv, has_terminal_class, has_terminal_class);
   if (guard) return guard;
 
   const profile_rules = (ctx.profile?.terminal_rules ?? {}) as Record<string, string>;
@@ -130,33 +142,34 @@ export const check_auth07: Checker = (ctx) => {
       (ev.op === "effect.receipt" &&
         (str(a.outcome) === "committed" || str(a.outcome) === "failed" || str(a.outcome) === "unknown"))
     ) {
-      // Restart with session_id pairs with all unfinished effects/tasks in that session
+      // Restart with session_id pairs with all unfinished effects/tasks in that session.
+      // Restart with no unfinished work: create NO subject.
       if (ev.kind === "fault" && (ev.fault === "runtime.restart" || ev.fault === "runtime.crash") && ev.session_id) {
         const unfinished = unfinished_by_session.get(ev.session_id) ?? new Set();
-        if (unfinished.size === 0 && subj) {
-          const subject = `fault:${ev.seq}`;
-          const list = terminals.get(subject) ?? [];
-          list.push({ seq: ev.seq, kind: "restart", subject });
-          terminals.set(subject, list);
-        } else {
-          for (const u of unfinished) {
-            const list = terminals.get(u) ?? [];
-            list.push({ seq: ev.seq, kind: "restart", subject: u });
-            terminals.set(u, list);
-          }
+        for (const u of unfinished) {
+          const list = terminals.get(u) ?? [];
+          list.push({ seq: ev.seq, kind: "restart", subject: u });
+          terminals.set(u, list);
         }
         continue;
       }
 
-      const subject = subject_of(a, ev.session_id) ?? (ev.kind === "fault" ? `fault:${ev.seq}` : undefined);
+      // Restart/crash without session_id: only create subject when we have an explicit subject attr
+      if (ev.kind === "fault" && (ev.fault === "runtime.restart" || ev.fault === "runtime.crash") && !ev.session_id) {
+        const subject = subject_of(a, undefined);
+        if (!subject) continue;
+        const list = terminals.get(subject) ?? [];
+        list.push({ seq: ev.seq, kind: "restart", subject });
+        terminals.set(subject, list);
+        continue;
+      }
+
+      const subject = subject_of(a, ev.session_id);
       if (!subject) continue;
-      let k = kind;
-      if (ev.op === "effect.receipt" && str(a.outcome) === "committed") k = "complete";
-      if (ev.op === "effect.receipt" && str(a.outcome) === "unknown") k = "unknown";
       const list = terminals.get(subject) ?? [];
       list.push({
         seq: ev.seq,
-        kind: k,
+        kind,
         subject,
         published: str(a.published_terminal) ?? str(a.terminal),
       });
@@ -213,7 +226,6 @@ export const check_auth07: Checker = (ctx) => {
       if (rec && rule) {
         const allowed = WIN_RESOLUTION[rule];
         if (allowed && !allowed.some((x) => rec.resolved === x || rec.resolved.startsWith(x))) {
-          // Also accept rule name form like "cancel_wins" resolving incorrectly
           violations.push({
             text: `Reconciliation resolved to ${rec.resolved} but published rule ${rule_key}=${rule}.`,
             witnesses: [...witnesses, rec.seq].sort((x, y) => x - y),
@@ -249,27 +261,40 @@ export const check_auth07: Checker = (ctx) => {
     const witnesses = [...new Set(violations.flatMap((v) => v.witnesses))].sort((a, b) => a - b);
     const marker_note = violations.some((v) => v.marker) ? " Includes test-injected marker." : "";
     return [
-      finding(inv, cs, "violation", violations.map((v) => v.text).join(" ") + marker_note, witnesses, basis(ctx)),
+      finding(
+        inv,
+        cs,
+        "violation",
+        join_unique_sentences(violations.map((v) => v.text)) + marker_note,
+        witnesses,
+        basis(ctx),
+      ),
     ];
   }
 
-  const saw_terminal_subject = terminals.size > 0;
-  if (!saw_terminal_subject) {
+  // Supported evidence only for subjects whose terminal reading was really examined:
+  // ≥2 terminal events OR terminal includes restart/crash. Else inconclusive.
+  const examined: TerminalEvent[][] = [];
+  for (const events of terminals.values()) {
+    const examined_contention =
+      events.length >= 2 || events.some((e) => e.kind === "restart");
+    if (examined_contention) examined.push(events);
+  }
+
+  if (examined.length === 0) {
     return [
       finding(
         inv,
         cs,
         "inconclusive",
-        "no subject with terminal event evaluated",
+        "no terminal contention examined",
         [],
         basis(ctx),
       ),
     ];
   }
 
-  const terminal_witnesses = uniq_sort(
-    [...terminals.values()].flatMap((events) => events.map((e) => e.seq)),
-  );
+  const terminal_witnesses = uniq_sort(examined.flatMap((events) => events.map((e) => e.seq)));
   return [
     finding(
       inv,

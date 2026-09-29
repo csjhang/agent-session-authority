@@ -40,6 +40,7 @@ Unknown `kind` values are **rejected**.
 | Op | Typical kinds |
 | --- | --- |
 | `lease.acquire` / `lease.renew` / `lease.release` / `lease.revoke` | `invoke`, `ok`, `fail`, `info` |
+| `lease.observe` | `observe` — observational ownership (e.g. AHP turn ownership). **Not** a ControlLease; no checker treats it as lease acquire/renew/release. |
 | `generation.observe` | `observe` |
 | `action.propose` / `action.bind` | `invoke`, `ok`, `fail`, `info` |
 | `approval.request` / `approval.grant` / `approval.deny` / `approval.record` | `invoke`, `ok`, `fail`, `info` |
