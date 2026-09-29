@@ -185,7 +185,7 @@ export const check_auth04: Checker = (ctx) => {
   if (!saw_positive_committed) {
     const missing_note =
       missing_controller_witnesses.length > 0
-        ? ` Committed receipt(s) missing controller/holder/actor_id after handoff cannot count as supported evidence; witness_seqs=[${[...new Set(missing_controller_witnesses)].sort((a, b) => a - b).join(",")}].`
+        ? `. Committed receipt(s) missing controller/holder/actor_id after handoff cannot count as supported evidence; witness_seqs=[${[...new Set(missing_controller_witnesses)].sort((a, b) => a - b).join(",")}].`
         : "";
     return [
       finding(

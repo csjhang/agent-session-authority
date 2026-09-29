@@ -736,6 +736,49 @@ describe("@asa/adapter-acp fixture", () => {
     expect(header_attach?.attrs?.field_provenance).toMatchObject({ ts: "derived" });
   });
 
+  it("fs: effect_id path part always uses / for win32-style input (no backslashes)", () => {
+    const win_events = [
+      {
+        type: "session_update" as const,
+        sessionId: "s-win-fs",
+        update: {
+          kind: "effect_receipt",
+          sink: "fixture_fs",
+          path: String.raw`C:\ws\a.txt`,
+          present: true,
+          matched: true,
+          expected: "x",
+          content: "x",
+        },
+      },
+    ];
+    const posix_events = [
+      {
+        type: "session_update" as const,
+        sessionId: "s-win-fs",
+        update: {
+          kind: "effect_receipt",
+          sink: "fixture_fs",
+          path: "C:/ws/a.txt",
+          present: true,
+          matched: true,
+          expected: "x",
+          content: "x",
+        },
+      },
+    ];
+    const win_hist = acp_events_to_history(win_events);
+    const posix_hist = acp_events_to_history(posix_events);
+    const win_r = win_hist.find((e) => e.op === "effect.receipt");
+    const posix_r = posix_hist.find((e) => e.op === "effect.receipt");
+    const win_eid = String(win_r?.attrs?.effect_id ?? "");
+    const posix_eid = String(posix_r?.attrs?.effect_id ?? "");
+    expect(win_eid.startsWith("fs:")).toBe(true);
+    expect(win_eid.includes("\\")).toBe(false);
+    expect(String(win_r?.attrs?.path ?? "").includes("\\")).toBe(false);
+    expect(win_eid).toBe(posix_eid);
+    expect(win_eid).toBe("fs:C:/ws/a.txt");
+  });
 
 });
 

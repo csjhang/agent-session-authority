@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -91,6 +92,15 @@ describe("golden corpus AUTH-03", () => {
     expect(f).toBeTruthy();
     expect(f!.explanation).toMatch(/not covered/);
   });
+  it("AUTH-03c lease expires_at + committed receipt missing ts → inconclusive (cannot judge expiry)", () => {
+    const history = load_history_file(path.join(repo_root, "corpus", "auth03", "inconclusive-missing-receipt-ts.jsonl"));
+    const profile = load_profile(path.join(repo_root, "corpus", "auth03", "profile.json"));
+    const f = by_inv(run_checkers(history, profile, default_assessment()), "AUTH-03c")[0];
+    expect(f?.result).toBe("inconclusive");
+    expect(f!.explanation).toMatch(/no committed receipt evaluated/);
+    expect(f!.explanation).toMatch(/cannot judge expiry|missing ts/);
+    expect(f!.witness_seqs).toEqual(expect.arrayContaining([2]));
+  });
 });
 
 describe("golden corpus AUTH-04", () => {
@@ -124,6 +134,13 @@ describe("golden corpus AUTH-04", () => {
     const f = by_inv(run_checkers(history, profile, default_assessment()), "AUTH-04")[0];
     expect(f?.result).toBe("inconclusive");
     expect(f!.explanation).toMatch(/missing controller/);
+    expect(f!.explanation).toMatch(/no committed receipt evaluated\. Committed/);
+  });
+  it("auth04 pass has no AUTH-02 (or other) violation", () => {
+    const { pass } = run_corpus("auth04");
+    expect(pass.filter((x) => x.result === "violation")).toEqual([]);
+    expect(by_inv(pass, "AUTH-04")[0]?.result).toBe("supported");
+    expect(by_inv(pass, "AUTH-02")[0]?.result).toBe("supported");
   });
 });
 
@@ -167,6 +184,23 @@ describe("golden corpus AUTH-07", () => {
 });
 
 describe("label distinctions", () => {
+  it("every corpus/**/pass*.jsonl has no violation on any invariant", () => {
+    const corpus_root = path.join(repo_root, "corpus");
+    const dirs = fs.readdirSync(corpus_root, { withFileTypes: true }).filter((d) => d.isDirectory());
+    for (const d of dirs) {
+      const dir = path.join(corpus_root, d.name);
+      const profile_path = path.join(dir, "profile.json");
+      if (!fs.existsSync(profile_path)) continue;
+      const profile = load_profile(profile_path);
+      for (const name of fs.readdirSync(dir)) {
+        if (!name.startsWith("pass") || !name.endsWith(".jsonl")) continue;
+        const history = load_history_file(path.join(dir, name));
+        const findings = run_checkers(history, profile, default_assessment());
+        const viol = findings.filter((x) => x.result === "violation");
+        expect(viol, `${d.name}/${name}`).toEqual([]);
+      }
+    }
+  });
   it("AUTH-02/04/07 results are not not_tested when implemented", () => {
     const { pass } = run_corpus("auth02");
     expect(by_inv(pass, "AUTH-02")[0]?.result).not.toBe("not_tested");

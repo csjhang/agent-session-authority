@@ -152,6 +152,7 @@ export const check_auth03c: Checker = (ctx) => {
   const active = new Map<string, LeaseState>();
   const violations: { text: string; witnesses: number[] }[] = [];
   let saw_positive_committed = false;
+  const missing_ts_witnesses: number[] = [];
 
   for (const ev of ctx.events) {
     const a = attrs(ev);
@@ -219,14 +220,24 @@ export const check_auth03c: Checker = (ctx) => {
       const ts = ev.ts;
       const receipt_ms = ts_millis(ts);
       const expires_ms = ts_millis(lease?.expires_at);
+      if (!lease || !lease.scopes.has(scope_id)) {
+        violations.push({
+          text: `Committed effect scope_id=${scope_id} not covered by holder=${actor} ControlLease.`,
+          witnesses: [lease?.seq, ev.seq].filter((x): x is number => typeof x === "number"),
+        });
+        continue;
+      }
+      // Lease has expires_at but receipt missing/unparseable ts → cannot judge expiry.
+      if (lease.expires_at && expires_ms != null && receipt_ms == null) {
+        missing_ts_witnesses.push(ev.seq);
+        continue;
+      }
       const expired =
         expires_ms != null && receipt_ms != null && receipt_ms > expires_ms;
-      if (!lease || !lease.scopes.has(scope_id) || expired) {
+      if (expired) {
         violations.push({
-          text: expired
-            ? `Committed effect scope_id=${scope_id} past lease expires_at=${lease!.expires_at} for holder=${actor}.`
-            : `Committed effect scope_id=${scope_id} not covered by holder=${actor} ControlLease.`,
-          witnesses: [lease?.seq, ev.seq].filter((x): x is number => typeof x === "number"),
+          text: `Committed effect scope_id=${scope_id} past lease expires_at=${lease.expires_at} for holder=${actor}.`,
+          witnesses: [lease.seq, ev.seq],
         });
       } else {
         saw_positive_committed = true;
@@ -238,13 +249,17 @@ export const check_auth03c: Checker = (ctx) => {
     return [finding(inv, cs, "violation", violations.map((v) => v.text).join(" "), witnesses, basis(ctx))];
   }
   if (!saw_positive_committed) {
+    const missing_ts_note =
+      missing_ts_witnesses.length > 0
+        ? ` Committed receipt(s) missing ts while lease has expires_at cannot judge expiry; witness_seqs=[${[...new Set(missing_ts_witnesses)].sort((a, b) => a - b).join(",")}].`
+        : "";
     return [
       finding(
         inv,
         cs,
         "inconclusive",
-        "no committed receipt evaluated",
-        [],
+        "no committed receipt evaluated" + (missing_ts_note ? "." + missing_ts_note : ""),
+        [...new Set(missing_ts_witnesses)].sort((a, b) => a - b),
         basis(ctx),
       ),
     ];
