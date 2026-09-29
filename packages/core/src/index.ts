@@ -9,6 +9,7 @@ import { check_auth04 } from "./checker/auth04.js";
 import { check_auth05 } from "./checker/auth05.js";
 import { check_auth06 } from "./checker/auth06.js";
 import { check_auth07 } from "./checker/auth07.js";
+import { check_auth08 } from "./checker/auth08.js";
 
 const CHECKERS: Checker[] = [
   check_auth01,
@@ -18,6 +19,7 @@ const CHECKERS: Checker[] = [
   check_auth05,
   check_auth06,
   check_auth07,
+  check_auth08,
 ];
 
 export function run_checkers(
@@ -35,6 +37,7 @@ export * from "./history.js";
 export * from "./declaration.js";
 export * from "./assessment.js";
 export * from "./report.js";
+export { validate_json } from "./schema.js";
 export { canonicalize } from "./jcs.js";
 export { action_digest } from "./action_digest.js";
 export {

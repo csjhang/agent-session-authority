@@ -16,7 +16,8 @@
     "AUTH-04": "not_tested",
     "AUTH-05": "not_tested",
     "AUTH-06": "not_tested",
-    "AUTH-07": "not_tested"
+    "AUTH-07": "not_tested",
+    "AUTH-08": "not_tested"
   },
   "capability_sources": {},
   "fixture_vector": {
@@ -30,7 +31,8 @@
     "AUTH-04": "inconclusive",
     "AUTH-05": "inconclusive",
     "AUTH-06": "supported",
-    "AUTH-07": "inconclusive"
+    "AUTH-07": "inconclusive",
+    "AUTH-08": "not_tested"
   },
   "claim_status_vector": {
     "AUTH-01a": "not_declared",
@@ -43,7 +45,8 @@
     "AUTH-04": "not_declared",
     "AUTH-05": "not_declared",
     "AUTH-06": "not_declared",
-    "AUTH-07": "not_declared"
+    "AUTH-07": "not_declared",
+    "AUTH-08": "not_declared"
   },
   "checker_explanation": {
     "AUTH-01a": "No generation_model declared in profile.",
@@ -56,7 +59,8 @@
     "AUTH-04": "Required prerequisite observations are absent.",
     "AUTH-05": "Required prerequisite observations are absent.",
     "AUTH-06": "No implicit success without committed EffectReceipt; fail!=info respected.",
-    "AUTH-07": "Not enough observations for a positive conclusion."
+    "AUTH-07": "Not enough observations for a positive conclusion.",
+    "AUTH-08": "AUTH-08 (Bypass honesty) has no checker yet. Disclosure belongs in profile.known_bypasses and profile.coverage_boundary."
   },
   "notes": {
     "summary": "Fixture vector from asa check against history-fixture.jsonl. Public ACP docs do not declare portable ActionBinding+generation; digests and fence_epoch are adapter-synthesized for the probe.",

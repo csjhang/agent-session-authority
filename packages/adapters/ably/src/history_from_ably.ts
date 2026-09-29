@@ -1,10 +1,12 @@
-import { action_digest } from "@asa/core";
+import {
+  action_digest,
+  format_unix_nano_decimal,
+  serialize_history_jsonl,
+  type HistoryEvent,
+} from "@asa/core";
 import type { AblyPeerEvent } from "./mock_peer.js";
-export interface HistoryEventLite { seq: number; ts?: string; ts_unix_nano?: string; kind: "invoke" | "ok" | "fail" | "info" | "observe" | "fault"; op?: string; session_id?: string; actor_id?: string; attrs?: Record<string, unknown>; note?: string; }
-/** Decimal-string unix nano from Date.now() ms (ms * 1e6; not true ns resolution). */
-function format_unix_nano_decimal(epoch_ms: number = Date.now()): string {
-  return String(BigInt(Math.trunc(epoch_ms)) * 1_000_000n);
-}
+
+export type HistoryEventLite = HistoryEvent;
 
 export function ably_events_to_history(events: readonly AblyPeerEvent[]): HistoryEventLite[] {
   const out: HistoryEventLite[] = [];
@@ -127,6 +129,5 @@ export function ably_events_to_history(events: readonly AblyPeerEvent[]): Histor
   }
   return out;
 }
-export function history_to_jsonl(e: readonly HistoryEventLite[]): string {
-  return e.map((x) => JSON.stringify(x)).join("\n") + "\n";
-}
+export const history_to_jsonl = (e: readonly HistoryEventLite[]): string =>
+  serialize_history_jsonl(e as HistoryEvent[]);

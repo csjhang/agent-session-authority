@@ -19,7 +19,8 @@
     "AUTH-04": "not_tested",
     "AUTH-05": "not_tested",
     "AUTH-06": "not_tested",
-    "AUTH-07": "not_tested"
+    "AUTH-07": "not_tested",
+    "AUTH-08": "not_tested"
   },
   "capability_sources": {},
   "fixture_vector": {
@@ -33,7 +34,8 @@
     "AUTH-04": "inconclusive",
     "AUTH-05": "inconclusive",
     "AUTH-06": "inconclusive",
-    "AUTH-07": "inconclusive"
+    "AUTH-07": "inconclusive",
+    "AUTH-08": "not_tested"
   },
   "claim_status_vector": {
     "AUTH-01a": "not_declared",
@@ -46,7 +48,8 @@
     "AUTH-04": "not_declared",
     "AUTH-05": "not_declared",
     "AUTH-06": "not_declared",
-    "AUTH-07": "not_declared"
+    "AUTH-07": "not_declared",
+    "AUTH-08": "not_declared"
   },
   "checker_explanation": {
     "AUTH-01a": "No generation_model declared in profile.",
@@ -59,7 +62,8 @@
     "AUTH-04": "Required prerequisite observations are absent.",
     "AUTH-05": "Required prerequisite observations are absent.",
     "AUTH-06": "Required prerequisite observations are absent.",
-    "AUTH-07": "Required prerequisite observations are absent."
+    "AUTH-07": "Required prerequisite observations are absent.",
+    "AUTH-08": "AUTH-08 (Bypass honesty) has no checker yet. Disclosure belongs in profile.known_bypasses and profile.coverage_boundary."
   },
   "notes": {
     "summary": "Fixture vector from asa check against history-fixture.jsonl (AHP mock peer). Digests/fence_epoch are adapter-synthesized; public AHP does not define portable RuntimeGeneration across host restart.",

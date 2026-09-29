@@ -137,7 +137,7 @@ Each finding keeps **two independent axes** (`claim_status` and `observed_result
 
 | `test_basis` | `claim_status` | `observed_result` | `result` |
 | --- | --- | --- | --- |
-| `synthetic_fixture` | any | any | = `observed_result` (no rewrite) |
+| `synthetic_fixture` | `declared` or `not_declared` | any | = `observed_result` (no rewrite). Note: `not_tested` is never rewritten (any basis / claim_status). |
 | `research_profile` or `vendor_claim` | `declared` | any | = `observed_result` |
 | `research_profile` or `vendor_claim` | `not_declared` | `supported` or `violation` | `not_declared` (not graded; keep witnesses; explanation = `not graded: <invariant> is not in claimed_invariants (test_basis=<test_basis>). Observed <observed_result>: <original>`) |
 | `research_profile` or `vendor_claim` | `not_declared` | `inconclusive` | `inconclusive` (evidence insufficiency — do not rewrite) |
@@ -145,6 +145,9 @@ Each finding keeps **two independent axes** (`claim_status` and `observed_result
 | any | `underspecified` | not `violation` | `underspecified` |
 | any | `underspecified` | `violation` | `violation` |
 | — | `out_of_scope` | — | nothing produces it today |
+
+
+`not_tested` is never claim-rewritten (it stays `not_tested` regardless of `test_basis` / `claim_status`).
 
 Undeclared invariants are **not graded**: both supported and violation rewrite to `not_declared` under research/vendor bases; the observed outcome stays in `observed_result` and the explanation.
 

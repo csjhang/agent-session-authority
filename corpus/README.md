@@ -13,7 +13,9 @@ Handwritten pass/violate JSONL histories for checkers, plus ACP-shaped regenerat
 | auth07 | AUTH-07 | pass.jsonl, violate.jsonl, violate-markerfree.jsonl |
 | acp-shaped | AUTH-02 (+ AUTH-01b note) | a1–a7 JSONL via `scripts/generate-acp-shaped-corpus.ts` |
 
-Use: `asa check corpus/<dir>/pass.jsonl --profile corpus/<dir>/profile.json`
+Use (from repo root): `pnpm asa -- check corpus/<dir>/pass.jsonl --profile corpus/<dir>/profile.json`
+
+Paths are relative to cwd. Exit codes: `0` = no violation (post claim-rewrite), `1` = ≥1 violation, `2` = tool error. `--json` emits `build_report` JSON only on stdout.
 
 ## Pass corpora (golden)
 

@@ -59,9 +59,25 @@ pnpm fixture:acp-mux
 
 ## What we measure
 
-Profile **v0.2** AUTH scenarios (AUTH-01…08) over a shared history JSONL + `asa check`. Labels include `supported`, `not_declared`, `violation`, `inconclusive`, `underspecified`, and `not_tested` (`not_tested` ≠ `not_declared`). Optional `ts_unix_nano` is a **decimal string** (not a JSON number) so values above `2^53-1` are not rounded by JS parsers — see [`spec/history-format.md`](spec/history-format.md). Draft effect-boundary authority fields (JCS hashed form): [`spec/agent-effect-attributes.md`](spec/agent-effect-attributes.md).
+Profile **v0.2** AUTH scenarios (AUTH-01…08) over a shared history JSONL + `asa check`. AUTH-01…07 implemented; AUTH-08 defined, unimplemented (always `not_tested`). Labels include `supported`, `not_declared`, `violation`, `inconclusive`, `underspecified`, and `not_tested` (`not_tested` ≠ `not_declared`). Optional `ts_unix_nano` is a **decimal string** (not a JSON number) so values above `2^53-1` are not rounded by JS parsers — see [`spec/history-format.md`](spec/history-format.md). Draft effect-boundary authority fields (JCS hashed form): [`spec/agent-effect-attributes.md`](spec/agent-effect-attributes.md).
 
 Build order: history → checker → mock sink → adapters.
+
+## CLI (`asa check`)
+
+From repo root: `pnpm asa -- check <history.jsonl> [--profile path] [--assessment path] [--json]`.
+
+Paths are resolved relative to the process cwd only (no `../..` guesses). Prefer running from the repo root so `corpus/...` paths work.
+
+Exit codes:
+
+| Code | Meaning |
+| --- | --- |
+| 0 | No `finding.result` is `violation` (post claim-rewrite; rewritten `not_declared` does not count as failure) |
+| 1 | At least one `finding.result` is `violation` |
+| 2 | Tool error (missing args, unknown command/flag, flag missing value, missing file, JSON/schema/history parse failure, unexpected exception) |
+
+`--json` prints only the `build_report` JSON on stdout (no text report). Default stdout is the text report only; use `--json` for JSON.
 
 ## Stage map
 
