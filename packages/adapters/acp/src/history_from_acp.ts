@@ -9,7 +9,27 @@ import type { AcpPeerEvent } from "./mock_peer.js";
 
 export type HistoryEventLite = HistoryEvent;
 
+/**
+ * Prefer the real session id from session/new (or session/load / session/resume when
+ * restoring). The harness records initialize_result under the placeholder "live-session"
+ * before session/new returns; using that placeholder for the header splits gen1/gen2 streams.
+ */
 function session_id_of(events: readonly AcpPeerEvent[]): string | undefined {
+  for (const ev of events) {
+    if (ev.type !== "session_update") continue;
+    const kind = String(ev.update.kind ?? "");
+    if (kind !== "session_new" && kind !== "session_load" && kind !== "session_resume") continue;
+    if (typeof ev.sessionId === "string" && ev.sessionId.length > 0) return ev.sessionId;
+    const response = ev.update.response as Record<string, unknown> | undefined;
+    const result = response?.result as Record<string, unknown> | undefined;
+    if (typeof result?.sessionId === "string" && result.sessionId.length > 0) {
+      return result.sessionId;
+    }
+    const params = ev.update.params as Record<string, unknown> | undefined;
+    if (typeof params?.sessionId === "string" && params.sessionId.length > 0) {
+      return params.sessionId;
+    }
+  }
   for (const ev of events) {
     if ("sessionId" in ev && typeof ev.sessionId === "string") return ev.sessionId;
   }
