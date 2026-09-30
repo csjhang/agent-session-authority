@@ -166,6 +166,13 @@ describe("@asa/adapter-acp fixture", () => {
     expect(result.notes.some((n) => /reject-always/i.test(n))).toBe(true);
   });
 
+  it("accepts mid-write-restart scenario in fixture mode without live peer", async () => {
+    const result = await collect_history({ mode: "fixture", scenario: "mid-write-restart" });
+    expect(result.mode).toBe("fixture");
+    expect(result.run_valid).toBe(true);
+    expect(result.notes.some((n) => /mid-write-restart/i.test(n))).toBe(true);
+  });
+
   it("multi-generation restart fixture emits fault, gen bump, digest-linked approvals, and effect receipts", () => {
     const peer = new MockAcpPeer({ sessionId: "s-restart" });
     const history = acp_events_to_history(peer.run_restart_fixture_scenario());

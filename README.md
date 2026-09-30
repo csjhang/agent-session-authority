@@ -138,7 +138,7 @@ RUN_CWD=$(mktemp -d)           # empty directory the agent works in
 (cd "$RUN_CWD" && "$REPO/node_modules/.bin/tsx" "$REPO/packages/adapters/acp/src/cli.ts" --mode live --scenario effect --run-id my-run-1)
 ```
 
-- Scenarios: `initialize` (default) | `capped` | `effect` | `stale-grant` | `stale-effect` | `always-grant` | `reject-always`.
+- Scenarios: `initialize` (default) | `capped` | `effect` | `stale-grant` | `stale-effect` | `always-grant` | `reject-always` | `mid-write-restart` (offline fake / PR-9a; live PR-9b).
 - Output: `targets/claude-agent-acp/results/live-runs/<scenario>/<run-id>/{history.jsonl,run.json,peer-events.jsonl}`.
 - Exit code 0 = valid run. Exit code 2 = invalid run (for example the agent reports a version other than 0.75.1, in which case no prompt is sent) or the output was refused (bad run id, existing directory, or an API key in the output).
 - Then run `pnpm generate:capability-vectors` to recompute the vectors and `pnpm reconvert:live-runs` to check the evidence chain.
