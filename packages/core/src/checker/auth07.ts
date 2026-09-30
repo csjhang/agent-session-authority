@@ -66,6 +66,21 @@ const WIN_RESOLUTION: Record<string, string[]> = {
   failed_wins: ["failed", "fail"],
 };
 
+
+/**
+ * Explicitly reported terminal (attrs.terminal / attrs.terminal_kind only — not status,
+ * not op-derived) that maps to complete / failed / cancel / timeout.
+ * unknown and restart do not finish the call. The event itself is still a terminal event.
+ */
+function explicit_report_finishes_work(a: Record<string, unknown>): boolean {
+  const t = str(a.terminal) ?? str(a.terminal_kind);
+  if (t === "cancelled" || t === "canceled" || t === "cancel") return true;
+  if (t === "completed" || t === "complete" || t === "committed" || t === "success") return true;
+  if (t === "timeout" || t === "timed_out") return true;
+  if (t === "failed" || t === "fail") return true;
+  return false;
+}
+
 function is_terminal_class_event(e: {
   op?: string;
   kind: string;
@@ -117,7 +132,8 @@ export const check_auth07: Checker = (ctx) => {
         ev.op === "task.cancel" ||
         ev.op === "task.timeout" ||
         (ev.op === "effect.receipt" &&
-          (str(a.outcome) === "committed" || str(a.outcome) === "failed" || str(a.outcome) === "rejected")))
+          (str(a.outcome) === "committed" || str(a.outcome) === "failed" || str(a.outcome) === "rejected")) ||
+        explicit_report_finishes_work(a))
     ) {
       if (ev.session_id) unfinished_by_session.get(ev.session_id)?.delete(subj);
     }
