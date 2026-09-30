@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { MockAcpPeer, observe_event, type AcpPeerEvent } from "./mock_peer.js";
 import { wait_for_write_effect } from "./effect_wait.js";
-import { acp_events_to_history, history_to_jsonl, type HistoryEventLite } from "./history_from_acp.js";
+import { acp_events_to_history, history_to_jsonl, live_history_from_peer_events, type HistoryEventLite } from "./history_from_acp.js";
 
 export type AdapterMode = "fixture" | "live";
 export type AdapterScenario = "initialize" | "capped" | "effect" | "stale-grant" | "stale-effect" | "always-grant" | "reject-always";
@@ -532,7 +532,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{
   const i1 = await initialize(c1, events, notes, timeout, gen1_mode, cwd);
   const finish = (extra_notes: string[] = []) => {
     for (const n of extra_notes) notes.push(n);
-    const history = acp_events_to_history(events, { issuer_id: "acp_adapter_live", session_cwd: cwd });
+    const history = live_history_from_peer_events(events);
     return { events, history, package_version_observed, invalid_reasons };
   };
   if (!i1.result) {
@@ -1161,7 +1161,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{
   notes.push(
     `client fs: write_text_file performed=${i1.rpc.fs_write_performed + i2.rpc.fs_write_performed} read_text_file served=${i1.rpc.fs_read_served + i2.rpc.fs_read_served}`,
   );
-  const history = acp_events_to_history(events, { fence_epoch: 1, issuer_id: "acp_adapter_live", session_cwd: cwd });
+  const history = live_history_from_peer_events(events);
   return { events, history, package_version_observed, invalid_reasons };
 }
 
@@ -1215,5 +1215,7 @@ export async function collect_history(opts: AcpAdapterOptions = {}): Promise<Acp
 export { MockAcpPeer } from "./mock_peer.js";
 export { observe_event } from "./mock_peer.js";
 export type { AcpPeerEvent } from "./mock_peer.js";
-export { acp_events_to_history, history_to_jsonl } from "./history_from_acp.js";
+export { acp_events_to_history, history_to_jsonl, live_history_from_peer_events } from "./history_from_acp.js";
 export type { HistoryEventLite } from "./history_from_acp.js";
+export { check_live_run, check_live_runs, write_live_runs } from "./live_reconvert.js";
+export type { LiveReconvertCheck } from "./live_reconvert.js";

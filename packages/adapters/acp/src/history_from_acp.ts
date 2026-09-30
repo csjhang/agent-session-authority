@@ -667,5 +667,16 @@ export function acp_events_to_history(
   return out;
 }
 
+
+/**
+ * Live history is a pure function of the recorded peer events (peer-events.jsonl).
+ * The session cwd comes from the recorded session/new, never from the caller.
+ */
+export function live_history_from_peer_events(
+  events: readonly AcpPeerEvent[],
+): HistoryEventLite[] {
+  return acp_events_to_history(events, { fence_epoch: 1, issuer_id: "acp_adapter_live" });
+}
+
 export const history_to_jsonl = (events: readonly HistoryEventLite[]): string =>
   serialize_history_jsonl(events as HistoryEvent[]);

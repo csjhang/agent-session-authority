@@ -67,7 +67,7 @@ pnpm install
 export ANTHROPIC_API_KEY=…   # never commit
 
 # scenarios: initialize (default) | capped | effect | stale-grant | stale-effect | always-grant | reject-always
-# live output: targets/claude-agent-acp/results/live-runs/<scenario>/<run-id>/{history.jsonl,run.json}
+# live output: targets/claude-agent-acp/results/live-runs/<scenario>/<run-id>/{history.jsonl,run.json,peer-events.jsonl}
 # inspect run.json run_valid (exit 0 = valid, exit 2 = invalid / write refused)
 pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode live --scenario effect --run-id demo-effect-1
 pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode live --scenario always-grant --run-id demo-always-1
@@ -126,6 +126,8 @@ Exit codes:
 - `observed_vector` — aggregated live `observed_result` per invariant.
 - `capability_sources` — repo-relative live `history.jsonl` paths behind every non-`not_tested` label.
 - `live_runs` — included runs (with per-run observed results), excluded runs (with reasons) and disagreements.
+
+`pnpm reconvert:live-runs` checks that each live run's `history.jsonl` is byte-for-byte what the current ACP adapter derives from the run's `peer-events.jsonl` (the recorded ACP traffic), and that `run.json` counts match both files; CI runs the same check in `packages/adapters/acp/test/live-reconvert.test.ts`. After an adapter change, `pnpm reconvert:live-runs -- --write` regenerates `history.jsonl` (and `run.json` `history_events`) from the recorded peer events; `peer-events.jsonl` is never modified.
 
 Live aggregation (claude-agent-acp, `targets/claude-agent-acp/results/live-runs/<scenario>/<run-id>/`):
 
