@@ -16,7 +16,7 @@
     "AUTH-04": "inconclusive",
     "AUTH-05": "inconclusive",
     "AUTH-06": "not_tested",
-    "AUTH-07": "not_declared",
+    "AUTH-07": "not_tested",
     "AUTH-08": "not_tested"
   },
   "capability_basis": "research_profile",
@@ -110,9 +110,6 @@
       "targets/claude-agent-acp/results/live-runs/stale-grant/r1/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/stale-grant/r2/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/stale-grant/r3/history.jsonl"
-    ],
-    "AUTH-07": [
-      "targets/claude-agent-acp/results/live-runs/reject-always/r1/history.jsonl"
     ]
   },
   "observed_vector": {
@@ -126,7 +123,7 @@
     "AUTH-04": "inconclusive",
     "AUTH-05": "inconclusive",
     "AUTH-06": "not_tested",
-    "AUTH-07": "supported",
+    "AUTH-07": "not_tested",
     "AUTH-08": "not_tested"
   },
   "capability_exclusions": {
@@ -134,6 +131,7 @@
     "AUTH-01b": "probe-derived: live runtime_generation is counted by the adapter from process spawns (issuer_id=acp_adapter_live), not reported by claude-agent-acp",
     "AUTH-01c": "probe-derived: the only generation issuer in live history is the adapter itself (acp_adapter_live)",
     "AUTH-06": "not examined: the adapter does not map claude-agent-acp success claims (tool_call status) into history, so no implicit-success claim is ever checked",
+    "AUTH-07": "probe-derived: claude-agent-acp terminal status (tool_call_update status, prompt stopReason) stays inside session.attach raw_update and is never mapped to a terminal event; the only terminal events in live history are the adapter's own effect.receipt observations (outcome derived) and the restart it injects",
     "AUTH-08": "no checker (always not_tested)"
   },
   "live_runs": {
