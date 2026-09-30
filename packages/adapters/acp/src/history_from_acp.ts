@@ -158,6 +158,26 @@ type PendingApproval = {
   runtime_generation: number;
 };
 
+/**
+ * Tool-call status reported by the agent itself. A completed/failed status outside a
+ * session/load replay becomes an AUTH-07 terminal on the tool call; replayed updates are
+ * marked replay and carry no terminal.
+ */
+function target_tool_status(
+  update: Record<string, unknown>,
+  replaying: boolean,
+  runtime_generation: number,
+): Record<string, unknown> {
+  const raw = update.raw_update as Record<string, unknown> | undefined;
+  const session_update = raw?.sessionUpdate;
+  const tool_call_id = typeof update.toolCallId === "string" ? update.toolCallId : undefined;
+  if ((session_update !== "tool_call" && session_update !== "tool_call_update") || !tool_call_id) return {};
+  if (replaying) return { tool_call_id, replay: true };
+  const status = update.status;
+  if (status !== "completed" && status !== "failed") return {};
+  return { tool_call_id, terminal: status, runtime_generation, field_provenance: { terminal: "target" } };
+}
+
 /** Earliest finite observed_at_ms among peer events, if any. */
 function earliest_observed_at_ms(events: readonly AcpPeerEvent[]): number | undefined {
   let min: number | undefined;
@@ -267,8 +287,12 @@ export function acp_events_to_history(
   /** Survives after grant/deny so orphan replies can recover request_runtime_generation. */
   const answered_by_request = new Map<string, PendingApproval>();
 
+  /** After a restart, session/load replays the transcript until its response is recorded. */
+  let replaying = false;
+
   for (const ev of events) {
     if (ev.type === "runtime_restart") {
+      replaying = true;
       next(
         {
           kind: "fault",
@@ -449,12 +473,13 @@ export function acp_events_to_history(
           );
         }
       } else {
+        if (kind === "session_load" || kind === "session_resume") replaying = false;
         next(
           {
             kind: "observe",
             op: "session.attach",
             session_id: ev.sessionId,
-            attrs: { update_kind: kind, raw_update: ev.update },
+            attrs: { update_kind: kind, raw_update: ev.update, ...target_tool_status(ev.update, replaying, runtime_generation) },
             note: "acp session_update",
           },
           ev.observed_at_ms,

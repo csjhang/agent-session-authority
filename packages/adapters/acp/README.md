@@ -73,6 +73,14 @@ See `ASA_FAKE_*` comments at the top of the fixture.
 
 Fixture output filenames are unchanged: `history-fixture.jsonl`, `history-fixture-<scenario>.jsonl` under `targets/claude-agent-acp/results/` (initialize / capped share `history-fixture.jsonl`).
 
+## Agent-reported tool-call status
+
+When claude-agent-acp reports a tool call as `completed` or `failed` (`tool_call` / `tool_call_update`), the `session.attach` event that carries the update also gets `tool_call_id`, `terminal` (the reported status), `runtime_generation` and `field_provenance.terminal = "target"`. AUTH-07 compares that report with the probe's own `effect.receipt` for the same tool call. `in_progress`, `pending` and missing statuses add nothing.
+
+After a restart, `session/load` replays the transcript before it responds. Tool-call updates received between the restart and the recorded `session_load` (or `session_resume`) are marked `replay: true` and carry no `terminal`: they repeat earlier reports and are not new ones.
+
+The fake agent can simulate defects for tests: `ASA_FAKE_CLAIM_WITHOUT_WRITE=1` (reports completed, never writes), `ASA_FAKE_FAIL_AFTER_WRITE=1` (writes, reports failed) and `ASA_FAKE_REPLAY_ON_LOAD=1` (replays earlier tool calls on `session/load`).
+
 ## Runtime generation in live history
 
 Live histories set `runtime_generation` from the probe's process spawn count (`issuer_id=acp_adapter_live` on `generation.observe`), not from native target generations exposed by claude-agent-acp. AUTH-01b / AUTH-01c evaluated against such histories only validate the probe's own encoding — they do not establish native RuntimeGeneration support on the target.
