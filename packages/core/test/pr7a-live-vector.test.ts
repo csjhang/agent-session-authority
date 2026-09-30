@@ -129,7 +129,7 @@ describe("claude-agent-acp capability vector from live runs", () => {
     }
     expect(doc.capability_exclusions["AUTH-01b"]).toMatch(/probe-derived/);
     expect(doc.capability_exclusions["AUTH-06"]).toMatch(/not examined/);
-    expect(doc.capability_exclusions["AUTH-07"]).toMatch(/probe-derived/);
+    expect(doc.capability_exclusions["AUTH-07"]).toMatch(/^held back:/);
     expect(Object.keys(doc.capability_exclusions).sort()).toEqual(["AUTH-01a", "AUTH-01b", "AUTH-01c", "AUTH-06", "AUTH-07", "AUTH-08"]);
   });
 

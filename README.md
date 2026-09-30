@@ -89,7 +89,8 @@ Every run follows the same steps, with the agent working in an empty temporary d
 - **Excluded rules** are never promoted from these live runs:
   - AUTH-01a: claude-agent-acp publishes no authority profile or generation model.
   - AUTH-01b, AUTH-01c: the generation number in the live history is counted by the probe from process restarts, not reported by claude-agent-acp.
-  - AUTH-06, AUTH-07: the probe does not map claude-agent-acp's own tool-call status into the history, so the only success and terminal events are the probe's own disk checks and the restart it causes.
+  - AUTH-06: claude-agent-acp has no effect receipts of its own and reports tool completion before the probe checks the disk, so AUTH-06 would flag every write by construction.
+  - AUTH-07: claude-agent-acp's own tool-call status is now recorded in the history, but promotion is held back until the live aggregation requires at least one agent-reported terminal in every supported run.
   - AUTH-08: no checker.
 
 No conclusion beyond these generated fields is claimed. Full output: [`targets/claude-agent-acp/results/capability_vector.json`](targets/claude-agent-acp/results/capability_vector.json). Evidence: `targets/claude-agent-acp/results/live-runs/<scenario>/<run-id>/`.
@@ -179,7 +180,7 @@ Live aggregation (claude-agent-acp, `targets/claude-agent-acp/results/live-runs/
 1. A run counts only if `run.json` has `run_valid: true` and `package_version_observed: "0.75.1"` and `history.jsonl` parses; anything else is listed under `live_runs.excluded` with reasons.
 2. Within a scenario every run must agree. A disagreement is listed in `live_runs.disagreements` exactly as observed — never a majority vote.
 3. Across scenarios: a consistent `violation` anywhere wins; otherwise any disagreement makes the invariant `inconclusive`; otherwise a consistent `supported`; otherwise `inconclusive`.
-4. `capability_exclusions` lists invariants never promoted from these live runs: AUTH-01a (profile-only), AUTH-01b / AUTH-01c (generation is counted by the adapter itself), AUTH-06 (the adapter does not map the agent's success claims), AUTH-07 (the adapter maps none of the agent's terminal status; the only terminal events are its own receipts and the restart it injects), AUTH-08 (no checker).
+4. `capability_exclusions` lists invariants never promoted from these live runs: AUTH-01a (profile-only), AUTH-01b / AUTH-01c (generation is counted by the adapter itself), AUTH-06 (claude-agent-acp has no receipts of its own and reports completion before the disk check, so every write would be flagged by construction), AUTH-07 (held back until every supported run must include an agent-reported terminal), AUTH-08 (no checker).
 
 ### Repository layout
 
@@ -217,7 +218,7 @@ Optional live keys (`ANTHROPIC_API_KEY`, `ABLY_API_KEY`, …) stay in the enviro
 1. **Option-offer survey** — which permission kinds are actually offered vs listed in the ACP kind enum (Hermes / OpenClaw / …; cheap first pass). See [`findings/option-offer-survey.md`](findings/option-offer-survey.md).
 2. Minimal **offline effect-receipt format + verifier** (not hosted audit storage) — draft: [`spec/agent-effect-attributes.md`](spec/agent-effect-attributes.md) + JCS vectors under [`spec/vectors/agent-effect/`](spec/vectors/agent-effect/).
 3. New public issue for allow/reject option asymmetry only after a quick multi-tool check that `reject_always` is missing beyond Write.
-4. Map claude-agent-acp's own tool-call status into the live history, so AUTH-06 and AUTH-07 can be examined instead of excluded.
+4. Promote AUTH-07 once the live aggregation requires an agent-reported terminal in every supported run (the agent's own tool-call status is already recorded in the live history).
 
 ## History: withdrawn live results
 

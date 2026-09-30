@@ -10,6 +10,9 @@
  * ASA_FAKE_WRITE_ON_REJECT  "1" = write the file even when permission was rejected/cancelled (defect)
  * ASA_FAKE_ECHO_KEY         "1" = echo ANTHROPIC_API_KEY in an agent message (secret-guard test)
  * ASA_FAKE_ESCAPE_CWD       "1" = target the file one directory above the session cwd
+ * ASA_FAKE_CLAIM_WITHOUT_WRITE "1" = report the allowed write completed but never write it (defect)
+ * ASA_FAKE_FAIL_AFTER_WRITE "1" = write the allowed file but report the tool call failed (defect)
+ * ASA_FAKE_REPLAY_ON_LOAD   "1" = on session/load, replay earlier tool calls (from a transcript file in the cwd) before responding
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -22,6 +25,26 @@ const write_via_client = env.ASA_FAKE_WRITE_VIA_CLIENT === "1";
 const write_on_reject = env.ASA_FAKE_WRITE_ON_REJECT === "1";
 const echo_key = env.ASA_FAKE_ECHO_KEY === "1";
 const escape_cwd = env.ASA_FAKE_ESCAPE_CWD === "1";
+const claim_without_write = env.ASA_FAKE_CLAIM_WITHOUT_WRITE === "1";
+const fail_after_write = env.ASA_FAKE_FAIL_AFTER_WRITE === "1";
+const replay_on_load = env.ASA_FAKE_REPLAY_ON_LOAD === "1";
+const TRANSCRIPT = ".asa-fake-transcript.json";
+
+function remember(tool_call_id, title, status) {
+  const file = path.join(session_cwd, TRANSCRIPT);
+  const calls = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : [];
+  calls.push({ tool_call_id, title, status });
+  fs.writeFileSync(file, JSON.stringify(calls));
+}
+
+function replay(session_id) {
+  const file = path.join(session_cwd, TRANSCRIPT);
+  if (!fs.existsSync(file)) return;
+  for (const c of JSON.parse(fs.readFileSync(file, "utf8"))) {
+    notify_update(session_id, { sessionUpdate: "tool_call", toolCallId: c.tool_call_id, title: c.title, kind: "edit", status: "pending" });
+    notify_update(session_id, { sessionUpdate: "tool_call_update", toolCallId: c.tool_call_id, title: c.title, status: c.status });
+  }
+}
 
 let session_cwd = process.cwd();
 let next_id = 1000;
@@ -86,12 +109,16 @@ async function handle_prompt(id, params) {
   const chosen = permission_options().find((o) => o.optionId === outcome.optionId);
   const allowed = outcome.outcome === "selected" && chosen != null && chosen.kind.startsWith("allow");
   if (allowed || write_on_reject) {
-    notify_update(session_id, { sessionUpdate: "tool_call_update", toolCallId: tool_call_id, title, status: "completed" });
+    const reported = fail_after_write ? "failed" : "completed";
+    if (replay_on_load) remember(tool_call_id, title, reported);
+    notify_update(session_id, { sessionUpdate: "tool_call_update", toolCallId: tool_call_id, title, status: reported });
     send({ jsonrpc: "2.0", id, result: { stopReason: "end_turn" } });
+    if (claim_without_write) return;
     if (write_delay_ms > 0) setTimeout(() => void write_file(session_id, abs, content), write_delay_ms);
     else await write_file(session_id, abs, content);
     return;
   }
+  if (replay_on_load) remember(tool_call_id, title, "failed");
   notify_update(session_id, { sessionUpdate: "tool_call_update", toolCallId: tool_call_id, title, status: "failed" });
   send({ jsonrpc: "2.0", id, result: { stopReason: "end_turn" } });
 }
@@ -113,6 +140,7 @@ function handle(msg) {
     send({ jsonrpc: "2.0", id, result: { sessionId: "fake-session-1" } });
   } else if (method === "session/load") {
     if (typeof params.cwd === "string") session_cwd = params.cwd;
+    if (replay_on_load) replay(params.sessionId);
     send({ jsonrpc: "2.0", id, result: {} });
   } else if (method === "session/prompt") {
     void handle_prompt(id, params);
