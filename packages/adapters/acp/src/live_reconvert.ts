@@ -108,10 +108,12 @@ export function check_live_run(dir: string, run: string): LiveReconvertCheck {
     problems.push("run.json missing or unreadable");
   } else {
     try {
-      run_obj = JSON.parse(fs.readFileSync(run_path, "utf8")) as {
-        events?: unknown;
-        history_events?: unknown;
-      };
+      const parsed: unknown = JSON.parse(fs.readFileSync(run_path, "utf8"));
+      if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+        problems.push("run.json missing or unreadable");
+      } else {
+        run_obj = parsed as { events?: unknown; history_events?: unknown };
+      }
     } catch {
       problems.push("run.json missing or unreadable");
     }
@@ -119,8 +121,8 @@ export function check_live_run(dir: string, run: string): LiveReconvertCheck {
 
   if (run_obj !== undefined && peer_lines !== undefined) {
     const n = run_obj.events;
-    if (typeof n === "number" && n !== peer_lines) {
-      problems.push(`run.json events=${n} != peer-events.jsonl lines ${peer_lines}`);
+    if (n !== peer_lines) {
+      problems.push(`run.json events=${JSON.stringify(n)} != peer-events.jsonl lines ${peer_lines}`);
     }
   }
 
@@ -136,8 +138,8 @@ export function check_live_run(dir: string, run: string): LiveReconvertCheck {
   if (run_obj !== undefined && hist_raw !== undefined) {
     const m = jsonl_nonempty_line_count(hist_raw);
     const n = run_obj.history_events;
-    if (typeof n === "number" && n !== m) {
-      problems.push(`run.json history_events=${n} != history.jsonl lines ${m}`);
+    if (n !== m) {
+      problems.push(`run.json history_events=${JSON.stringify(n)} != history.jsonl lines ${m}`);
     }
   }
 

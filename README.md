@@ -72,7 +72,6 @@ export ANTHROPIC_API_KEY=…   # never commit
 pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode live --scenario effect --run-id demo-effect-1
 pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode live --scenario always-grant --run-id demo-always-1
 pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode live --scenario reject-always --run-id demo-reject-1
-
 ```
 
 Write-probe prompts wait up to 180s client-side by default. `live_observe_ms`, `effect_grace_ms`, and `always_grant_poll_ms` are `collect_history` options only (no CLI flags). See `packages/adapters/acp/README.md`.

@@ -12,10 +12,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { check_live_runs, write_live_runs } from "../packages/adapters/acp/src/live_reconvert.js";
 
-const DEFAULT_RUNS_ROOT = path.resolve(
-  process.cwd(),
-  "targets/claude-agent-acp/results/live-runs",
-);
+const repo_root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const DEFAULT_RUNS_ROOT = path.join(repo_root, "targets/claude-agent-acp/results/live-runs");
 
 function usage_err(msg: string): never {
   process.stderr.write(msg + "\n");
@@ -23,7 +21,7 @@ function usage_err(msg: string): never {
   throw new Error(msg);
 }
 
-export function parse_args(argv: string[]): { write: boolean; runs_root: string } {
+function parse_args(argv: string[]): { write: boolean; runs_root: string } {
   let write = false;
   let runs_root: string | undefined;
   const args = argv.slice(2);
@@ -48,7 +46,7 @@ export function parse_args(argv: string[]): { write: boolean; runs_root: string 
   return { write, runs_root: runs_root ?? DEFAULT_RUNS_ROOT };
 }
 
-export function main(argv: string[] = process.argv): number {
+function main(argv: string[] = process.argv): number {
   let opts: { write: boolean; runs_root: string };
   try {
     opts = parse_args(argv);
@@ -88,10 +86,4 @@ export function main(argv: string[] = process.argv): number {
   return ok === results.length ? 0 : 1;
 }
 
-const is_direct =
-  process.argv[1] !== undefined &&
-  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
-
-if (is_direct) {
-  process.exitCode = main(process.argv);
-}
+process.exitCode = main(process.argv);

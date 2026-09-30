@@ -4,6 +4,7 @@
  * Never spawns real claude-agent-acp or calls the Anthropic API.
  */
 import { describe, expect, it } from "vitest";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -18,6 +19,7 @@ import { write_live_run } from "../src/live_output.js";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fake_agent = path.join(here, "fixtures", "fake-acp-agent.mjs");
 const REPO_LIVE_RUNS = path.resolve(here, "../../../../targets/claude-agent-acp/results/live-runs");
+const REPO_ROOT = path.resolve(here, "../../../..");
 
 function tmp_dir(label: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), `asa-pr8a-${label}-`));
@@ -164,4 +166,48 @@ describe("live_reconvert", () => {
     },
     60000,
   );
+
+  it(
+    "7. the CLI runs when invoked through a linked repo path (no silent no-op)",
+    () => {
+      const root = tmp_dir("cli-root");
+      copy_run(path.join(REPO_LIVE_RUNS, "effect", "r1"), root, "effect", "r1");
+      const link = path.join(tmp_dir("cli-link"), "repo");
+      fs.symlinkSync(REPO_ROOT, link, "junction");
+      const r = spawnSync(
+        process.execPath,
+        [path.join(REPO_ROOT, "node_modules/tsx/dist/cli.mjs"), path.join(link, "scripts/reconvert-live-runs.ts"), "--runs-root", root],
+        { encoding: "utf8" },
+      );
+      expect(r.status).toBe(0);
+      expect(r.stdout).toContain("1/1 live runs match their peer events");
+    },
+    60000,
+  );
+
+  it("8. missing or non-numeric run.json counts are reported, not skipped", () => {
+    const cases: Array<[Record<string, unknown>, string[]]> = [
+      [{ events: undefined, history_events: undefined }, ["run.json events=undefined", "run.json history_events=undefined"]],
+      [{ events: "60", history_events: "65" }, ['run.json events="60"', 'run.json history_events="65"']],
+    ];
+    for (const [patch, prefixes] of cases) {
+      const root = tmp_dir("count-type");
+      const run_dir = copy_run(path.join(REPO_LIVE_RUNS, "effect", "r1"), root, "effect", "r1");
+      const run_path = path.join(run_dir, "run.json");
+      const obj = { ...(JSON.parse(fs.readFileSync(run_path, "utf8")) as Record<string, unknown>), ...patch };
+      fs.writeFileSync(run_path, JSON.stringify(obj, null, 2) + "\n");
+      const problems = check_live_runs(root)[0]!.problems;
+      for (const prefix of prefixes) expect(problems.some((p) => p.startsWith(prefix)), prefix).toBe(true);
+    }
+  });
+
+  it("9. run.json that is not a JSON object is unreadable: reported, never thrown, and --write skips it", () => {
+    for (const body of ["null", "[]", "42"]) {
+      const root = tmp_dir("run-shape");
+      const run_dir = copy_run(path.join(REPO_LIVE_RUNS, "effect", "r1"), root, "effect", "r1");
+      fs.writeFileSync(path.join(run_dir, "run.json"), body);
+      expect(check_live_runs(root)[0]!.problems, body).toContain("run.json missing or unreadable");
+      expect(write_live_runs(root, process.env).skipped.map((x) => x.run), body).toEqual(["effect/r1"]);
+    }
+  });
 });
