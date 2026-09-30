@@ -123,9 +123,13 @@ export const ACP_LIVE: LiveConfig = {
     "AUTH-01c": "probe-derived: the only generation issuer in live history is the adapter itself (acp_adapter_live)",
     "AUTH-06":
       "not examined: claude-agent-acp has no effect receipts of its own and reports tool completion before the probe checks the disk, so AUTH-06 (success only after a committed receipt) would flag every write by construction; whether its completed/failed reports match the disk is checked under AUTH-07",
-    "AUTH-07":
-      "held back: claude-agent-acp's own tool-call status is recorded as terminal events, but promotion waits until the live aggregation requires at least one claude-agent-acp-reported terminal among each supported run's witnesses",
     "AUTH-08": "no checker (always not_tested)",
+  },
+  target_witness: {
+    "AUTH-07": {
+      reason: "supported only from probe-produced terminal events (no claude-agent-acp tool-call status among the witnesses)",
+      test: (e) => (e.attrs?.field_provenance as Record<string, unknown> | undefined)?.terminal === "target",
+    },
   },
 };
 
