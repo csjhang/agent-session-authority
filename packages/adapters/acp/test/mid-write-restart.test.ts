@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
 import { parse_history_jsonl, run_checkers, default_assessment } from "@asa/core";
 import type { HistoryEvent } from "@asa/core";
@@ -201,8 +201,14 @@ describe("mid-write-restart (permission outstanding before allow)", () => {
   it(
     "after mid-write-restart, subprocess exits promptly (no leftover 180s session/prompt timer)",
     () => {
+      // Windows CI (fail-first): bare absolute path in `import … from "D:\…"` makes Node's
+      // ESM loader throw ERR_UNSUPPORTED_ESM_URL_SCHEME (Received protocol 'd:'). tsx register
+      // requires a file:// URL — same pathToFileURL pattern as adapter/sink dynamic imports.
+      const collect_history_href = pathToFileURL(
+        path.join(repo_root, "packages/adapters/acp/src/index.ts"),
+      ).href;
       const script = `
-        import { collect_history } from ${JSON.stringify(path.join(repo_root, "packages/adapters/acp/src/index.ts"))};
+        import { collect_history } from ${JSON.stringify(collect_history_href)};
         import fs from "node:fs";
         import os from "node:os";
         import path from "node:path";
