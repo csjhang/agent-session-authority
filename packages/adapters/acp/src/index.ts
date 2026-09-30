@@ -138,6 +138,20 @@ export function pick_deny_option_id(options: unknown): string | undefined {
 function option_kind_for_id(options: unknown, option_id: string): string | undefined {
   return parse_permission_options(options).find((x) => x.id === option_id)?.kind;
 }
+/**
+ * True when this observed session_update is an agent tool_call / tool_call_update.
+ * Prefer raw_update.sessionUpdate (same field history AUTH-07 uses). Observed
+ * update.kind is often the ACP tool category (e.g. "edit"), which must not exclude
+ * the initial tool_call from mid-write note counts.
+ */
+function is_tool_call_session_update(update: Record<string, unknown>): boolean {
+  const raw = update.raw_update as Record<string, unknown> | undefined;
+  const session_update = raw?.sessionUpdate;
+  if (session_update === "tool_call" || session_update === "tool_call_update") return true;
+  // Fallback when raw_update is absent (synthetic / older fixtures).
+  const kind = String(update.kind ?? "");
+  return kind === "tool_call" || kind === "tool_call_update" || kind.includes("tool_call");
+}
 
 function has_key(env: NodeJS.ProcessEnv): boolean { return Boolean(env.ANTHROPIC_API_KEY); }
 function spawn_live(command: string, args: string[], env: NodeJS.ProcessEnv): Promise<ChildProcessWithoutNullStreams> { return new Promise((resolve, reject) => { const child = spawn(command, args, { env, stdio: ["pipe", "pipe", "pipe"] }); child.once("error", reject); child.once("spawn", () => resolve(child)); }); }
@@ -716,13 +730,11 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{
       const post_load_start = load_idx >= 0 ? load_idx + 1 : events_before_load;
       const replay_reports = events.slice(events_before_load, post_load_start).filter((e) => {
         if (e.type !== "session_update") return false;
-        const kind = String(e.update.kind ?? "");
-        return kind === "tool_call" || kind === "tool_call_update" || kind.includes("tool_call");
+        return is_tool_call_session_update(e.update);
       });
       const post_reports = events.slice(post_load_start).filter((e) => {
         if (e.type !== "session_update") return false;
-        const kind = String(e.update.kind ?? "");
-        return kind === "tool_call" || kind === "tool_call_update" || kind.includes("tool_call");
+        return is_tool_call_session_update(e.update);
       });
       if (replay_reports.length > 0) {
         notes.push(

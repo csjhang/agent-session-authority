@@ -305,7 +305,11 @@ describe("mid-write-restart (permission outstanding before allow)", () => {
       expect(agent_terminal).toHaveLength(0);
 
       // Notes must not count replay-period updates as post-load agent reports.
-      expect(result.notes.some((n) => /replay-period tool_call updates=/.test(n))).toBe(true);
+      // Initial tool_call carries ACP category kind:"edit" on the observed event; notes must
+      // still count it (same cut as history: raw_update.sessionUpdate === "tool_call").
+      // REPLAY_TERMINAL_ON_LOAD emits tool_call (edit) + tool_call_update (failed) → 2.
+      expect(result.notes.some((n) => /replay-period tool_call updates=2\b/.test(n))).toBe(true);
+      expect(replayed.length).toBe(2);
       expect(result.notes.some((n) => /post-load tool_call reports=0/.test(n))).toBe(true);
 
       const events = parse_history_jsonl(result.history_jsonl);
