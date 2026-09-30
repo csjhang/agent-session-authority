@@ -15,7 +15,8 @@
   ],
   "notes": "Fixture: local MockAcpPeer (results/history-fixture.jsonl; fixture_vector in results/capability_vector.json). Live: the 2026-09-06 capped run and the later live permission-axis conclusions are WITHDRAWN (not reproducible from the published history); see results/live-status.json. Live re-runs are written to results/live-runs/<scenario>/<run-id>/ and reach capability_vector only through scripts/generate-capability-vectors.ts (research_profile basis; see capability_exclusions). No vendor authority-profile.json; research/public-doc claims only. Core remains SDK-free.",
   "observed_capabilities": {
-    "session_updates": "reconstructed_from_fixture",
+    "session_updates": "recorded_live_and_reconstructed_from_fixture",
+    "tool_call_status": "agent_reported_completed_failed_recorded_as_terminal",
     "permission_requests": "mapped_to_approval_request_grant",
     "generation_fencing": "not_observed_in_public_docs",
     "action_digest": "adapter_synthesized_for_probe",
