@@ -16,7 +16,7 @@
     "AUTH-04": "inconclusive",
     "AUTH-05": "inconclusive",
     "AUTH-06": "not_tested",
-    "AUTH-07": "not_tested",
+    "AUTH-07": "not_declared",
     "AUTH-08": "not_tested"
   },
   "capability_basis": "research_profile",
@@ -110,6 +110,21 @@
       "targets/claude-agent-acp/results/live-runs/stale-grant/r1/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/stale-grant/r2/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/stale-grant/r3/history.jsonl"
+    ],
+    "AUTH-07": [
+      "targets/claude-agent-acp/results/live-runs/always-grant/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/always-grant/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/always-grant/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/effect/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/effect/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/effect/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/reject-always/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-effect/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-effect/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-effect/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-grant/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-grant/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/stale-grant/r3/history.jsonl"
     ]
   },
   "observed_vector": {
@@ -123,7 +138,7 @@
     "AUTH-04": "inconclusive",
     "AUTH-05": "inconclusive",
     "AUTH-06": "not_tested",
-    "AUTH-07": "not_tested",
+    "AUTH-07": "supported",
     "AUTH-08": "not_tested"
   },
   "capability_exclusions": {
@@ -131,7 +146,6 @@
     "AUTH-01b": "probe-derived: live runtime_generation is counted by the adapter from process spawns (issuer_id=acp_adapter_live), not reported by claude-agent-acp",
     "AUTH-01c": "probe-derived: the only generation issuer in live history is the adapter itself (acp_adapter_live)",
     "AUTH-06": "not examined: claude-agent-acp has no effect receipts of its own and reports tool completion before the probe checks the disk, so AUTH-06 (success only after a committed receipt) would flag every write by construction; whether its completed/failed reports match the disk is checked under AUTH-07",
-    "AUTH-07": "held back: claude-agent-acp's own tool-call status is recorded as terminal events, but promotion waits until the live aggregation requires at least one claude-agent-acp-reported terminal among each supported run's witnesses",
     "AUTH-08": "no checker (always not_tested)"
   },
   "live_runs": {

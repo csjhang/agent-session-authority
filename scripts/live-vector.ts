@@ -16,12 +16,15 @@
  *   (when any runs were examined) or not_tested.
  * - Invariants whose live evidence only reflects the probe itself are excluded by an explicit
  *   admissibility rule: observed_vector and capability_vector stay not_tested with the reason.
+ * - target_witness: for listed invariants a run's supported counts only when at least one witness
+ *   event was reported by the target itself; otherwise that run is inconclusive (see `downgraded`).
  * - capability_vector = claim rewrite of the aggregated observed result via core finding()
  *   (undeclared + research_profile → supported/violation become not_declared).
  */
 import fs from "node:fs";
 import path from "node:path";
 import { load_history_file } from "../packages/core/src/history.js";
+import type { HistoryEvent } from "../packages/core/src/history.js";
 import { run_checkers } from "../packages/core/src/index.js";
 import { finding, KNOWN_INVARIANTS } from "../packages/core/src/checker/index.js";
 import type { ResultLabel, TestBasis } from "../packages/core/src/assessment.js";
@@ -33,6 +36,11 @@ export interface LiveConfig {
   test_basis: TestBasis;
   /** invariant → reason it can never be promoted from this target's live runs; absent = admissible. */
   exclusions: Record<string, string>;
+  /**
+   * invariant → a per-run `supported` counts only if at least one of its witness events
+   * passes `test`; otherwise that run's result becomes inconclusive with `reason`.
+   */
+  target_witness?: Record<string, { reason: string; test: (e: HistoryEvent) => boolean }>;
 }
 
 export interface IncludedRun {
@@ -41,6 +49,8 @@ export interface IncludedRun {
   /** Repo-relative (forward slashes) path of history.jsonl. */
   history: string;
   observed: Record<string, ResultLabel>;
+  /** invariant → why this run's supported was not counted (only present when non-empty). */
+  downgraded?: Record<string, string>;
 }
 
 export interface ExcludedRun {
@@ -105,6 +115,7 @@ export function load_live_runs(
       }
       const history_path = path.join(run_dir, "history.jsonl");
       let observed: Record<string, ResultLabel> | undefined;
+      const downgraded: Record<string, string> = {};
       if (!fs.existsSync(history_path)) {
         reasons.push("history.jsonl missing");
       } else if (reasons.length === 0) {
@@ -112,6 +123,14 @@ export function load_live_runs(
           const events = load_history_file(history_path, { warn_unknown_vocab: false });
           const findings = run_checkers(events, null, { target, test_basis: cfg.test_basis });
           observed = Object.fromEntries(findings.map((f) => [f.invariant, f.observed_result]));
+          const by_seq = new Map(events.map((e) => [e.seq, e]));
+          for (const [inv, rule] of Object.entries(cfg.target_witness ?? {})) {
+            const f = findings.find((x) => x.invariant === inv);
+            if (!f || f.observed_result !== "supported") continue;
+            if (f.witness_seqs.some((s) => { const e = by_seq.get(s); return e !== undefined && rule.test(e); })) continue;
+            observed[inv] = "inconclusive";
+            downgraded[inv] = rule.reason;
+          }
         } catch (err) {
           reasons.push(`history.jsonl unreadable: ${String(err instanceof Error ? err.message : err)}`);
         }
@@ -119,7 +138,13 @@ export function load_live_runs(
       if (reasons.length > 0 || !observed) {
         excluded.push({ scenario, run_id, reasons });
       } else {
-        included.push({ scenario, run_id, history: rel(repo_root, history_path), observed });
+        included.push({
+          scenario,
+          run_id,
+          history: rel(repo_root, history_path),
+          observed,
+          ...(Object.keys(downgraded).length > 0 ? { downgraded } : {}),
+        });
       }
     }
   }

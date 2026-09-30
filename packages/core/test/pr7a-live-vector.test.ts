@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { run_checkers } from "../src/index.js";
+import { parse_history_jsonl, run_checkers } from "../src/index.js";
 import type { HistoryEvent } from "../src/history.js";
 import { generate_all } from "../../../scripts/generate-capability-vectors.js";
 
@@ -129,27 +129,61 @@ describe("claude-agent-acp capability vector from live runs", () => {
     }
     expect(doc.capability_exclusions["AUTH-01b"]).toMatch(/probe-derived/);
     expect(doc.capability_exclusions["AUTH-06"]).toMatch(/not examined/);
-    expect(doc.capability_exclusions["AUTH-07"]).toMatch(/^held back:/);
-    expect(Object.keys(doc.capability_exclusions).sort()).toEqual(["AUTH-01a", "AUTH-01b", "AUTH-01c", "AUTH-06", "AUTH-07", "AUTH-08"]);
+    expect(doc.capability_exclusions["AUTH-07"]).toBeUndefined();
+    expect(Object.keys(doc.capability_exclusions).sort()).toEqual(["AUTH-01a", "AUTH-01b", "AUTH-01c", "AUTH-06", "AUTH-08"]);
   });
 
-  it("AUTH-07 observed supported in the committed reject-always/r1 live run (adapter receipt + injected restart only) is never promoted", () => {
-    const root = tmp();
+  const REJECT_ALWAYS_R1 = path.join(repo_root, "targets/claude-agent-acp/results/live-runs/reject-always/r1/history.jsonl");
+
+  /** One valid run folder <root>/reject-always/r1 holding the given history text. */
+  function reject_always_run(root: string, history_text: string): string {
     const dir = path.join(root, "reject-always", "r1");
     fs.mkdirSync(dir, { recursive: true });
-    fs.copyFileSync(
-      path.join(repo_root, "targets/claude-agent-acp/results/live-runs/reject-always/r1/history.jsonl"),
-      path.join(dir, "history.jsonl"),
-    );
+    fs.writeFileSync(path.join(dir, "history.jsonl"), history_text);
     fs.writeFileSync(
       path.join(dir, "run.json"),
       JSON.stringify({ run_valid: true, invalid_reasons: [], package_version_observed: "0.75.1" }),
     );
+    return history_of(root, "reject-always", "r1");
+  }
+
+  it("AUTH-07: the committed reject-always/r1 run (agent-reported terminals among the witnesses) is promoted", () => {
+    const root = tmp();
+    const src = reject_always_run(root, fs.readFileSync(REJECT_ALWAYS_R1, "utf8"));
     const doc = acp_doc(root);
     expect(doc.live_runs.included.map((r) => r.observed["AUTH-07"])).toEqual(["supported"]);
-    expect(doc.observed_vector["AUTH-07"]).toBe("not_tested");
-    expect(doc.capability_vector["AUTH-07"]).toBe("not_tested");
-    expect(doc.capability_sources["AUTH-07"]).toBeUndefined();
+    expect(doc.live_runs.included[0]!.downgraded).toBeUndefined();
+    expect(doc.observed_vector["AUTH-07"]).toBe("supported");
+    expect(doc.capability_vector["AUTH-07"]).toBe("not_declared");
+    expect(doc.capability_sources["AUTH-07"]).toEqual([src]);
+  });
+
+  it("AUTH-07: the same run with the agent-reported terminals removed (probe events only) is downgraded to inconclusive", () => {
+    const stripped =
+      fs
+        .readFileSync(REJECT_ALWAYS_R1, "utf8")
+        .split("\n")
+        .filter((line) => line.length > 0)
+        .map((line) => {
+          const e = JSON.parse(line) as HistoryEvent;
+          const fp = e.attrs?.field_provenance as Record<string, unknown> | undefined;
+          if (fp?.terminal === "target") {
+            delete e.attrs!.terminal;
+            delete fp.terminal;
+          }
+          return JSON.stringify(e);
+        })
+        .join("\n") + "\n";
+    // The checker alone still says supported (probe receipt + injected restart); only the guard downgrades it.
+    const checker = run_checkers(parse_history_jsonl(stripped), null, { test_basis: "research_profile" });
+    expect(checker.find((f) => f.invariant === "AUTH-07")!.observed_result).toBe("supported");
+    const root = tmp();
+    reject_always_run(root, stripped);
+    const doc = acp_doc(root);
+    expect(doc.live_runs.included.map((r) => r.observed["AUTH-07"])).toEqual(["inconclusive"]);
+    expect(doc.live_runs.included[0]!.downgraded?.["AUTH-07"]).toMatch(/no claude-agent-acp tool-call status among the witnesses/);
+    expect(doc.observed_vector["AUTH-07"]).toBe("inconclusive");
+    expect(doc.capability_vector["AUTH-07"]).toBe("inconclusive");
   });
 
   it("other targets have no live configuration: all not_tested and no exclusions", () => {
