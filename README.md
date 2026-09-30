@@ -17,6 +17,42 @@ Previously published live permission-axis conclusions are **not supported by rep
 - [`AUTH_EFFECT_CHAIN.md`](targets/claude-agent-acp/results/AUTH_EFFECT_CHAIN.md) · [`AUTH_ALWAYS_GRANT_LIVE.md`](targets/claude-agent-acp/results/AUTH_ALWAYS_GRANT_LIVE.md) · [`AUTH_REJECT_ALWAYS_LIVE.md`](targets/claude-agent-acp/results/AUTH_REJECT_ALWAYS_LIVE.md) · [`LIVE_CAPPED.md`](targets/claude-agent-acp/results/LIVE_CAPPED.md)
 - Slim witnesses under `targets/claude-agent-acp/results/history-live-*-witnesses.jsonl` (verbose full histories are gitignored)
 
+### Live re-run (PR-7b)
+
+Re-run date: **2026-09-30**. Pin `@agentclientprotocol/claude-agent-acp@0.75.1`. The earlier live permission-axis conclusions (2026-09-06..14) remain **WITHDRAWN** and are not used as evidence.
+
+**Runs:** included **13**, excluded **0** — by scenario: effect 3, stale-grant 3, stale-effect 3, always-grant 3, reject-always 1. Evidence is under `targets/claude-agent-acp/results/live-runs/<scenario>/<run-id>/`.
+
+**observed_vector** (promoted from live; AUTH-07 excluded as probe-derived):
+
+| invariant | observed |
+| --- | --- |
+| AUTH-02 | supported |
+| AUTH-03a | inconclusive |
+| AUTH-03b | inconclusive |
+| AUTH-03c | inconclusive |
+| AUTH-04 | inconclusive |
+| AUTH-05 | inconclusive |
+| AUTH-07 | not_tested |
+
+**capability_vector** (same invariants; `not_declared` = observed but not graded — no vendor profile; `research_profile`):
+
+| invariant | capability |
+| --- | --- |
+| AUTH-02 | not_declared |
+| AUTH-03a | inconclusive |
+| AUTH-03b | inconclusive |
+| AUTH-03c | inconclusive |
+| AUTH-04 | inconclusive |
+| AUTH-05 | inconclusive |
+| AUTH-07 | not_tested |
+
+**capability_exclusions:** AUTH-01a, AUTH-01b, AUTH-01c, AUTH-06, AUTH-07, AUTH-08 are not promoted from live; see [Capability vectors](#capability-vectors).
+
+**Disagreements:** none. **Excluded runs:** none.
+
+No conclusion beyond these generated fields is claimed; evidence is in targets/claude-agent-acp/results/live-runs/.
+
 ### Next probe posture
 
 1. **Option-offer survey** — which permission kinds are actually offered vs listed in the ACP kind enum (Hermes / OpenClaw / …; cheap first pass). See [`findings/option-offer-survey.md`](findings/option-offer-survey.md).
@@ -96,7 +132,7 @@ Live aggregation (claude-agent-acp, `targets/claude-agent-acp/results/live-runs/
 1. A run counts only if `run.json` has `run_valid: true` and `package_version_observed: "0.75.1"` and `history.jsonl` parses; anything else is listed under `live_runs.excluded` with reasons.
 2. Within a scenario every run must agree. A disagreement is listed in `live_runs.disagreements` exactly as observed — never a majority vote.
 3. Across scenarios: a consistent `violation` anywhere wins; otherwise any disagreement makes the invariant `inconclusive`; otherwise a consistent `supported`; otherwise `inconclusive`.
-4. `capability_exclusions` lists invariants never promoted from these live runs: AUTH-01a (profile-only), AUTH-01b / AUTH-01c (generation is counted by the adapter itself), AUTH-06 (the adapter does not map the agent's success claims), AUTH-08 (no checker).
+4. `capability_exclusions` lists invariants never promoted from these live runs: AUTH-01a (profile-only), AUTH-01b / AUTH-01c (generation is counted by the adapter itself), AUTH-06 (the adapter does not map the agent's success claims), AUTH-07 (the adapter maps none of the agent's terminal status; the only terminal events are its own receipts and the restart it injects), AUTH-08 (no checker).
 
 ## Stage map
 

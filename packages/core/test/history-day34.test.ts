@@ -233,7 +233,13 @@ describe("targets/**/results/*.jsonl", () => {
       for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
         const full = path.join(dir, ent.name);
         if (ent.isDirectory()) walk(full);
-        else if (ent.isFile() && ent.name.endsWith(".jsonl") && full.includes(`${path.sep}results${path.sep}`)) {
+        else if (
+          ent.isFile() &&
+          ent.name.endsWith(".jsonl") &&
+          ent.name !== "peer-events.jsonl" &&
+          full.includes(`${path.sep}results${path.sep}`)
+        ) {
+          // peer-events.jsonl is the ACP wire stream (not history); live-runs keep it for reconvert.
           files.push(full);
         }
       }

@@ -1,22 +1,25 @@
 {
-  "attempt": "live_capped",
-  "when": "2026-09-06T14:34+08:00",
-  "api_key_status": "present",
-  "package_install": "@agentclientprotocol/claude-agent-acp@0.75.1",
-  "spawn": "ok",
-  "asa_check": "not_tested",
-  "scenario": "capped",
-  "detach_reason": "live_capped_ok",
-  "history_events": 72,
-  "session_id": "57291eff-e580-4f48-8983-85fb5a724b3e",
-  "witnesses": {
-    "AUTH-01": "RuntimeRestart gen1->gen2; session/load+replay ok",
-    "approval": "Write asa-capped-probe.txt grant seq 27-29",
-    "AUTH-04": "partial; post-restart write timeout; session/cancel method-not-found"
-  },
+  "attempt": "pr7b_live_rerun",
+  "started_at": "2026-09-30T02:38:48+08:00",
+  "finished_at": "2026-09-30T02:43:26+08:00",
+  "package": "@agentclientprotocol/claude-agent-acp@0.75.1",
+  "runs_dir": "targets/claude-agent-acp/results/live-runs",
+  "runs_planned": 13,
+  "runs_executed": 13,
+  "runs_included": 13,
+  "runs_excluded": 0,
+  "results": "See capability_vector.json: observed_vector, capability_vector, capability_sources, capability_exclusions, live_runs.",
+  "previous_status": "WITHDRAWN (2026-09-29): the earlier live permission-axis conclusions are not supported by reproducible evidence and remain withdrawn; the only live evidence is the runs under runs_dir.",
   "secrets_committed": false,
-  "status": "WITHDRAWN",
-  "withdrawn_at": "2026-09-29",
-  "live_derived_results": "not_tested",
-  "notes": "WITHDRAWN (2026-09-29): previously published live conclusions are not supported by reproducible evidence \u2014 the published live history does not encode runtime generation, the restart fault, approval\u2194action binding, or effect receipts, so asa check cannot reproduce those conclusions. They are not established. Pending re-run with the fixed adapter."
+  "environment": {
+    "os": "Linux 6.12.94+ x86_64",
+    "node": "v20.19.2",
+    "node_engine_note": "package declares node >=22; runs used v20.19.2 with an npm engine warning only",
+    "model_observed": "claude-opus-5"
+  },
+  "cost": {
+    "cap_usd": 25,
+    "estimate_usd": 1.477023,
+    "basis": "sum of per-run prompt_result usage x list prices; not billing data"
+  }
 }
