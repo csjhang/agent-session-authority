@@ -133,7 +133,6 @@ describe("claude-agent-acp capability vector from live runs", () => {
     expect(Object.keys(doc.capability_exclusions).sort()).toEqual(["AUTH-01a", "AUTH-01b", "AUTH-01c", "AUTH-06", "AUTH-07", "AUTH-08"]);
   });
 
-
   it("AUTH-07 observed supported in the committed reject-always/r1 live run (adapter receipt + injected restart only) is never promoted", () => {
     const root = tmp();
     const dir = path.join(root, "reject-always", "r1");
@@ -147,7 +146,7 @@ describe("claude-agent-acp capability vector from live runs", () => {
       JSON.stringify({ run_valid: true, invalid_reasons: [], package_version_observed: "0.75.1" }),
     );
     const doc = acp_doc(root);
-    expect(doc.live_runs.included.every((r) => r.observed["AUTH-07"] === "supported")).toBe(true);
+    expect(doc.live_runs.included.map((r) => r.observed["AUTH-07"])).toEqual(["supported"]);
     expect(doc.observed_vector["AUTH-07"]).toBe("not_tested");
     expect(doc.capability_vector["AUTH-07"]).toBe("not_tested");
     expect(doc.capability_sources["AUTH-07"]).toBeUndefined();
