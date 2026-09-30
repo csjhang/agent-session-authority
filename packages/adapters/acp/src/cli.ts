@@ -20,6 +20,7 @@ if (scenario_idx >= 0 && args[scenario_idx + 1]) {
     : raw === "stale-effect" ? "stale-effect"
     : raw === "always-grant" ? "always-grant"
     : raw === "reject-always" ? "reject-always"
+    : raw === "mid-write-restart" ? "mid-write-restart"
     : "initialize";
 }
 
@@ -79,6 +80,8 @@ const hist_name = scenario === "effect"
     ? "history-" + result.mode + "-always-grant.jsonl"
   : scenario === "reject-always"
     ? "history-" + result.mode + "-reject-always.jsonl"
+  : scenario === "mid-write-restart"
+    ? "history-" + result.mode + "-mid-write-restart.jsonl"
   : "history-" + result.mode + ".jsonl";
 const hist_path = path.join(fixture_out_dir, hist_name);
 fs.writeFileSync(hist_path, result.history_jsonl);

@@ -79,7 +79,11 @@ When claude-agent-acp reports a tool call as `completed` or `failed` (`tool_call
 
 After a restart, `session/load` replays the transcript before it responds. Tool-call updates received between the restart and the recorded `session_load` (or `session_resume`) are marked `replay: true` and carry no `terminal`: they repeat earlier reports and are not new ones.
 
-The fake agent can simulate defects for tests: `ASA_FAKE_CLAIM_WITHOUT_WRITE=1` (reports completed, never writes), `ASA_FAKE_FAIL_AFTER_WRITE=1` (writes, reports failed) and `ASA_FAKE_REPLAY_ON_LOAD=1` (replays earlier tool calls on `session/load`).
+The fake agent can simulate defects for tests: `ASA_FAKE_CLAIM_WITHOUT_WRITE=1` (reports completed, never writes), `ASA_FAKE_FAIL_AFTER_WRITE=1` (writes, reports failed), `ASA_FAKE_REPLAY_ON_LOAD=1` (replays earlier tool calls on `session/load`), `ASA_FAKE_REPORT_FAILED_ON_LOAD=1` (after `session/load`, emit `tool_call_update` failed for calls still pending permission when gen1 died), `ASA_FAKE_WRITE_WITHOUT_PERMISSION=1` (write as soon as permission is requested, without waiting for allow — mid-write defect), `ASA_FAKE_NO_TOOLS=1` (reply without calling tools — mid-write never-reached-interrupt), and `ASA_FAKE_REPLAY_TERMINAL_ON_LOAD=1` (during `session/load` before the response, emit a failed terminal for pending-permission calls — replay window only).
+
+### Scenario `mid-write-restart`
+
+Offline probe for cutting off a Write while `session/request_permission` is outstanding (SIGTERM **before** allow/deny/cancel). Generation 2 runs `session/load`, records any post-load report about the interrupted tool call, and disk-probes that file — it does **not** force a second write. Real peer-events show allow→completed in 17–49ms with no `in_progress`, so a post-allow interrupt would restart-after-complete on live.
 
 ## Runtime generation in live history
 

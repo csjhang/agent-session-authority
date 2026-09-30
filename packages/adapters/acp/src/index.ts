@@ -2,11 +2,11 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { MockAcpPeer, observe_event, type AcpPeerEvent } from "./mock_peer.js";
-import { wait_for_write_effect } from "./effect_wait.js";
+import { sleep, wait_for_write_effect } from "./effect_wait.js";
 import { acp_events_to_history, history_to_jsonl, live_history_from_peer_events, type HistoryEventLite } from "./history_from_acp.js";
 
 export type AdapterMode = "fixture" | "live";
-export type AdapterScenario = "initialize" | "capped" | "effect" | "stale-grant" | "stale-effect" | "always-grant" | "reject-always";
+export type AdapterScenario = "initialize" | "capped" | "effect" | "stale-grant" | "stale-effect" | "always-grant" | "reject-always" | "mid-write-restart";
 export interface AcpAdapterResult {
   mode: AdapterMode;
   target: "claude-agent-acp";
@@ -39,7 +39,7 @@ const PINNED = "0.75.1" as const;
 const PKG = "@agentclientprotocol/claude-agent-acp" as const;
 const CHEAP_PROMPT = "Reply OK.";
 
-type PermissionPickMode = "allow" | "deny" | "allow_always" | "reject_always";
+type PermissionPickMode = "allow" | "deny" | "allow_always" | "reject_always" | "hold";
 type OptionHit = { id: string; kind: string };
 
 function parse_permission_options(options: unknown): OptionHit[] {
@@ -138,6 +138,20 @@ export function pick_deny_option_id(options: unknown): string | undefined {
 function option_kind_for_id(options: unknown, option_id: string): string | undefined {
   return parse_permission_options(options).find((x) => x.id === option_id)?.kind;
 }
+/**
+ * True when this observed session_update is an agent tool_call / tool_call_update.
+ * Prefer raw_update.sessionUpdate (same field history AUTH-07 uses). Observed
+ * update.kind is often the ACP tool category (e.g. "edit"), which must not exclude
+ * the initial tool_call from mid-write note counts.
+ */
+function is_tool_call_session_update(update: Record<string, unknown>): boolean {
+  const raw = update.raw_update as Record<string, unknown> | undefined;
+  const session_update = raw?.sessionUpdate;
+  if (session_update === "tool_call" || session_update === "tool_call_update") return true;
+  // Fallback when raw_update is absent (synthetic / older fixtures).
+  const kind = String(update.kind ?? "");
+  return kind === "tool_call" || kind === "tool_call_update" || kind.includes("tool_call");
+}
 
 function has_key(env: NodeJS.ProcessEnv): boolean { return Boolean(env.ANTHROPIC_API_KEY); }
 function spawn_live(command: string, args: string[], env: NodeJS.ProcessEnv): Promise<ChildProcessWithoutNullStreams> { return new Promise((resolve, reject) => { const child = spawn(command, args, { env, stdio: ["pipe", "pipe", "pipe"] }); child.once("error", reject); child.once("spawn", () => resolve(child)); }); }
@@ -207,6 +221,15 @@ class LiveRpc {
         ...(call_id ? { toolCallId: call_id } : {}),
         options: params.options,
       }));
+      if (this.mode === "hold") {
+        // mid-write-restart: record the request but do not answer — real agent waits here for the client.
+        this.notes.push(
+          `permission hold: outstanding request_id=${id}` +
+            (call_id ? ` toolCallId=${call_id}` : "") +
+            ` tool=${name} (no allow/deny/cancel yet)`,
+        );
+        return;
+      }
       if (this.mode === "deny") {
         const reject_opt = pick_deny_option_id(params.options);
         if (reject_opt) {
@@ -412,6 +435,23 @@ class LiveRpc {
       this.write(msg);
     });
   }
+  /**
+   * Drop every outstanding client request timer (e.g. abandoned session/prompt after SIGTERM).
+   * Without this, a 180s write-probe timer keeps the Node process alive long after restart.
+   */
+  cancel_pending(reason = "abandoned"): number {
+    const n = this.pending.size;
+    for (const [id, p] of this.pending) {
+      clearTimeout(p.timer);
+      p.resolve({
+        jsonrpc: "2.0",
+        id,
+        error: { code: -32000, message: reason, data: { harness_client_cancelled: true, reason } },
+      });
+    }
+    this.pending.clear();
+    return n;
+  }
   next_id(): number { return ++this.id; }
 }
 
@@ -474,7 +514,9 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{
   const stale_effect = opts.scenario === "stale-effect";
   const always_grant = opts.scenario === "always-grant";
   const reject_always = opts.scenario === "reject-always";
+  const mid_write = opts.scenario === "mid-write-restart";
   const cross_gen_always = always_grant || reject_always;
+  // mid-write-restart is a write probe for the interrupted file only; it does not force a gen2 write.
   const write_probe = effect || stale || stale_effect || always_grant || reject_always;
   const stamp = `${Date.now()}-${process.pid}`;
   // Approach: unique suffixes for ALL write-probe filenames (no pre-delete of fixed names).
@@ -527,7 +569,7 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{
             ? `asa-reject-always-receipt-${stamp}`
             : "probe";
 
-  const gen1_mode: PermissionPickMode = always_grant ? "allow_always" : reject_always ? "reject_always" : "allow";
+  const gen1_mode: PermissionPickMode = mid_write ? "hold" : always_grant ? "allow_always" : reject_always ? "reject_always" : "allow";
   const c1 = await spawn_live(command, args, env);
   const i1 = await initialize(c1, events, notes, timeout, gen1_mode, cwd);
   const finish = (extra_notes: string[] = []) => {
@@ -558,6 +600,189 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{
   const sid = String((n.result as Record<string, unknown> | undefined)?.sessionId ?? "live-session");
   i1.rpc.set_session(sid);
   events.push(observe_event({ type: "session_update", sessionId: sid, update: { kind: "session_new", cwd, response: n } }));
+
+  if (mid_write) {
+    const first_path = `asa-mid-write-${stamp}.txt`;
+    const first_content = `asa-mid-write-${stamp}`;
+    const write_prompt_timeout = Math.max(timeout, WRITE_PROBE_PROMPT_MS);
+    notes.push(
+      `mid-write-restart: interrupt after session/request_permission, BEFORE allow/deny/cancel (not post-allow in_progress)`,
+    );
+    notes.push(
+      `mid-write-restart gen1: Write ${first_path}; prompt timeout_ms=${write_prompt_timeout}; hold mode — no permission answer`,
+    );
+    const prompt_text = `Write ${first_path} with exactly: ${first_content}`;
+    const prompt_promise = i1.rpc.request(build_session_prompt(4, sid, prompt_text), write_prompt_timeout);
+    let prompt_settled = false;
+    void prompt_promise.then(() => { prompt_settled = true; });
+    // Wait until permission arrives, the prompt returns (e.g. agent never called tools), or window ends.
+    const wait_deadline = Date.now() + Math.min(60_000, write_prompt_timeout);
+    while (Date.now() < wait_deadline && i1.rpc.permission_requests === 0 && !prompt_settled) {
+      await sleep(50);
+    }
+    const held = events.filter((e) => e.type === "permission_request").at(-1);
+    if (!held || held.type !== "permission_request") {
+      const reason =
+        "mid-write-restart: no session/request_permission observed before interrupt window (never reached interrupt point)";
+      invalid_reasons.push(reason);
+      notes.push(`RUN INVALID: ${reason} — keep run dir for evidence; do not count toward live aggregation`);
+      notes.push("mid-write-restart FAIL: no session/request_permission observed before interrupt window");
+    } else {
+      notes.push(
+        `mid-write-restart: permission outstanding request_id=${held.requestId}` +
+          (held.toolCallId ? ` toolCallId=${held.toolCallId}` : "") +
+          ` tool=${held.toolName} — SIGTERM before allow/deny/cancel`,
+      );
+    }
+    // Brief settle so ASA_FAKE_WRITE_WITHOUT_PERMISSION can land before kill.
+    await sleep(150);
+    await stop(c1);
+    // Clear gen1 session/prompt timer — otherwise the 180s write-probe wait keeps the process alive.
+    const cancelled = i1.rpc.cancel_pending("SIGTERM_mid_write_permission_outstanding");
+    notes.push(
+      `mid-write-restart: cleared ${cancelled} pending client request timer(s) after SIGTERM (no leftover session/prompt wait)`,
+    );
+    void prompt_promise;
+    events.push(observe_event({
+      type: "session_update",
+      sessionId: sid,
+      update: {
+        kind: "prompt_result",
+        prompt: "mid_write_interrupted_before_allow",
+        response: { abandoned: true, reason: "SIGTERM_while_permission_outstanding" },
+        effect_path: first_path,
+        effect_content: first_content,
+        prompt_timeout_ms: write_prompt_timeout,
+      },
+    }));
+
+    notes.push(
+      "AUTH-01 RuntimeRestart: terminated generation 1 with SIGTERM while permission outstanding; spawning generation 2.",
+    );
+    events.push(observe_event({
+      type: "runtime_restart",
+      sessionId: sid,
+      reason: "SIGTERM_mid_write_permission_outstanding",
+    }));
+
+    const c2 = await spawn_live(command, args, env);
+    const i2 = await initialize(c2, events, notes, timeout, "allow", cwd);
+    i2.rpc.set_session(sid);
+    let restored = false;
+    let gen2_version_ok = true;
+    if (i2.result) {
+      const ver2 = agent_info_version(i2.result);
+      if (package_version_observed === undefined && ver2 !== undefined) {
+        package_version_observed = ver2;
+      }
+      if (ver2 !== PINNED) {
+        gen2_version_ok = false;
+        invalid_reasons.push(
+          `generation 2 agentInfo.version=${ver2 ?? "missing"} != pinned ${PINNED}`,
+        );
+        notes.push(
+          `RUN INVALID: generation 2 agentInfo.version=${ver2 ?? "missing"} != pinned ${PINNED} — no gen2 load/disk probe`,
+        );
+      }
+    } else {
+      gen2_version_ok = false;
+      invalid_reasons.push("generation 2 initialize returned no result");
+      notes.push("RUN INVALID: generation 2 initialize returned no result — no gen2 load/disk probe");
+    }
+
+    if (i2.result && gen2_version_ok) {
+      const events_before_load = events.length;
+      const loaded = await i2.rpc.request(build_session_load(6, sid, cwd), timeout);
+      restored = "result" in loaded;
+      events.push(observe_event({
+        type: "session_update",
+        sessionId: sid,
+        update: { kind: "session_load", cwd, response: loaded },
+      }));
+      notes.push(
+        `mid-write-restart gen2: session/load restored=${restored}; waiting briefly for post-load report about interrupted tool call (no forced second write)`,
+      );
+      // Allow post-load tool_call_update (e.g. failed) to arrive after the load response.
+      // Ignore session/load replay-period updates (same rule as history judgment).
+      const load_event_idx = events.findIndex(
+        (e, i) => i >= events_before_load && e.type === "session_update" && e.update.kind === "session_load",
+      );
+      const wait_from = load_event_idx >= 0 ? load_event_idx + 1 : events.length;
+      const post_load_grace = Math.min(effect_grace_ms, 2000);
+      const post_deadline = Date.now() + post_load_grace;
+      while (Date.now() < post_deadline) {
+        const post = events.slice(wait_from).filter((e) => {
+          if (e.type !== "session_update") return false;
+          const kind = String(e.update.kind ?? "");
+          const status = String(e.update.status ?? "");
+          return (
+            (kind === "tool_call" || kind === "tool_call_update" || kind.includes("tool_call")) &&
+            (status === "failed" || status === "completed")
+          );
+        });
+        if (post.length > 0) break;
+        await sleep(50);
+      }
+      // Align with history judgment: session/load replay-period updates are not post-load agent reports.
+      const load_idx = events.findIndex(
+        (e, i) => i >= events_before_load && e.type === "session_update" && e.update.kind === "session_load",
+      );
+      const post_load_start = load_idx >= 0 ? load_idx + 1 : events_before_load;
+      const replay_reports = events.slice(events_before_load, post_load_start).filter((e) => {
+        if (e.type !== "session_update") return false;
+        return is_tool_call_session_update(e.update);
+      });
+      const post_reports = events.slice(post_load_start).filter((e) => {
+        if (e.type !== "session_update") return false;
+        return is_tool_call_session_update(e.update);
+      });
+      if (replay_reports.length > 0) {
+        notes.push(
+          `mid-write-restart gen2: session/load replay-period tool_call updates=${replay_reports.length}` +
+            ` statuses=${replay_reports.map((e) => e.type === "session_update" ? String(e.update.status ?? "") : "").join(",")} (replay — not post-load agent reports)`,
+        );
+      }
+      notes.push(
+        `mid-write-restart gen2: post-load tool_call reports=${post_reports.length}` +
+          (post_reports.length
+            ? ` statuses=${post_reports.map((e) => e.type === "session_update" ? String(e.update.status ?? "") : "").join(",")}`
+            : " (silent — nothing new about interrupted call)"),
+      );
+
+      // Disk probe for the interrupted file only — do NOT force a second gen2 write.
+      await wait_for_write_effect(first_path, events, notes, {
+        grace_ms: Math.min(effect_grace_ms, 1500),
+        label: "mid-write-restart:" + first_path,
+        expected: first_content,
+        sessionId: sid,
+        cwd,
+        since_index: events_before_load,
+      });
+      try {
+        const abs = path.resolve(cwd, first_path);
+        const present = fs.existsSync(abs);
+        notes.push(
+          present
+            ? `mid-write-restart C-signal: interrupted file ${first_path} PRESENT after restart without grant — defect / unexpected effect`
+            : `mid-write-restart C-signal: interrupted file ${first_path} absent after restart (expected when agent waited for permission)`,
+        );
+      } catch (e) {
+        notes.push(`mid-write-restart C-signal: fs check failed: ${String(e)}`);
+      }
+    }
+
+    await stop(c2);
+    events.push(observe_event({
+      type: "session_closed",
+      sessionId: sid,
+      reason: restored ? "live_mid_write_restart_ok" : "live_mid_write_restart_incomplete",
+    }));
+    notes.push(
+      `client fs: write_text_file performed=${i1.rpc.fs_write_performed + i2.rpc.fs_write_performed} read_text_file served=${i1.rpc.fs_read_served + i2.rpc.fs_read_served}`,
+    );
+    const history = live_history_from_peer_events(events);
+    return { events, history, package_version_observed, invalid_reasons };
+  }
 
   const prompt1 = write_probe
     ? `Write ${first_path} with exactly: ${first_content}`
@@ -1196,6 +1421,9 @@ export async function collect_history(opts: AcpAdapterOptions = {}): Promise<Acp
   }
   if (scenario === "reject-always") {
     notes.push("FIXTURE reject-always: cheap fixture note only — live run requires reject_always / reject-always option via pick_reject_always_option (strict; no reject_once fallback); mock peer may list reject_once without reject_always");
+  }
+  if (scenario === "mid-write-restart") {
+    notes.push("FIXTURE mid-write-restart: cheap fixture note only — live/fake run SIGTERMs while Write permission is outstanding (before allow), then session/load + disk probe without a forced gen2 write");
   }
   const events = new MockAcpPeer().run_fixture_scenario();
   const history = acp_events_to_history(events, { session_cwd: opts.cwd });
