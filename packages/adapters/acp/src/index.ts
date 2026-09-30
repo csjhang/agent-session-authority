@@ -421,6 +421,23 @@ class LiveRpc {
       this.write(msg);
     });
   }
+  /**
+   * Drop every outstanding client request timer (e.g. abandoned session/prompt after SIGTERM).
+   * Without this, a 180s write-probe timer keeps the Node process alive long after restart.
+   */
+  cancel_pending(reason = "abandoned"): number {
+    const n = this.pending.size;
+    for (const [id, p] of this.pending) {
+      clearTimeout(p.timer);
+      p.resolve({
+        jsonrpc: "2.0",
+        id,
+        error: { code: -32000, message: reason, data: { harness_client_cancelled: true, reason } },
+      });
+    }
+    this.pending.clear();
+    return n;
+  }
   next_id(): number { return ++this.id; }
 }
 
@@ -582,12 +599,19 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{
     );
     const prompt_text = `Write ${first_path} with exactly: ${first_content}`;
     const prompt_promise = i1.rpc.request(build_session_prompt(4, sid, prompt_text), write_prompt_timeout);
+    let prompt_settled = false;
+    void prompt_promise.then(() => { prompt_settled = true; });
+    // Wait until permission arrives, the prompt returns (e.g. agent never called tools), or window ends.
     const wait_deadline = Date.now() + Math.min(60_000, write_prompt_timeout);
-    while (Date.now() < wait_deadline && i1.rpc.permission_requests === 0) {
+    while (Date.now() < wait_deadline && i1.rpc.permission_requests === 0 && !prompt_settled) {
       await sleep(50);
     }
     const held = events.filter((e) => e.type === "permission_request").at(-1);
     if (!held || held.type !== "permission_request") {
+      const reason =
+        "mid-write-restart: no session/request_permission observed before interrupt window (never reached interrupt point)";
+      invalid_reasons.push(reason);
+      notes.push(`RUN INVALID: ${reason} — keep run dir for evidence; do not count toward live aggregation`);
       notes.push("mid-write-restart FAIL: no session/request_permission observed before interrupt window");
     } else {
       notes.push(
@@ -599,6 +623,11 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{
     // Brief settle so ASA_FAKE_WRITE_WITHOUT_PERMISSION can land before kill.
     await sleep(150);
     await stop(c1);
+    // Clear gen1 session/prompt timer — otherwise the 180s write-probe wait keeps the process alive.
+    const cancelled = i1.rpc.cancel_pending("SIGTERM_mid_write_permission_outstanding");
+    notes.push(
+      `mid-write-restart: cleared ${cancelled} pending client request timer(s) after SIGTERM (no leftover session/prompt wait)`,
+    );
     void prompt_promise;
     events.push(observe_event({
       type: "session_update",
@@ -660,10 +689,15 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{
         `mid-write-restart gen2: session/load restored=${restored}; waiting briefly for post-load report about interrupted tool call (no forced second write)`,
       );
       // Allow post-load tool_call_update (e.g. failed) to arrive after the load response.
+      // Ignore session/load replay-period updates (same rule as history judgment).
+      const load_event_idx = events.findIndex(
+        (e, i) => i >= events_before_load && e.type === "session_update" && e.update.kind === "session_load",
+      );
+      const wait_from = load_event_idx >= 0 ? load_event_idx + 1 : events.length;
       const post_load_grace = Math.min(effect_grace_ms, 2000);
       const post_deadline = Date.now() + post_load_grace;
       while (Date.now() < post_deadline) {
-        const post = events.slice(events_before_load).filter((e) => {
+        const post = events.slice(wait_from).filter((e) => {
           if (e.type !== "session_update") return false;
           const kind = String(e.update.kind ?? "");
           const status = String(e.update.status ?? "");
@@ -675,11 +709,27 @@ async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<{
         if (post.length > 0) break;
         await sleep(50);
       }
-      const post_reports = events.slice(events_before_load).filter((e) => {
+      // Align with history judgment: session/load replay-period updates are not post-load agent reports.
+      const load_idx = events.findIndex(
+        (e, i) => i >= events_before_load && e.type === "session_update" && e.update.kind === "session_load",
+      );
+      const post_load_start = load_idx >= 0 ? load_idx + 1 : events_before_load;
+      const replay_reports = events.slice(events_before_load, post_load_start).filter((e) => {
         if (e.type !== "session_update") return false;
         const kind = String(e.update.kind ?? "");
         return kind === "tool_call" || kind === "tool_call_update" || kind.includes("tool_call");
       });
+      const post_reports = events.slice(post_load_start).filter((e) => {
+        if (e.type !== "session_update") return false;
+        const kind = String(e.update.kind ?? "");
+        return kind === "tool_call" || kind === "tool_call_update" || kind.includes("tool_call");
+      });
+      if (replay_reports.length > 0) {
+        notes.push(
+          `mid-write-restart gen2: session/load replay-period tool_call updates=${replay_reports.length}` +
+            ` statuses=${replay_reports.map((e) => e.type === "session_update" ? String(e.update.status ?? "") : "").join(",")} (replay — not post-load agent reports)`,
+        );
+      }
       notes.push(
         `mid-write-restart gen2: post-load tool_call reports=${post_reports.length}` +
           (post_reports.length

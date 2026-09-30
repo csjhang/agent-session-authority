@@ -17,7 +17,12 @@
  *                                   tool call that was still pending permission when gen1 died
  * ASA_FAKE_WRITE_WITHOUT_PERMISSION "1" = write the file as soon as permission is requested,
  *                                   without waiting for allow (defect; mid-write-restart probe)
+ * ASA_FAKE_NO_TOOLS             "1" = reply to session/prompt with end_turn and never call tools
+ *                                   (mid-write never-reached-interrupt invalid-run probe)
+ * ASA_FAKE_REPLAY_TERMINAL_ON_LOAD "1" = on session/load, before the load response, emit a
+ *                                   failed terminal for pending-permission calls (replay window only)
  */
+
 import fs from "node:fs";
 import path from "node:path";
 
@@ -34,6 +39,8 @@ const fail_after_write = env.ASA_FAKE_FAIL_AFTER_WRITE === "1";
 const replay_on_load = env.ASA_FAKE_REPLAY_ON_LOAD === "1";
 const report_failed_on_load = env.ASA_FAKE_REPORT_FAILED_ON_LOAD === "1";
 const write_without_permission = env.ASA_FAKE_WRITE_WITHOUT_PERMISSION === "1";
+const no_tools = env.ASA_FAKE_NO_TOOLS === "1";
+const replay_terminal_on_load = env.ASA_FAKE_REPLAY_TERMINAL_ON_LOAD === "1";
 const TRANSCRIPT = ".asa-fake-transcript.json";
 
 function remember(tool_call_id, title, status) {
@@ -64,6 +71,30 @@ function replay(session_id) {
 function report_failed_pending(session_id) {
   for (const c of transcript_calls()) {
     if (c.status !== "pending" && c.status !== "pending_permission") continue;
+    notify_update(session_id, {
+      sessionUpdate: "tool_call_update",
+      toolCallId: c.tool_call_id,
+      title: c.title,
+      status: "failed",
+    });
+    remember(c.tool_call_id, c.title, "failed");
+  }
+}
+
+/**
+ * During session/load (before the load response): emit a terminal for pending-permission calls.
+ * History marks these as replay (no terminal attr) — first terminal appears only in the replay window.
+ */
+function replay_terminal_pending(session_id) {
+  for (const c of transcript_calls()) {
+    if (c.status !== "pending" && c.status !== "pending_permission") continue;
+    notify_update(session_id, {
+      sessionUpdate: "tool_call",
+      toolCallId: c.tool_call_id,
+      title: c.title,
+      kind: "edit",
+      status: "pending",
+    });
     notify_update(session_id, {
       sessionUpdate: "tool_call_update",
       toolCallId: c.tool_call_id,
@@ -117,7 +148,8 @@ async function handle_prompt(id, params) {
     notify_update(session_id, { sessionUpdate: "agent_message_chunk", content: { type: "text", text: `key=${env.ANTHROPIC_API_KEY ?? ""}` } });
   }
   const m = /write (\S+) with exactly: (.*)$/i.exec(text);
-  if (!m) {
+  // Never call tools — used by mid-write-restart never-reached-interrupt invalid-run probe.
+  if (no_tools || !m) {
     notify_update(session_id, { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "OK" } });
     send({ jsonrpc: "2.0", id, result: { stopReason: "end_turn" } });
     return;
@@ -175,6 +207,8 @@ function handle(msg) {
   } else if (method === "session/load") {
     if (typeof params.cwd === "string") session_cwd = params.cwd;
     if (replay_on_load) replay(params.sessionId);
+    // Replay-window terminal (before load response): treated as replay by history judgment.
+    if (replay_terminal_on_load) replay_terminal_pending(params.sessionId);
     send({ jsonrpc: "2.0", id, result: {} });
     // Post-load report (after the load response): maps to silent vs failed post-restart behaviours.
     if (report_failed_on_load) report_failed_pending(params.sessionId);
