@@ -67,11 +67,15 @@ pnpm install
 export ANTHROPIC_API_KEY=…   # never commit
 
 # scenarios: initialize (default) | capped | effect | stale-grant | stale-effect | always-grant | reject-always
-# live output: targets/claude-agent-acp/results/live-runs/<scenario>/<run-id>/{history.jsonl,run.json}
+# live output: targets/claude-agent-acp/results/live-runs/<scenario>/<run-id>/{history.jsonl,run.json,peer-events.jsonl}
 # inspect run.json run_valid (exit 0 = valid, exit 2 = invalid / write refused)
 pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode live --scenario effect --run-id demo-effect-1
 pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode live --scenario always-grant --run-id demo-always-1
 pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode live --scenario reject-always --run-id demo-reject-1
+
+# offline: re-check / rewrite history.jsonl from peer-events.jsonl (no API, no live spawn)
+pnpm reconvert:live-runs
+pnpm reconvert:live-runs -- --write
 ```
 
 Write-probe prompts wait up to 180s client-side by default. `live_observe_ms`, `effect_grace_ms`, and `always_grant_poll_ms` are `collect_history` options only (no CLI flags). See `packages/adapters/acp/README.md`.

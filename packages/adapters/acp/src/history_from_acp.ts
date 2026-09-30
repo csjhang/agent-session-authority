@@ -667,5 +667,19 @@ export function acp_events_to_history(
   return out;
 }
 
+
+/**
+ * Convert live ACP peer events to probe history with the live issuer and fence.
+ * Always `{ fence_epoch: 1, issuer_id: "acp_adapter_live" }`. Does **not** pass
+ * `session_cwd` — cwd is discovered from `session_new` / `session_load` /
+ * `session_resume` in the events — so offline reconvert from `peer-events.jsonl`
+ * alone stays byte-identical to a live write.
+ */
+export function live_history_from_peer_events(
+  events: readonly AcpPeerEvent[],
+): HistoryEventLite[] {
+  return acp_events_to_history(events, { fence_epoch: 1, issuer_id: "acp_adapter_live" });
+}
+
 export const history_to_jsonl = (events: readonly HistoryEventLite[]): string =>
   serialize_history_jsonl(events as HistoryEvent[]);
