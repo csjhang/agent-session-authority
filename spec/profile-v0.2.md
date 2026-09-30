@@ -23,7 +23,7 @@ Across people, devices, runtimes, and restarts: who may act now, who approved wh
 | AUTH-07 | Deterministic terminal interpretation. Subject order: `effect_id` → `task_id` → `subject_id` → `tool_call_id` → `session_id`. Restart fault with `session_id` pairs unfinished effects/tasks (restart with no open work creates **no** subject). `terminal_rules` values only: `cancel_wins`, `complete_wins`, `timeout_wins`, `restart_wins`, `failed_wins`, `reconcile_required`. Unknown value = not covered (violation notes `unknown rule value <value>` when other rules published); missing rule keeps period ending; `reconcile_required` without observed reconciliation → requires-reconciliation violation. `effect.receipt` outcome maps committed→complete, failed→failed, unknown→unknown (`rejected` is not terminal). Supported requires ≥1 examined-terminal-contention subject (≥2 terminal events **or** terminal includes restart/crash); else inconclusive (`no terminal contention examined`). |
 | AUTH-08 | Bypass honesty: If a runtime or tool can bypass the authority enforcement point, the implementation must publicly state its coverage boundary and must not claim end-to-end guarantees. Not implemented: always `not_tested`. Disclosure belongs in `profile.known_bypasses` and `profile.coverage_boundary`. |
 
-AUTH-02/04/07 are implemented checkers (not stubs). Capability vectors remain `not_tested` until live/native evidence exists.
+AUTH-02/04/07 are implemented checkers (not stubs). A target's capability vector comes only from live/native evidence and stays `not_tested` without it (see README, Capability vectors).
 
 ## AUTH-02 — action-bound approval (ACP-shaped)
 
