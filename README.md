@@ -73,9 +73,6 @@ pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode live --scenario effect
 pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode live --scenario always-grant --run-id demo-always-1
 pnpm --filter @asa/adapter-acp exec tsx src/cli.ts --mode live --scenario reject-always --run-id demo-reject-1
 
-# offline: re-check / rewrite history.jsonl from peer-events.jsonl (no API, no live spawn)
-pnpm reconvert:live-runs
-pnpm reconvert:live-runs -- --write
 ```
 
 Write-probe prompts wait up to 180s client-side by default. `live_observe_ms`, `effect_grace_ms`, and `always_grant_poll_ms` are `collect_history` options only (no CLI flags). See `packages/adapters/acp/README.md`.
@@ -130,6 +127,8 @@ Exit codes:
 - `observed_vector` — aggregated live `observed_result` per invariant.
 - `capability_sources` — repo-relative live `history.jsonl` paths behind every non-`not_tested` label.
 - `live_runs` — included runs (with per-run observed results), excluded runs (with reasons) and disagreements.
+
+`pnpm reconvert:live-runs` checks that each live run's `history.jsonl` is byte-for-byte what the current ACP adapter derives from the run's `peer-events.jsonl` (the recorded ACP traffic), and that `run.json` counts match both files; CI runs the same check in `packages/adapters/acp/test/live-reconvert.test.ts`. After an adapter change, `pnpm reconvert:live-runs -- --write` regenerates `history.jsonl` (and `run.json` `history_events`) from the recorded peer events; `peer-events.jsonl` is never modified.
 
 Live aggregation (claude-agent-acp, `targets/claude-agent-acp/results/live-runs/<scenario>/<run-id>/`):
 

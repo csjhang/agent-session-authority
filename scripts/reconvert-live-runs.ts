@@ -12,19 +12,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { check_live_runs, write_live_runs } from "../packages/adapters/acp/src/live_reconvert.js";
 
-const DEFAULT_RUNS_ROOT = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "targets",
-  "claude-agent-acp",
-  "results",
-  "live-runs",
+const DEFAULT_RUNS_ROOT = path.resolve(
+  process.cwd(),
+  "targets/claude-agent-acp/results/live-runs",
 );
 
 function usage_err(msg: string): never {
   process.stderr.write(msg + "\n");
   process.exitCode = 2;
-  // Throw so callers under test can catch; top-level sets exitCode already.
   throw new Error(msg);
 }
 
@@ -44,7 +39,7 @@ export function parse_args(argv: string[]): { write: boolean; runs_root: string 
       if (next === undefined || next.startsWith("--")) {
         usage_err("missing value for --runs-root");
       }
-      runs_root = next!;
+      runs_root = path.resolve(process.cwd(), next!);
       i++;
       continue;
     }
@@ -66,32 +61,31 @@ export function main(argv: string[] = process.argv): number {
   }
 
   if (opts.write) {
-    const results = write_live_runs(opts.runs_root, process.env);
-    let n_ok = 0;
-    for (const r of results) {
-      if (r.status === "SKIPPED") {
-        process.stdout.write(`SKIPPED ${r.key}: ${r.problem}\n`);
-      } else {
-        process.stdout.write(`${r.status} ${r.key}\n`);
-        n_ok++;
-      }
+    const result = write_live_runs(opts.runs_root, process.env);
+    for (const run of result.rewritten) {
+      process.stdout.write(`REWROTE ${run}\n`);
     }
-    process.stdout.write(`${n_ok}/${results.length} ok\n`);
-    return results.some((r) => r.status === "SKIPPED") ? 1 : 0;
+    for (const run of result.unchanged) {
+      process.stdout.write(`UNCHANGED ${run}\n`);
+    }
+    for (const s of result.skipped) {
+      process.stdout.write(`SKIPPED ${s.run}: ${s.problems.join("; ")}\n`);
+    }
+    return result.skipped.length > 0 ? 1 : 0;
   }
 
   const results = check_live_runs(opts.runs_root);
-  let n_ok = 0;
+  let ok = 0;
   for (const r of results) {
-    if (r.ok) {
-      process.stdout.write(`OK ${r.key}\n`);
-      n_ok++;
+    if (r.problems.length === 0) {
+      process.stdout.write(`OK ${r.run}\n`);
+      ok++;
     } else {
-      process.stdout.write(`PROBLEM ${r.key}: ${r.problem}\n`);
+      process.stdout.write(`PROBLEM ${r.run}: ${r.problems.join("; ")}\n`);
     }
   }
-  process.stdout.write(`${n_ok}/${results.length} ok\n`);
-  return n_ok === results.length ? 0 : 1;
+  process.stdout.write(`${ok}/${results.length} live runs match their peer events\n`);
+  return ok === results.length ? 0 : 1;
 }
 
 const is_direct =

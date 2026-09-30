@@ -1218,4 +1218,4 @@ export type { AcpPeerEvent } from "./mock_peer.js";
 export { acp_events_to_history, history_to_jsonl, live_history_from_peer_events } from "./history_from_acp.js";
 export type { HistoryEventLite } from "./history_from_acp.js";
 export { check_live_run, check_live_runs, write_live_runs } from "./live_reconvert.js";
-export type { LiveRunCheck, LiveRunWrite, LiveRunKey } from "./live_reconvert.js";
+export type { LiveReconvertCheck } from "./live_reconvert.js";

@@ -4,143 +4,219 @@ import type { AcpPeerEvent } from "./mock_peer.js";
 import { live_history_from_peer_events, history_to_jsonl } from "./history_from_acp.js";
 import { secret_leak_reason } from "./live_output.js";
 
-/** Relative run key under runs_root: `<scenario>/<run_id>`. */
-export type LiveRunKey = string;
+export type LiveReconvertCheck = {
+  run: string; // "<scenario>/<run_id>"
+  dir: string;
+  problems: string[];
+  reconverted?: string;
+};
 
-export type LiveRunCheck =
-  | { key: LiveRunKey; ok: true }
-  | { key: LiveRunKey; ok: false; problem: string };
-
-export type LiveRunWrite =
-  | { key: LiveRunKey; status: "REWROTE" }
-  | { key: LiveRunKey; status: "UNCHANGED" }
-  | { key: LiveRunKey; status: "SKIPPED"; problem: string };
-
-function sorted_run_dirs(runs_root: string): Array<{ key: LiveRunKey; run_dir: string }> {
-  const out: Array<{ key: LiveRunKey; run_dir: string }> = [];
+function sorted_run_dirs(runs_root: string): Array<{ run: string; dir: string }> {
+  const out: Array<{ run: string; dir: string }> = [];
   if (!fs.existsSync(runs_root)) return out;
   for (const scenario of fs.readdirSync(runs_root).sort()) {
     const sdir = path.join(runs_root, scenario);
     if (!fs.statSync(sdir).isDirectory()) continue;
     for (const run_id of fs.readdirSync(sdir).sort()) {
-      const run_dir = path.join(sdir, run_id);
-      if (!fs.statSync(run_dir).isDirectory()) continue;
-      out.push({ key: `${scenario}/${run_id}`, run_dir });
+      const dir = path.join(sdir, run_id);
+      if (!fs.statSync(dir).isDirectory()) continue;
+      out.push({ run: `${scenario}/${run_id}`, dir });
     }
   }
   return out;
 }
 
-function load_peer_events(peer_path: string): AcpPeerEvent[] | { problem: string } {
+function jsonl_nonempty_line_count(text: string): number {
+  let n = 0;
+  for (const line of text.split("\n")) {
+    if (line.trim()) n++;
+  }
+  return n;
+}
+
+function first_differing_line(a: string, b: string): number | undefined {
+  const al = a.split("\n");
+  const bl = b.split("\n");
+  const n = Math.max(al.length, bl.length);
+  for (let i = 0; i < n; i++) {
+    if (al[i] !== bl[i]) return i + 1;
+  }
+  return undefined;
+}
+
+function load_peer_events(peer_path: string):
+  | { events: AcpPeerEvent[]; peer_lines: number }
+  | { error: string } {
   let raw: string;
   try {
     raw = fs.readFileSync(peer_path, "utf8");
   } catch (err) {
-    return { problem: `peer-events.jsonl unreadable: ${String(err instanceof Error ? err.message : err)}` };
+    return { error: "peer-events.jsonl unreadable: " + (err instanceof Error ? err.message : String(err)) };
   }
   const events: AcpPeerEvent[] = [];
-  const lines = raw.split("\n");
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
+  for (const line of raw.split("\n")) {
     if (!line.trim()) continue;
     try {
       events.push(JSON.parse(line) as AcpPeerEvent);
     } catch (err) {
       return {
-        problem: `peer-events.jsonl line ${i + 1} unreadable: ${String(err instanceof Error ? err.message : err)}`,
+        error: "peer-events.jsonl unreadable: " + (err instanceof Error ? err.message : String(err)),
       };
     }
   }
-  return events;
-}
-
-function reconvert_history_jsonl(run_dir: string): { history_jsonl: string } | { problem: string } {
-  const peer_path = path.join(run_dir, "peer-events.jsonl");
-  if (!fs.existsSync(peer_path)) {
-    return { problem: "missing peer-events.jsonl" };
-  }
-  const loaded = load_peer_events(peer_path);
-  if ("problem" in loaded) return loaded;
-  const history = live_history_from_peer_events(loaded);
-  return { history_jsonl: history_to_jsonl(history) };
+  return { events, peer_lines: events.length };
 }
 
 /**
  * Check one live-run directory: peer-events → live_history_from_peer_events must
- * byte-match history.jsonl (no newline normalization).
+ * byte-match history.jsonl (no newline normalization); run.json counts must match.
  */
-export function check_live_run(run_dir: string, key?: LiveRunKey): LiveRunCheck {
-  const k = key ?? path.basename(path.dirname(run_dir)) + "/" + path.basename(run_dir);
-  const hist_path = path.join(run_dir, "history.jsonl");
-  const recon = reconvert_history_jsonl(run_dir);
-  if ("problem" in recon) {
-    return { key: k, ok: false, problem: recon.problem };
+export function check_live_run(dir: string, run: string): LiveReconvertCheck {
+  const problems: string[] = [];
+  const peer_path = path.join(dir, "peer-events.jsonl");
+  const hist_path = path.join(dir, "history.jsonl");
+  const run_path = path.join(dir, "run.json");
+
+  let reconverted: string | undefined;
+  let peer_lines: number | undefined;
+
+  if (!fs.existsSync(peer_path)) {
+    problems.push("peer-events.jsonl missing");
+  } else {
+    const loaded = load_peer_events(peer_path);
+    if ("error" in loaded) {
+      problems.push(loaded.error);
+    } else {
+      peer_lines = loaded.peer_lines;
+      reconverted = history_to_jsonl(live_history_from_peer_events(loaded.events));
+    }
   }
+
+  let hist_raw: string | undefined;
   if (!fs.existsSync(hist_path)) {
-    return { key: k, ok: false, problem: "missing history.jsonl" };
+    problems.push("history.jsonl missing");
+  } else {
+    try {
+      hist_raw = fs.readFileSync(hist_path, "utf8");
+    } catch {
+      problems.push("history.jsonl missing");
+    }
   }
-  let hist_raw: string;
-  try {
-    hist_raw = fs.readFileSync(hist_path, "utf8");
-  } catch (err) {
-    return {
-      key: k,
-      ok: false,
-      problem: `history.jsonl unreadable: ${String(err instanceof Error ? err.message : err)}`,
-    };
+
+  let run_obj: { events?: unknown; history_events?: unknown } | undefined;
+  if (!fs.existsSync(run_path)) {
+    problems.push("run.json missing or unreadable");
+  } else {
+    try {
+      run_obj = JSON.parse(fs.readFileSync(run_path, "utf8")) as {
+        events?: unknown;
+        history_events?: unknown;
+      };
+    } catch {
+      problems.push("run.json missing or unreadable");
+    }
   }
-  // Byte compare — no newline normalize.
-  if (hist_raw !== recon.history_jsonl) {
-    return { key: k, ok: false, problem: "history.jsonl does not match reconversion from peer-events.jsonl" };
+
+  if (run_obj !== undefined && peer_lines !== undefined) {
+    const n = run_obj.events;
+    if (typeof n === "number" && n !== peer_lines) {
+      problems.push(`run.json events=${n} != peer-events.jsonl lines ${peer_lines}`);
+    }
   }
-  return { key: k, ok: true };
+
+  if (reconverted !== undefined && hist_raw !== undefined) {
+    if (hist_raw !== reconverted) {
+      const k = first_differing_line(hist_raw, reconverted) ?? 1;
+      problems.push(
+        `history.jsonl differs from reconversion of peer-events.jsonl (first differing line ${k})`,
+      );
+    }
+  }
+
+  if (run_obj !== undefined && hist_raw !== undefined) {
+    const m = jsonl_nonempty_line_count(hist_raw);
+    const n = run_obj.history_events;
+    if (typeof n === "number" && n !== m) {
+      problems.push(`run.json history_events=${n} != history.jsonl lines ${m}`);
+    }
+  }
+
+  const out: LiveReconvertCheck = { run, dir, problems };
+  if (reconverted !== undefined) out.reconverted = reconverted;
+  return out;
 }
 
-/** Check every `<scenario>/<run_id>` under runs_root (sorted). */
-export function check_live_runs(runs_root: string): LiveRunCheck[] {
-  return sorted_run_dirs(runs_root).map(({ key, run_dir }) => check_live_run(run_dir, key));
+/** Check every `<scenario>/<run_id>` under runs_root (sorted by run name). */
+export function check_live_runs(runs_root: string): LiveReconvertCheck[] {
+  return sorted_run_dirs(runs_root).map(({ run, dir }) => check_live_run(dir, run));
 }
 
 /**
- * Rewrite history.jsonl from peer-events when it differs. Never modifies peer-events.
- * Runs secret_leak_reason on the new history before write; leak → SKIPPED.
+ * Rewrite history.jsonl (and run.json history_events) from peer-events when they
+ * diverge. Never modifies peer-events.jsonl. Throws if secret_leak_reason hits.
  */
 export function write_live_runs(
   runs_root: string,
-  env: NodeJS.ProcessEnv = process.env,
-): LiveRunWrite[] {
-  const results: LiveRunWrite[] = [];
-  for (const { key, run_dir } of sorted_run_dirs(runs_root)) {
-    const recon = reconvert_history_jsonl(run_dir);
-    if ("problem" in recon) {
-      results.push({ key, status: "SKIPPED", problem: recon.problem });
+  env: NodeJS.ProcessEnv,
+): {
+  rewritten: string[];
+  unchanged: string[];
+  skipped: { run: string; problems: string[] }[];
+} {
+  const rewritten: string[] = [];
+  const unchanged: string[] = [];
+  const skipped: { run: string; problems: string[] }[] = [];
+
+  for (const { run, dir } of sorted_run_dirs(runs_root)) {
+    const check = check_live_run(dir, run);
+    const { problems } = check;
+
+    const skip_reasons = problems.filter(
+      (p) =>
+        p === "peer-events.jsonl missing" ||
+        p === "history.jsonl missing" ||
+        p === "run.json missing or unreadable" ||
+        p.startsWith("peer-events.jsonl unreadable: ") ||
+        p.startsWith("run.json events="),
+    );
+
+    if (skip_reasons.length > 0) {
+      skipped.push({ run, problems });
       continue;
     }
-    const hist_path = path.join(run_dir, "history.jsonl");
-    let hist_raw: string | undefined;
-    if (fs.existsSync(hist_path)) {
-      try {
-        hist_raw = fs.readFileSync(hist_path, "utf8");
-      } catch (err) {
-        results.push({
-          key,
-          status: "SKIPPED",
-          problem: `history.jsonl unreadable: ${String(err instanceof Error ? err.message : err)}`,
-        });
-        continue;
-      }
-    }
-    if (hist_raw === recon.history_jsonl) {
-      results.push({ key, status: "UNCHANGED" });
+
+    if (problems.length === 0) {
+      unchanged.push(run);
       continue;
     }
-    const leak = secret_leak_reason(recon.history_jsonl, env);
-    if (leak) {
-      results.push({ key, status: "SKIPPED", problem: `refusing to write history.jsonl: ${leak}` });
+
+    // Only history content differs and/or history_events mismatch → rewrite.
+    const reconverted = check.reconverted;
+    if (reconverted === undefined) {
+      skipped.push({ run, problems });
       continue;
     }
-    fs.writeFileSync(hist_path, recon.history_jsonl);
-    results.push({ key, status: "REWROTE" });
+
+    const hist_path = path.join(dir, "history.jsonl");
+    const run_path = path.join(dir, "run.json");
+    const run_obj = JSON.parse(fs.readFileSync(run_path, "utf8")) as Record<string, unknown>;
+    const history_events = jsonl_nonempty_line_count(reconverted);
+    run_obj.history_events = history_events;
+    const run_body = JSON.stringify(run_obj, null, 2) + "\n";
+
+    const hist_leak = secret_leak_reason(reconverted, env);
+    if (hist_leak) {
+      throw new Error(`refusing to write history.jsonl: ${hist_leak}`);
+    }
+    const run_leak = secret_leak_reason(run_body, env);
+    if (run_leak) {
+      throw new Error(`refusing to write run.json: ${run_leak}`);
+    }
+
+    fs.writeFileSync(hist_path, reconverted);
+    fs.writeFileSync(run_path, run_body);
+    rewritten.push(run);
   }
-  return results;
+
+  return { rewritten, unchanged, skipped };
 }
