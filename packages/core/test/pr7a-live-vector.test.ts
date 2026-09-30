@@ -56,9 +56,9 @@ describe("claude-agent-acp capability vector from live runs", () => {
     expect(doc.observed_vector["AUTH-02"]).toBe("supported");
     expect(doc.capability_vector["AUTH-02"]).toBe("not_declared");
     expect(doc.capability_sources["AUTH-02"]).toEqual(runs);
-    expect(doc.observed_vector["AUTH-07"]).toBe("inconclusive");
-    expect(doc.capability_vector["AUTH-07"]).toBe("inconclusive");
-    expect(doc.capability_sources["AUTH-07"]).toEqual(runs);
+    expect(doc.observed_vector["AUTH-03a"]).toBe("inconclusive");
+    expect(doc.capability_vector["AUTH-03a"]).toBe("inconclusive");
+    expect(doc.capability_sources["AUTH-03a"]).toEqual(runs);
     expect(doc.live_runs.included.map((r) => r.run_id)).toEqual(["r1", "r2", "r3"]);
     expect(doc.live_runs.disagreements).toEqual([]);
   });
@@ -129,7 +129,28 @@ describe("claude-agent-acp capability vector from live runs", () => {
     }
     expect(doc.capability_exclusions["AUTH-01b"]).toMatch(/probe-derived/);
     expect(doc.capability_exclusions["AUTH-06"]).toMatch(/not examined/);
-    expect(Object.keys(doc.capability_exclusions).sort()).toEqual(["AUTH-01a", "AUTH-01b", "AUTH-01c", "AUTH-06", "AUTH-08"]);
+    expect(doc.capability_exclusions["AUTH-07"]).toMatch(/probe-derived/);
+    expect(Object.keys(doc.capability_exclusions).sort()).toEqual(["AUTH-01a", "AUTH-01b", "AUTH-01c", "AUTH-06", "AUTH-07", "AUTH-08"]);
+  });
+
+
+  it("AUTH-07 observed supported in the committed reject-always/r1 live run (adapter receipt + injected restart only) is never promoted", () => {
+    const root = tmp();
+    const dir = path.join(root, "reject-always", "r1");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.copyFileSync(
+      path.join(repo_root, "targets/claude-agent-acp/results/live-runs/reject-always/r1/history.jsonl"),
+      path.join(dir, "history.jsonl"),
+    );
+    fs.writeFileSync(
+      path.join(dir, "run.json"),
+      JSON.stringify({ run_valid: true, invalid_reasons: [], package_version_observed: "0.75.1" }),
+    );
+    const doc = acp_doc(root);
+    expect(doc.live_runs.included.every((r) => r.observed["AUTH-07"] === "supported")).toBe(true);
+    expect(doc.observed_vector["AUTH-07"]).toBe("not_tested");
+    expect(doc.capability_vector["AUTH-07"]).toBe("not_tested");
+    expect(doc.capability_sources["AUTH-07"]).toBeUndefined();
   });
 
   it("other targets have no live configuration: all not_tested and no exclusions", () => {

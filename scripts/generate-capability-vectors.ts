@@ -123,6 +123,8 @@ export const ACP_LIVE: LiveConfig = {
     "AUTH-01c": "probe-derived: the only generation issuer in live history is the adapter itself (acp_adapter_live)",
     "AUTH-06":
       "not examined: the adapter does not map claude-agent-acp success claims (tool_call status) into history, so no implicit-success claim is ever checked",
+    "AUTH-07":
+      "probe-derived: claude-agent-acp terminal status (tool_call_update status, prompt stopReason) stays inside session.attach raw_update and is never mapped to a terminal event; the only terminal events in live history are the adapter's own effect.receipt observations (outcome derived) and the restart it injects",
     "AUTH-08": "no checker (always not_tested)",
   },
 };

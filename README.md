@@ -172,7 +172,7 @@ Live aggregation (claude-agent-acp, `targets/claude-agent-acp/results/live-runs/
 1. A run counts only if `run.json` has `run_valid: true` and `package_version_observed: "0.75.1"` and `history.jsonl` parses; anything else is listed under `live_runs.excluded` with reasons.
 2. Within a scenario every run must agree. A disagreement is listed in `live_runs.disagreements` exactly as observed — never a majority vote.
 3. Across scenarios: a consistent `violation` anywhere wins; otherwise any disagreement makes the invariant `inconclusive`; otherwise a consistent `supported`; otherwise `inconclusive`.
-4. `capability_exclusions` lists invariants never promoted from these live runs: AUTH-01a (profile-only), AUTH-01b / AUTH-01c (generation is counted by the adapter itself), AUTH-06 (the adapter does not map the agent's success claims), AUTH-08 (no checker).
+4. `capability_exclusions` lists invariants never promoted from these live runs: AUTH-01a (profile-only), AUTH-01b / AUTH-01c (generation is counted by the adapter itself), AUTH-06 (the adapter does not map the agent's success claims), AUTH-07 (the adapter maps none of the agent's terminal status; the only terminal events are its own receipts and the restart it injects), AUTH-08 (no checker).
 
 ## Stage map
 
