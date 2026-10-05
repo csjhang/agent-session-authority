@@ -97,6 +97,9 @@ export const check_auth02: Checker = (ctx) => {
   let saw_supported = false;
   let saw_committed = false;
   let saw_unlinked_only = true;
+  /** Counted (supported) receipts; uncompared = missing runtime_generation on grant or receipt. */
+  let counted_receipts = 0;
+  let uncompared_generation_receipts = 0;
 
   const push_violation = (text: string, witnesses: number[], marker = false) => {
     violations.push({ text, witnesses, marker });
@@ -293,6 +296,10 @@ export const check_auth02: Checker = (ctx) => {
       }
 
       saw_supported = true;
+      counted_receipts += 1;
+      if (grant_gen == null || receipt_gen == null) {
+        uncompared_generation_receipts += 1;
+      }
       supported_witnesses.push(latest.seq, ev.seq);
     }
   }
@@ -320,13 +327,17 @@ export const check_auth02: Checker = (ctx) => {
       unlinked_witnesses.length > 0
         ? ` Also ${unlinked_witnesses.length} unlinked committed receipt(s) (inconclusive evidence only); witness_seqs=[${[...new Set(unlinked_witnesses)].sort((a, b) => a - b).join(",")}].`
         : "";
+    const supported_explanation =
+      uncompared_generation_receipts === 0
+        ? "Committed effect.receipt(s) matched same-generation approval.grant; no action-bound approval reuse after binding-field change."
+        : "Committed effect.receipt(s) matched approval.grant; no action-bound approval reuse after binding-field change." +
+          ` runtime_generation not compared for ${uncompared_generation_receipts} of ${counted_receipts} counted receipt(s) (missing on the grant or the receipt).`;
     return [
       finding(
         inv,
         cs,
         "supported",
-        "Committed effect.receipt(s) matched same-generation approval.grant; no action-bound approval reuse after binding-field change." +
-          unlinked_note,
+        supported_explanation + unlinked_note,
         [...new Set([...supported_witnesses, ...unlinked_witnesses])].sort((a, b) => a - b),
         basis(ctx),
       ),
