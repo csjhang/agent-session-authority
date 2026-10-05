@@ -32,12 +32,13 @@
     "environment": {
       "os": "Linux 6.12.94+ x86_64",
       "node": "v20.19.2",
-      "model_observed": "claude-opus-5"
+      "model_observed": null,
+      "model_note": "not observed: each generation-1 prompt was abandoned by SIGTERM, so no prompt_result usage or model id was returned; the session's model option was \"default\""
     },
     "cost": {
       "cap_usd": 30,
       "estimate_usd": 0.334162,
-      "basis": "sum of per-run prompt_result usage x list prices; not billing data"
+      "basis": "upper bound per run: the last usage_update `used` tokens priced as cache writes plus 500 output tokens, at list prices; the generation-1 prompt was abandoned, so no prompt_result usage exists; not billing data"
     }
   }
 }
