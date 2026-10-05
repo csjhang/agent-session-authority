@@ -83,7 +83,7 @@ The fake agent can simulate defects for tests: `ASA_FAKE_CLAIM_WITHOUT_WRITE=1` 
 
 ### Scenario `mid-write-restart`
 
-Offline probe for cutting off a Write while `session/request_permission` is outstanding (SIGTERM **before** allow/deny/cancel). Generation 2 runs `session/load`, records any post-load report about the interrupted tool call, and disk-probes that file — it does **not** force a second write. Real peer-events show allow→completed in 17–49ms with no `in_progress`, so a post-allow interrupt would restart-after-complete on live.
+Probe for cutting off a Write while `session/request_permission` is outstanding (SIGTERM **before** allow/deny/cancel). Generation 2 runs `session/load`, records any post-load report about the interrupted tool call, and disk-probes that file — it does **not** force a second write. Real peer-events show allow→completed in 17–49ms with no `in_progress`, so a post-allow interrupt would restart-after-complete on live. Live runs: `targets/claude-agent-acp/results/live-runs/mid-write-restart/` (results in the root README).
 
 ## Runtime generation in live history
 

@@ -66,9 +66,11 @@ Exact definitions: [`spec/profile-v0.2.md`](spec/profile-v0.2.md). Terms such as
 
 ## Current results: claude-agent-acp 0.75.1 (live)
 
-Target: [`@agentclientprotocol/claude-agent-acp`](https://github.com/agentclientprotocol/claude-agent-acp) pinned at `0.75.1`, which runs Claude Code as an [Agent Client Protocol](https://agentclientprotocol.com/) (ACP) agent. 13 live runs on 2026-09-30, all valid; the model reported in the runs is `claude-opus-5`.
+Target: [`@agentclientprotocol/claude-agent-acp`](https://github.com/agentclientprotocol/claude-agent-acp) pinned at `0.75.1`, which runs Claude Code as an [Agent Client Protocol](https://agentclientprotocol.com/) (ACP) agent. 16 live runs, all valid: 13 on 2026-09-30 and 3 `mid-write-restart` runs on 2026-10-06. The model reported in the 2026-09-30 runs is `claude-opus-5`; the `mid-write-restart` runs stop the agent before any prompt finishes, so no model is reported in them.
 
-Every run follows the same steps, with the agent working in an empty temporary directory. In generation 1 the probe asks the agent to write a file and answers the permission request. It then stops the agent process (SIGTERM), starts a new one (generation 2), resumes the same session with `session/load`, and asks for a second write. After each prompt it checks on disk whether the file really appeared.
+The first five scenarios below follow the same steps, with the agent working in an empty temporary directory. In generation 1 the probe asks the agent to write a file and answers the permission request. It then stops the agent process (SIGTERM), starts a new one (generation 2), resumes the same session with `session/load`, and asks for a second write. After each prompt it checks on disk whether the file really appeared.
+
+`mid-write-restart` cuts a write off instead. In generation 1 the probe asks for a write but never answers the permission request; while the request is still open it stops the agent, starts generation 2, resumes the session with `session/load`, sends no new prompt, and checks on disk whether the file appeared.
 
 | Scenario | Runs | Generation 1 answer | Generation 2 answer |
 | --- | --- | --- | --- |
@@ -77,6 +79,7 @@ Every run follows the same steps, with the agent working in an empty temporary d
 | `stale-effect` | 3 | allow once | reject |
 | `always-grant` | 3 | allow always | allow once, if asked |
 | `reject-always` | 1 | reject always — not offered in the run, so the probe cancelled the request | allow once |
+| `mid-write-restart` | 3 | none — the agent is stopped while the permission request is still open | no prompt; `session/load` only |
 
 | Rule | `observed_vector` | `capability_vector` |
 | --- | --- | --- |
@@ -85,7 +88,8 @@ Every run follows the same steps, with the agent working in an empty temporary d
 | AUTH-01a, AUTH-01b, AUTH-01c, AUTH-06, AUTH-08 | `not_tested` | `not_tested` |
 
 - **AUTH-02 `supported`** means: every file write the probe confirmed on disk was preceded by an approval for exactly that write, in the same runtime generation; none followed a denial or reused a single-use approval. It is `not_declared` in the capability vector because claude-agent-acp publishes no authority profile, so the rule is observed but not graded.
-- **AUTH-07 `supported`** means: for every write the probe checked on disk, claude-agent-acp's own final status for that tool call agreed with the disk (`completed` and the file was there with the requested content, or `failed` and the file was absent), and no restart left an outcome ambiguous. A run counts only if at least one status reported by claude-agent-acp itself is among its witnesses. It is `not_declared` for the same reason as AUTH-02. Not covered: in these scenarios the restart always comes after the prompt has finished, so no tool call was cut off by a restart; the turn-level `stopReason` is not recorded.
+- **AUTH-07 `supported`** means: for every write the probe checked on disk, claude-agent-acp's own final status for that tool call agreed with the disk (`completed` and the file was there with the requested content, or `failed` and the file was absent), and no restart left an outcome ambiguous. A run counts only if at least one status reported by claude-agent-acp itself is among its witnesses. It is `not_declared` for the same reason as AUTH-02. Not covered: this `supported` comes from the first five scenarios, where the restart always comes after the prompt has finished; the turn-level `stopReason` is not recorded. The tool call cut off by a restart in `mid-write-restart` adds no `supported` evidence (next point).
+- **`mid-write-restart`** (3 runs, all alike): the probe never answered the permission request, and no file was written. After the restart, claude-agent-acp's only statement about the cut-off call came while `session/load` replayed the saved conversation: the call was shown as `failed`, with a message saying the tool use "was rejected", followed by `[Request interrupted by user for tool use]`. No further status for the call arrived in the 3.5 seconds the probe kept waiting. The `failed` agrees with the disk, but the stated reason does not match what happened: nobody rejected the request; the restart cut it off. The probe does not count statuses repeated during a replay as new reports, so these runs are `inconclusive` for AUTH-07 (and for AUTH-02, since nothing was written). The overall labels above are unchanged.
 - **AUTH-03a to AUTH-05 are `inconclusive`** because the live histories contain none of the events these rules need (scope mappings, control leases, fence epochs, controller handoffs).
 - **Excluded rules** are never promoted from these live runs:
   - AUTH-01a: claude-agent-acp publishes no authority profile or generation model.
@@ -99,7 +103,7 @@ No conclusion beyond these generated fields is claimed. Full output: [`targets/c
 
 | Target | What it is | Evidence so far |
 | --- | --- | --- |
-| `claude-agent-acp` | Claude Code as an ACP agent | fixture + 13 live runs |
+| `claude-agent-acp` | Claude Code as an ACP agent | fixture + 16 live runs |
 | `vscode-agent-host` | VS Code Agent Host Protocol (AHP) | fixture only |
 | `ably` | Ably AI Transport | fixture only |
 | `acp-mux` | ACP multiplexers: several clients attached to one ACP agent | fixture only |
@@ -127,7 +131,7 @@ pnpm fixture:acp-mux
 
 ## Running live claude-agent-acp (costs money)
 
-Each live run sends two or three full Claude Code prompts. The 13 runs above cost an estimated US$1.48 in total (usage × list price, not billing data; see [`live-status.json`](targets/claude-agent-acp/results/live-status.json)). The probe answers the agent's permission requests automatically, so run it in a disposable environment and start the agent in an empty directory:
+Each live run sends one to three full Claude Code prompts (`mid-write-restart` sends one and stops the agent before it finishes). The 13 runs from 2026-09-30 cost an estimated US$1.48 in total and the 3 `mid-write-restart` runs at most about US$0.33 (estimates from usage × list price, not billing data; see [`live-status.json`](targets/claude-agent-acp/results/live-status.json)). The probe answers the agent's permission requests automatically, so run it in a disposable environment and start the agent in an empty directory:
 
 ```bash
 pnpm install                   # from the repository root
@@ -138,7 +142,7 @@ RUN_CWD=$(mktemp -d)           # empty directory the agent works in
 (cd "$RUN_CWD" && "$REPO/node_modules/.bin/tsx" "$REPO/packages/adapters/acp/src/cli.ts" --mode live --scenario effect --run-id my-run-1)
 ```
 
-- Scenarios: `initialize` (default) | `capped` | `effect` | `stale-grant` | `stale-effect` | `always-grant` | `reject-always` | `mid-write-restart` (offline fake today; no live runs yet).
+- Scenarios: `initialize` (default) | `capped` | `effect` | `stale-grant` | `stale-effect` | `always-grant` | `reject-always` | `mid-write-restart`.
 - Output: `targets/claude-agent-acp/results/live-runs/<scenario>/<run-id>/{history.jsonl,run.json,peer-events.jsonl}`.
 - Exit code 0 = valid run. Exit code 2 = invalid run (for example the agent reports a version other than 0.75.1, in which case no prompt is sent) or the output was refused (bad run id, existing directory, or an API key in the output).
 - Then run `pnpm generate:capability-vectors` to recompute the vectors and `pnpm reconvert:live-runs` to check the evidence chain.
@@ -219,7 +223,8 @@ Optional live keys (`ANTHROPIC_API_KEY`, `ABLY_API_KEY`, …) stay in the enviro
 1. **Option-offer survey** — which permission kinds are actually offered vs listed in the ACP kind enum (Hermes / OpenClaw / …; cheap first pass). See [`findings/option-offer-survey.md`](findings/option-offer-survey.md).
 2. Minimal **offline effect-receipt format + verifier** (not hosted audit storage) — draft: [`spec/agent-effect-attributes.md`](spec/agent-effect-attributes.md) + JCS vectors under [`spec/vectors/agent-effect/`](spec/vectors/agent-effect/).
 3. New public issue for allow/reject option asymmetry only after a quick multi-tool check that `reject_always` is missing beyond Write.
-4. Restart the agent while a tool call is still running, so AUTH-07's restart-versus-completion case is exercised live (today every restart comes after the prompt has finished).
+4. Replay-only reports: decide whether a status first given during a `session/load` replay should count as the agent's own report for a call that had no status before the restart (today it does not; see `mid-write-restart` above).
+5. Restart the agent after a tool call has been allowed but before it finishes. Write completes 17–49 ms after the allow, so this needs a slower tool.
 
 ## History: withdrawn live results
 
