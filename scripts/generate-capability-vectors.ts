@@ -52,7 +52,7 @@ const HAND_NOTES: Record<string, NotesBlock> = {
     summary:
       "Fixture vector from asa check against history-fixture.jsonl. Public ACP docs do not declare portable ActionBinding+generation; digests and fence_epoch are adapter-synthesized for the probe.",
     live_status:
-      "Re-run (2026-09-30): 13 valid live runs under targets/claude-agent-acp/results/live-runs (see live_runs, observed_vector and capability_vector). The earlier live permission-axis conclusions (2026-09-06..14) remain WITHDRAWN and are not used as evidence.",
+      "Re-run (2026-09-30): 13 valid live runs; mid-write-restart (2026-10-06): 3 valid of 3 attempted. All under targets/claude-agent-acp/results/live-runs (see live_runs, observed_vector and capability_vector). The earlier live permission-axis conclusions (2026-09-06..14) remain WITHDRAWN and are not used as evidence.",
     invariants: {
       "AUTH-02":
         "Fixture maps ACP permission allow/deny to approval.grant/deny with synthesized action_digest; public docs describe permission extension but not canonical ActionBinding+generation binding. This note describes fixture_vector; the live result is in observed_vector and capability_vector.",
