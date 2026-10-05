@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { observe_event, type AcpPeerEvent } from "./mock_peer.js";
+import { is_tool_call_session_update } from "./tool_update.js";
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -31,10 +32,9 @@ function is_completed_tool_call_for_basename(
 ): boolean {
   if (e.type !== "session_update") return false;
   const u = e.update;
-  const kind = String(u.kind ?? "");
   const status = String(u.status ?? u.toolCallStatus ?? "");
   const name = tool_name_or_title(u);
-  if (!(kind === "tool_call" || kind === "tool_call_update" || kind.includes("tool_call"))) {
+  if (!is_tool_call_session_update(u)) {
     return false;
   }
   if (!(status === "completed" || status === "Completed")) return false;
