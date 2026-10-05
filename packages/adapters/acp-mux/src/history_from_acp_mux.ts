@@ -23,6 +23,9 @@ export function acp_mux_events_to_history(events: readonly AcpMuxPeerEvent[]): H
       issuer_id: "acp_mux_adapter_fixture",
       runtime_id: "acp-mux",
       note: "acp-mux observation attach only — no fencing/lease/digest/generation/revocation",
+      // Same per-field provenance as the ACP adapter header: adapter clock + adapter-stamped generation.
+      // (acp-mux has no adapter session.attach header; its first attach comes from the peer.)
+      field_provenance: { ts: "derived", runtime_generation: "derived" },
     },
   });
   for (const e of events) {

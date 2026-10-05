@@ -37,3 +37,31 @@ describe("PR-5 action_digest collision + consistency", () => {
     }
   });
 });
+
+describe("PR-10c G: leading adapter-header field_provenance (per field, like ACP)", () => {
+  const expected = [
+      { op: "generation.observe", fp: { ts: "derived", runtime_generation: "derived" } },
+      { op: "session.attach", fp: { ts: "derived" } },
+  ];
+  it("collect_history fixture: leading events carry per-field field_provenance; no other event gains it", async () => {
+    const { collect_history: collect } = await import("../src/index.js");
+    const result = await collect({ mode: "fixture" });
+    expected.forEach((x, i) => {
+      expect(result.history[i]!.op).toBe(x.op);
+      expect(result.history[i]!.attrs?.field_provenance).toEqual(x.fp);
+    });
+    expect(result.history.slice(expected.length).filter((e) => e.attrs?.field_provenance !== undefined)).toEqual([]);
+  });
+  it("committed targets/ably/results/history-fixture.jsonl matches (fixture not regenerated, only provenance added)", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+    const file = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../targets/ably/results/history-fixture.jsonl");
+    const rows = fs.readFileSync(file, "utf8").trimEnd().split("\n").map((l) => JSON.parse(l) as { op?: string; attrs?: Record<string, unknown> });
+    expected.forEach((x, i) => {
+      expect(rows[i]!.op).toBe(x.op);
+      expect(rows[i]!.attrs?.field_provenance).toEqual(x.fp);
+    });
+    expect(rows.slice(expected.length).filter((e) => e.attrs?.field_provenance !== undefined)).toEqual([]);
+  });
+});
