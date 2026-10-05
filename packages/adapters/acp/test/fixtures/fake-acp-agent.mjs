@@ -13,6 +13,8 @@
  * ASA_FAKE_CLAIM_WITHOUT_WRITE "1" = report the allowed write completed but never write it (defect)
  * ASA_FAKE_FAIL_AFTER_WRITE "1" = write the allowed file but report the tool call failed (defect)
  * ASA_FAKE_REPLAY_ON_LOAD   "1" = on session/load, replay earlier tool calls (from a transcript file in the cwd) before responding
+ *                           (.asa-fake-transcript.json is written only when REPLAY_ON_LOAD, REPORT_FAILED_ON_LOAD or
+ *                           REPLAY_TERMINAL_ON_LOAD is set)
  * ASA_FAKE_REPORT_FAILED_ON_LOAD "1" = after session/load, emit tool_call_update failed for any
  *                                   tool call that was still pending permission when gen1 died
  * ASA_FAKE_WRITE_WITHOUT_PERMISSION "1" = write the file as soon as permission is requested,
@@ -49,8 +51,15 @@ const replay_terminal_on_load = env.ASA_FAKE_REPLAY_TERMINAL_ON_LOAD === "1";
 const post_load_as_tool_call = env.ASA_FAKE_POST_LOAD_AS_TOOL_CALL === "1";
 const tool_call_then_prompt_error = env.ASA_FAKE_TOOL_CALL_THEN_PROMPT_ERROR === "1";
 const TRANSCRIPT = ".asa-fake-transcript.json";
+/**
+ * The transcript file is only read back by the session/load modes below; every other mode
+ * (default, capped/effect/always-grant runs, WRITE_WITHOUT_PERMISSION, NO_TOOLS, ...) must not
+ * leave it in the session cwd.
+ */
+const need_transcript = replay_on_load || report_failed_on_load || replay_terminal_on_load;
 
 function remember(tool_call_id, title, status) {
+  if (!need_transcript) return;
   const file = path.join(session_cwd, TRANSCRIPT);
   const calls = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : [];
   const idx = calls.findIndex((c) => c.tool_call_id === tool_call_id);
@@ -171,7 +180,8 @@ async function handle_prompt(id, params) {
     send({ jsonrpc: "2.0", id, error: { code: -32000, message: "fake agent prompt error after tool_call" } });
     return;
   }
-  // Persist before awaiting permission so a mid-request SIGTERM leaves a recoverable transcript for gen2.
+  // Persist before awaiting permission so a mid-request SIGTERM leaves a recoverable transcript for gen2
+  // (no-op unless a session/load mode needs the transcript).
   remember(tool_call_id, title, "pending_permission");
   if (write_without_permission) {
     await write_file(session_id, abs, content);
