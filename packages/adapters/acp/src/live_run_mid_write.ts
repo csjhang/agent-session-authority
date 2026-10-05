@@ -126,14 +126,12 @@ export async function run_mid_write_restart(ctx: LiveRunCtx): Promise<LiveRunOut
     const post_load_grace = Math.min(effect_grace_ms, 2000);
     const post_deadline = Date.now() + post_load_grace;
     while (Date.now() < post_deadline) {
+      // Same tool-call cut as the notes/history (raw_update.sessionUpdate): an initial
+      // tool_call carrying ACP category kind "edit" still counts as a post-load report.
       const post = events.slice(wait_from).filter((e) => {
         if (e.type !== "session_update") return false;
-        const kind = String(e.update.kind ?? "");
         const status = String(e.update.status ?? "");
-        return (
-          (kind === "tool_call" || kind === "tool_call_update" || kind.includes("tool_call")) &&
-          (status === "failed" || status === "completed")
-        );
+        return is_tool_call_session_update(e.update) && (status === "failed" || status === "completed");
       });
       if (post.length > 0) break;
       await sleep(50);

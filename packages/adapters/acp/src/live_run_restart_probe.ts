@@ -9,6 +9,7 @@ import { wait_for_write_effect } from "./effect_wait.js";
 import { live_history_from_peer_events } from "./history_from_acp.js";
 import { PINNED, build_permission_selected, build_session_load, build_session_prompt } from "./protocol.js";
 import type { PermissionPickMode } from "./permission.js";
+import { is_tool_call_session_update } from "./tool_update.js";
 import { spawn_live, stop } from "./spawn.js";
 import { agent_info_version, initialize } from "./live_rpc.js";
 import type { LiveProbeCtx, LiveRunOutput } from "./live_run_ctx.js";
@@ -264,10 +265,10 @@ export async function run_restart_probe(ctx: LiveProbeCtx): Promise<LiveRunOutpu
       const timed_out = Boolean((p2 as { error?: { code?: number } }).error && (p2 as { error?: { code?: number } }).error?.code === -32000);
       const gen2_tool_events =
         (i2.rpc.permission_requests - gen2_permission_baseline) +
+        // raw_update.sessionUpdate cut (same as history / mid-write notes): kind "edit" tool_calls count.
         events.slice(events_before_gen2_prompt).filter((e) => {
           if (e.type !== "session_update") return false;
-          const kind = String(e.update.kind ?? "");
-          return kind === "tool_call" || kind === "tool_call_update" || kind.includes("tool_call");
+          return is_tool_call_session_update(e.update);
         }).length;
       // Optional short follow-up if first timed out with 0 tool events and no FS yet.
       if (timed_out && gen2_tool_events === 0 && !gen2_effect_wait.present) {
