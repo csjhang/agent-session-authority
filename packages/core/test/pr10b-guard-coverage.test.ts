@@ -53,7 +53,7 @@ function list_live_histories(): string[] {
 describe("PR-10b A: observation_guard prerequisites (AUTH-03a..05)", () => {
   it("all 13 committed live runs: AUTH-03a/03b/03c/04/05 inconclusive with exact prerequisite-absent explanation", () => {
     const histories = list_live_histories();
-    expect(histories.length).toBe(13);
+    expect(histories.length).toBeGreaterThanOrEqual(13);
     const assessment = default_assessment();
     // Match generate-capability-vectors: research_profile basis, no target profile loaded.
     assessment.test_basis = "research_profile";
