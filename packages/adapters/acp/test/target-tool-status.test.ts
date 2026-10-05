@@ -95,9 +95,10 @@ describe("agent-reported tool-call status", () => {
     expect(tool_events[3]!.attrs?.runtime_generation).toBe(2);
   });
 
-  it("3. every committed live run: each tool call with a probe receipt has exactly one non-replay agent-reported terminal", () => {
+  it("3. permission-axis live runs: each tool call with a probe receipt has exactly one non-replay agent-reported terminal", () => {
+    const scenarios = ["always-grant", "effect", "reject-always", "stale-effect", "stale-grant"];
     let runs = 0;
-    for (const scenario of fs.readdirSync(REPO_LIVE_RUNS).sort()) {
+    for (const scenario of scenarios) {
       for (const run_id of fs.readdirSync(path.join(REPO_LIVE_RUNS, scenario)).sort()) {
         const events = parse_history_jsonl(fs.readFileSync(path.join(REPO_LIVE_RUNS, scenario, run_id, "history.jsonl"), "utf8"));
         const receipts = events.filter((e) => e.op === "effect.receipt").map((e) => String(e.attrs?.tool_call_id));
@@ -112,6 +113,47 @@ describe("agent-reported tool-call status", () => {
       }
     }
     expect(runs).toBeGreaterThanOrEqual(13);
+  });
+
+  it("3b. each valid mid-write-restart live run: one receipt, no grant/deny, restart before receipt, replay has no terminal", () => {
+    const scenario = "mid-write-restart";
+    const scenario_dir = path.join(REPO_LIVE_RUNS, scenario);
+    expect(fs.existsSync(scenario_dir), "mid-write-restart live runs present").toBe(true);
+    let valid = 0;
+    for (const run_id of fs.readdirSync(scenario_dir).sort()) {
+      const run_dir = path.join(scenario_dir, run_id);
+      const manifest = JSON.parse(fs.readFileSync(path.join(run_dir, "run.json"), "utf8")) as { run_valid?: boolean };
+      if (manifest.run_valid !== true) continue;
+      const events = parse_history_jsonl(fs.readFileSync(path.join(run_dir, "history.jsonl"), "utf8"));
+      const receipts = events.filter((e) => e.op === "effect.receipt");
+      expect(receipts.length, `${scenario}/${run_id}`).toBe(1);
+      const receipt = receipts[0]!;
+      const tool_id = String(receipt.attrs?.tool_call_id);
+      expect(
+        events.some(
+          (e) =>
+            e.attrs?.tool_call_id === tool_id && (e.op === "approval.grant" || e.op === "approval.deny"),
+        ),
+        `${scenario}/${run_id} ${tool_id} has grant/deny`,
+      ).toBe(false);
+      const restart_idx = events.findIndex((e) => e.kind === "fault" && e.fault === "runtime.restart");
+      const receipt_idx = events.indexOf(receipt);
+      expect(restart_idx, `${scenario}/${run_id} runtime.restart`).toBeGreaterThanOrEqual(0);
+      expect(restart_idx, `${scenario}/${run_id} restart before receipt`).toBeLessThan(receipt_idx);
+      expect(
+        events.some((e) => e.attrs?.replay === true && e.attrs?.terminal !== undefined),
+        `${scenario}/${run_id} replay terminal`,
+      ).toBe(false);
+      const non_replay_terminals = events.filter(
+        (e) => e.attrs?.tool_call_id === tool_id && e.attrs?.terminal !== undefined && e.attrs?.replay !== true,
+      );
+      expect(non_replay_terminals.length, `${scenario}/${run_id} non-replay terminals`).toBeLessThanOrEqual(1);
+      if (non_replay_terminals.length === 1) {
+        expect(non_replay_terminals[0]!.attrs?.field_provenance).toMatchObject({ terminal: "target" });
+      }
+      valid++;
+    }
+    expect(valid).toBeGreaterThanOrEqual(1);
   });
 
   it(
