@@ -25,7 +25,7 @@ Unknown `kind` values are **rejected**.
 | --- | --- | --- | --- |
 | `seq` | number (finite) | **yes** | Strictly increasing across the file; duplicates and regressions are hard errors |
 | `kind` | enum | **yes** | One of: `invoke`, `ok`, `fail`, `info`, `observe`, `fault` |
-| `ts` | string (ISO-8601) | no | Wall-clock hint only; not causal order |
+| `ts` | string (ISO-8601) | no | Wall-clock hint only; not causal order. In histories written by this repository's adapters it is always the adapter's own clock (when the adapter observed or converted the event), never a time reported by the target, whether or not `field_provenance.ts` says so |
 | `ts_unix_nano` | string (decimal digits) | no | Unix time in nanoseconds as a **decimal string** (not a JSON number). Matches `/^[0-9]+$/`. Any integer in history JSON that may exceed `2^53-1` MUST be a decimal string for the same reason: JS `JSON.parse` rounds large numbers past `Number.MAX_SAFE_INTEGER`, which can make integrity verifiers false-positive tamper. |
 | `op` | string | no | Operation name when applicable |
 | `fault` | string | no | Fault name when `kind=fault` (or annotating a fault injection) |
@@ -95,7 +95,7 @@ These keys appear under `attrs` and are consumed by checkers / vocabulary types.
 | `stale_fence` / `stale_controller` | boolean | AUTH-04 markers |
 | `terminal` / `resolved_terminal` | string | AUTH-07 terminal race. ACP live: the agent's own tool-call status (`completed` / `failed`) on the `session.attach` event that carried it, with `field_provenance.terminal = "target"` |
 | `replay` | boolean | ACP live: a tool-call update received while `session/load` replays the transcript. A replayed status is not a new report and carries no `terminal` |
-| `field_provenance` | object | Per-field origin of an attribute value: `derived` = computed by the probe or adapter; `target` = reported by the target itself |
+| `field_provenance` | object | Per-field origin of an attribute value: `derived` = computed by the probe or adapter; `target` = reported by the target itself. Keys name attributes, plus `ts` for the top-level timestamp. A field without an entry is not thereby `target`. |
 
 ## Validation rules (parser)
 
