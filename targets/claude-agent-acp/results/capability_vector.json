@@ -43,6 +43,9 @@
       "targets/claude-agent-acp/results/live-runs/effect/r1/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/effect/r2/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/effect/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/mid-write-restart/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/mid-write-restart/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/mid-write-restart/r3/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/reject-always/r1/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/stale-effect/r1/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/stale-effect/r2/history.jsonl",
@@ -58,6 +61,9 @@
       "targets/claude-agent-acp/results/live-runs/effect/r1/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/effect/r2/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/effect/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/mid-write-restart/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/mid-write-restart/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/mid-write-restart/r3/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/reject-always/r1/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/stale-effect/r1/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/stale-effect/r2/history.jsonl",
@@ -73,6 +79,9 @@
       "targets/claude-agent-acp/results/live-runs/effect/r1/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/effect/r2/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/effect/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/mid-write-restart/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/mid-write-restart/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/mid-write-restart/r3/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/reject-always/r1/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/stale-effect/r1/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/stale-effect/r2/history.jsonl",
@@ -88,6 +97,9 @@
       "targets/claude-agent-acp/results/live-runs/effect/r1/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/effect/r2/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/effect/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/mid-write-restart/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/mid-write-restart/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/mid-write-restart/r3/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/reject-always/r1/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/stale-effect/r1/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/stale-effect/r2/history.jsonl",
@@ -103,6 +115,9 @@
       "targets/claude-agent-acp/results/live-runs/effect/r1/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/effect/r2/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/effect/r3/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/mid-write-restart/r1/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/mid-write-restart/r2/history.jsonl",
+      "targets/claude-agent-acp/results/live-runs/mid-write-restart/r3/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/reject-always/r1/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/stale-effect/r1/history.jsonl",
       "targets/claude-agent-acp/results/live-runs/stale-effect/r2/history.jsonl",
@@ -262,6 +277,72 @@
           "AUTH-06": "supported",
           "AUTH-07": "supported",
           "AUTH-08": "not_tested"
+        }
+      },
+      {
+        "scenario": "mid-write-restart",
+        "run_id": "r1",
+        "history": "targets/claude-agent-acp/results/live-runs/mid-write-restart/r1/history.jsonl",
+        "observed": {
+          "AUTH-01a": "not_declared",
+          "AUTH-01b": "supported",
+          "AUTH-01c": "not_declared",
+          "AUTH-02": "inconclusive",
+          "AUTH-03a": "inconclusive",
+          "AUTH-03b": "inconclusive",
+          "AUTH-03c": "inconclusive",
+          "AUTH-04": "inconclusive",
+          "AUTH-05": "inconclusive",
+          "AUTH-06": "inconclusive",
+          "AUTH-07": "inconclusive",
+          "AUTH-08": "not_tested"
+        },
+        "downgraded": {
+          "AUTH-07": "supported only from probe-produced terminal events (no claude-agent-acp tool-call status among the witnesses)"
+        }
+      },
+      {
+        "scenario": "mid-write-restart",
+        "run_id": "r2",
+        "history": "targets/claude-agent-acp/results/live-runs/mid-write-restart/r2/history.jsonl",
+        "observed": {
+          "AUTH-01a": "not_declared",
+          "AUTH-01b": "supported",
+          "AUTH-01c": "not_declared",
+          "AUTH-02": "inconclusive",
+          "AUTH-03a": "inconclusive",
+          "AUTH-03b": "inconclusive",
+          "AUTH-03c": "inconclusive",
+          "AUTH-04": "inconclusive",
+          "AUTH-05": "inconclusive",
+          "AUTH-06": "inconclusive",
+          "AUTH-07": "inconclusive",
+          "AUTH-08": "not_tested"
+        },
+        "downgraded": {
+          "AUTH-07": "supported only from probe-produced terminal events (no claude-agent-acp tool-call status among the witnesses)"
+        }
+      },
+      {
+        "scenario": "mid-write-restart",
+        "run_id": "r3",
+        "history": "targets/claude-agent-acp/results/live-runs/mid-write-restart/r3/history.jsonl",
+        "observed": {
+          "AUTH-01a": "not_declared",
+          "AUTH-01b": "supported",
+          "AUTH-01c": "not_declared",
+          "AUTH-02": "inconclusive",
+          "AUTH-03a": "inconclusive",
+          "AUTH-03b": "inconclusive",
+          "AUTH-03c": "inconclusive",
+          "AUTH-04": "inconclusive",
+          "AUTH-05": "inconclusive",
+          "AUTH-06": "inconclusive",
+          "AUTH-07": "inconclusive",
+          "AUTH-08": "not_tested"
+        },
+        "downgraded": {
+          "AUTH-07": "supported only from probe-produced terminal events (no claude-agent-acp tool-call status among the witnesses)"
         }
       },
       {
@@ -445,7 +526,7 @@
   },
   "notes": {
     "summary": "Fixture vector from asa check against history-fixture.jsonl. Public ACP docs do not declare portable ActionBinding+generation; digests and fence_epoch are adapter-synthesized for the probe.",
-    "live_status": "Re-run (2026-09-30): 13 valid live runs under targets/claude-agent-acp/results/live-runs (see live_runs, observed_vector and capability_vector). The earlier live permission-axis conclusions (2026-09-06..14) remain WITHDRAWN and are not used as evidence.",
+    "live_status": "Re-run (2026-09-30): 13 valid live runs; mid-write-restart (2026-10-06): 3 valid of 3 attempted. All under targets/claude-agent-acp/results/live-runs (see live_runs, observed_vector and capability_vector). The earlier live permission-axis conclusions (2026-09-06..14) remain WITHDRAWN and are not used as evidence.",
     "invariants": {
       "AUTH-02": "Fixture maps ACP permission allow/deny to approval.grant/deny with synthesized action_digest; public docs describe permission extension but not canonical ActionBinding+generation binding. This note describes fixture_vector; the live result is in observed_vector and capability_vector.",
       "AUTH-05": "Permission responses are client-driven; fixture cannot show ControlLease vs Approver separation as first-class ACP objects.",
@@ -455,5 +536,5 @@
   },
   "history_artifact": "targets/claude-agent-acp/results/history-fixture.jsonl",
   "generated_by": "scripts/generate-capability-vectors.ts",
-  "generated_at": "2026-09-30"
+  "generated_at": "2026-10-06"
 }
