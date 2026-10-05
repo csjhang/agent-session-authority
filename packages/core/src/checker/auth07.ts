@@ -33,13 +33,37 @@ function subject_of(a: Record<string, unknown>, ev_session?: string): string | u
   );
 }
 
+/**
+ * Attribute string → terminal kind. Single string table shared by classify()
+ * (terminal ?? terminal_kind ?? status) and explicit_report_finishes_work()
+ * (terminal ?? terminal_kind only). "restart" is never attr-derived (fault only).
+ */
+const ATTR_TERMINAL_KIND: ReadonlyMap<string, TerminalKind> = new Map<string, TerminalKind>([
+  ["cancelled", "cancel"],
+  ["canceled", "cancel"],
+  ["cancel", "cancel"],
+  ["completed", "complete"],
+  ["complete", "complete"],
+  ["committed", "complete"],
+  ["success", "complete"],
+  ["timeout", "timeout"],
+  ["timed_out", "timeout"],
+  ["failed", "failed"],
+  ["fail", "failed"],
+  ["unknown", "unknown"],
+  ["orphaned", "unknown"],
+]);
+
+/** Attr-reported kinds that finish the call; unknown (and restart) do not. */
+const FINISHING_ATTR_KINDS: ReadonlySet<TerminalKind> = new Set<TerminalKind>(["cancel", "complete", "timeout", "failed"]);
+
+function attr_terminal_kind(t: string | undefined): TerminalKind | undefined {
+  return t === undefined ? undefined : ATTR_TERMINAL_KIND.get(t);
+}
+
 function classify(ev_op: string | undefined, a: Record<string, unknown>, fault?: string): TerminalKind | undefined {
-  const t = str(a.terminal) ?? str(a.terminal_kind) ?? str(a.status);
-  if (t === "cancelled" || t === "canceled" || t === "cancel") return "cancel";
-  if (t === "completed" || t === "complete" || t === "committed" || t === "success") return "complete";
-  if (t === "timeout" || t === "timed_out") return "timeout";
-  if (t === "failed" || t === "fail") return "failed";
-  if (t === "unknown" || t === "orphaned") return "unknown";
+  const by_attr = attr_terminal_kind(str(a.terminal) ?? str(a.terminal_kind) ?? str(a.status));
+  if (by_attr !== undefined) return by_attr;
 
   if (ev_op === "task.cancel" || ev_op === "effect.cancel") return "cancel";
   if (ev_op === "task.complete") return "complete";
@@ -73,12 +97,8 @@ const WIN_RESOLUTION: Record<string, string[]> = {
  * unknown and restart do not finish the call. The event itself is still a terminal event.
  */
 function explicit_report_finishes_work(a: Record<string, unknown>): boolean {
-  const t = str(a.terminal) ?? str(a.terminal_kind);
-  if (t === "cancelled" || t === "canceled" || t === "cancel") return true;
-  if (t === "completed" || t === "complete" || t === "committed" || t === "success") return true;
-  if (t === "timeout" || t === "timed_out") return true;
-  if (t === "failed" || t === "fail") return true;
-  return false;
+  const kind = attr_terminal_kind(str(a.terminal) ?? str(a.terminal_kind));
+  return kind !== undefined && FINISHING_ATTR_KINDS.has(kind);
 }
 
 function is_terminal_class_event(e: {

@@ -3,6 +3,7 @@ import path from "node:path";
 import type { AcpPeerEvent } from "./mock_peer.js";
 import { live_history_from_peer_events, history_to_jsonl } from "./history_from_acp.js";
 import { secret_leak_reason } from "./live_output.js";
+import { list_live_run_dirs } from "./live_run_dirs.js";
 
 export type LiveReconvertCheck = {
   run: string; // "<scenario>/<run_id>"
@@ -10,21 +11,6 @@ export type LiveReconvertCheck = {
   problems: string[];
   reconverted?: string;
 };
-
-function sorted_run_dirs(runs_root: string): Array<{ run: string; dir: string }> {
-  const out: Array<{ run: string; dir: string }> = [];
-  if (!fs.existsSync(runs_root)) return out;
-  for (const scenario of fs.readdirSync(runs_root).sort()) {
-    const sdir = path.join(runs_root, scenario);
-    if (!fs.statSync(sdir).isDirectory()) continue;
-    for (const run_id of fs.readdirSync(sdir).sort()) {
-      const dir = path.join(sdir, run_id);
-      if (!fs.statSync(dir).isDirectory()) continue;
-      out.push({ run: `${scenario}/${run_id}`, dir });
-    }
-  }
-  return out;
-}
 
 function jsonl_nonempty_line_count(text: string): number {
   let n = 0;
@@ -148,9 +134,15 @@ export function check_live_run(dir: string, run: string): LiveReconvertCheck {
   return out;
 }
 
-/** Check every `<scenario>/<run_id>` under runs_root (sorted by run name). */
+/**
+ * Check every `<scenario>/<run_id>` under runs_root (sorted by run name).
+ * Symlinks / plain files at the scenario or run layer are reported as a problem
+ * (never followed, never silently skipped) — see list_live_run_dirs.
+ */
 export function check_live_runs(runs_root: string): LiveReconvertCheck[] {
-  return sorted_run_dirs(runs_root).map(({ run, dir }) => check_live_run(dir, run));
+  return list_live_run_dirs(runs_root).map((e) =>
+    e.kind === "run" ? check_live_run(e.dir, e.run) : { run: e.run, dir: e.path, problems: [e.reason] },
+  );
 }
 
 /**
@@ -169,7 +161,13 @@ export function write_live_runs(
   const unchanged: string[] = [];
   const skipped: { run: string; problems: string[] }[] = [];
 
-  for (const { run, dir } of sorted_run_dirs(runs_root)) {
+  for (const entry of list_live_run_dirs(runs_root)) {
+    if (entry.kind === "rejected") {
+      // Never write through a symlink / into a non-directory.
+      skipped.push({ run: entry.run, problems: [entry.reason] });
+      continue;
+    }
+    const { run, dir } = entry;
     const check = check_live_run(dir, run);
     const { problems } = check;
 

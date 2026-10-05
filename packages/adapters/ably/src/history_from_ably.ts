@@ -23,6 +23,8 @@ export function ably_events_to_history(events: readonly AblyPeerEvent[]): Histor
       issuer_id: "ably_adapter_fixture",
       runtime_id: "ably-ai-transport",
       note: "Ably binds toolCallId / first-response-wins; no portable digest+generation enforcement",
+      // Same per-field provenance as the ACP adapter header: adapter clock + adapter-stamped generation.
+      field_provenance: { ts: "derived", runtime_generation: "derived" },
     },
   });
   next({
@@ -30,7 +32,13 @@ export function ably_events_to_history(events: readonly AblyPeerEvent[]): Histor
     op: "session.attach",
     session_id: sid,
     actor_id: "adapter",
-    attrs: { mode: "fixture", fidelity: "reconstructed", transport: "ably-ai-transport", air_gap: false },
+    attrs: {
+      mode: "fixture",
+      fidelity: "reconstructed",
+      transport: "ably-ai-transport",
+      air_gap: false,
+      field_provenance: { ts: "derived" },
+    },
   });
   for (const e of events) {
     if (e.type === "session_open")

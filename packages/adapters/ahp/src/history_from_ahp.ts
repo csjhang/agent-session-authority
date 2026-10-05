@@ -9,9 +9,11 @@ import type { AhpPeerEvent } from "./mock_peer.js";
 export type HistoryEventLite = HistoryEvent;
 
 export function ahp_events_to_history(events: readonly AhpPeerEvent[]): HistoryEventLite[] {
+  // Leading header (same per-field provenance as the ACP adapter): ts is the adapter's conversion
+  // clock and runtime_generation is stamped by the adapter (AHP reports none) → "derived".
   const out: HistoryEventLite[] = []; let seq = 0; const next = (partial: Omit<HistoryEventLite, "seq">): void => { seq += 1; out.push({ seq, ts: new Date().toISOString(), ts_unix_nano: format_unix_nano_decimal(), ...partial }); };
-  next({ kind: "observe", op: "generation.observe", session_id: events[0] && "sessionId" in events[0] ? events[0].sessionId : undefined, attrs: { runtime_generation: 1, issuer_id: "ahp_adapter_fixture", runtime_id: "vscode-agent-host", note: "AHP public surface has no portable RuntimeGeneration; fixture stamps gen=1 for probe only" } });
-  next({ kind: "ok", op: "session.attach", session_id: events[0] && "sessionId" in events[0] ? events[0].sessionId : undefined, actor_id: "adapter", attrs: { mode: "fixture", fidelity: "reconstructed", protocol: "AHP" } });
+  next({ kind: "observe", op: "generation.observe", session_id: events[0] && "sessionId" in events[0] ? events[0].sessionId : undefined, attrs: { runtime_generation: 1, issuer_id: "ahp_adapter_fixture", runtime_id: "vscode-agent-host", note: "AHP public surface has no portable RuntimeGeneration; fixture stamps gen=1 for probe only", field_provenance: { ts: "derived", runtime_generation: "derived" } } });
+  next({ kind: "ok", op: "session.attach", session_id: events[0] && "sessionId" in events[0] ? events[0].sessionId : undefined, actor_id: "adapter", attrs: { mode: "fixture", fidelity: "reconstructed", protocol: "AHP", field_provenance: { ts: "derived" } } });
   for (const ev of events) {
     if (ev.type === "client_subscribe") next({ kind: "observe", op: "session.attach", session_id: ev.sessionId, actor_id: ev.clientId, attrs: { client_id: ev.clientId, server_seq: ev.serverSeq }, note: "ahp multi-client subscribe" });
     else if (ev.type === "state_envelope") next({ kind: "observe", op: "session.attach", session_id: ev.sessionId, attrs: { server_seq: ev.serverSeq, action: ev.action, origin_client_id: ev.originClientId }, note: "ahp serverSeq envelope" });
