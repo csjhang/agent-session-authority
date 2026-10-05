@@ -345,10 +345,22 @@ export const check_auth02: Checker = (ctx) => {
   }
 
   // No violation and no supported committed evidence
-  const unlinked_note =
-    inconclusive_witnesses.length > 0
-      ? ` Committed effect not linked to any action.bind (binding=unlinked); witness_seqs=[${[...new Set(inconclusive_witnesses)].sort((a, b) => a - b).join(",")}].`
+  // inconclusive_witnesses mixes (a) committed unlinked receipts and (b) non-committed
+  // receipts (unknown/rejected/...), which may be properly bound. Describe each group separately.
+  const unlinked_set = new Set(unlinked_witnesses);
+  const not_committed_seqs = [...new Set(inconclusive_witnesses.filter((s) => !unlinked_set.has(s)))].sort(
+    (a, b) => a - b,
+  );
+  const unlinked_seqs = [...unlinked_set].sort((a, b) => a - b);
+  const not_committed_note =
+    not_committed_seqs.length > 0
+      ? ` Receipt(s) with an outcome other than committed (no effect confirmed); witness_seqs=[${not_committed_seqs.join(",")}].`
       : "";
+  const committed_unlinked_note =
+    unlinked_seqs.length > 0
+      ? ` Committed effect not linked to any action.bind (binding=unlinked); witness_seqs=[${unlinked_seqs.join(",")}].`
+      : "";
+  const unlinked_note = not_committed_note + committed_unlinked_note;
   if (!saw_committed || saw_unlinked_only) {
     return [
       finding(
