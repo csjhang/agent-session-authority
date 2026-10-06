@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/csjhang/agent-session-authority/spec/auth08-disclosures.schema.json",
+  "title": "Auth08TargetDisclosures",
+  "description": "ASA AUTH-08 disclosure corpus for one pinned target. Path convention: targets/<target>/disclosures.json. Distinct from vendor profile known_bypasses / coverage_boundary (self-declaration). Minimal valid example: {\"target\":\"example\",\"pinned_version\":\"0.0.0\",\"entries\":[]}. Checker must not fetch URLs; verification.* is filled by a separate offline script (not CI).",
+  "type": "object",
+  "required": ["target", "pinned_version", "entries"],
+  "properties": {
+    "target": {
+      "type": "string",
+      "description": "Target id matching targets/<target>/ (e.g. claude-agent-acp)."
+    },
+    "pinned_version": {
+      "type": "string",
+      "description": "Version pinned for assessment (e.g. claude-agent-acp 0.75.1)."
+    },
+    "entries": {
+      "type": "array",
+      "description": "One row per factual disclosure excerpt. Design seed rows stay verification.status=unverified until a later PR.",
+      "items": {
+        "type": "object",
+        "required": [
+          "bypass_path_id",
+          "quote",
+          "url",
+          "retrieved",
+          "section",
+          "doc_product_version",
+          "version_relationship",
+          "kind",
+          "verification"
+        ],
+        "properties": {
+          "bypass_path_id": {
+            "type": "string",
+            "description": "Stable bypass path id (e.g. mode:bypassPermissions, client:fs_write_text_file)."
+          },
+          "quote": {
+            "type": "string",
+            "description": "Continuous verbatim page fragment; ≤25 English words (not characters). No paraphrase or abbreviation."
+          },
+          "url": {
+            "type": "string",
+            "description": "Canonical public URL of the page the quote was taken from."
+          },
+          "retrieved": {
+            "type": "string",
+            "description": "ISO date or date+zone when the quote was taken (e.g. 2026-10-06 Asia/Taipei)."
+          },
+          "section": {
+            "type": "string",
+            "description": "Heading or anchor on the page locating the quote."
+          },
+          "doc_product_version": {
+            "type": "string",
+            "description": "Product/doc version the page describes, if known; else undated-page or equivalent."
+          },
+          "version_relationship": {
+            "type": "string",
+            "description": "How doc_product_version relates to pinned_version. If unmappable, write literally that it cannot be mapped / 「無法對應」."
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["bypass", "coverage_boundary", "e2e_claim", "anti_e2e"],
+            "description": "bypass | coverage_boundary | e2e_claim | anti_e2e."
+          },
+          "verification": {
+            "type": "object",
+            "required": ["status"],
+            "description": "Offline citation check result. Checker reads this only; does not network.",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": ["unverified", "found", "not_found"],
+                "description": "unverified until offline script runs; found if quote ⊆ page; not_found on drift/miss."
+              },
+              "verified_at": {
+                "type": "string",
+                "description": "When the offline script last checked (optional until verified)."
+              },
+              "notes": {
+                "type": "string",
+                "description": "Optional verifier notes (e.g. truncated seed quote was wrong vs full sentence)."
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

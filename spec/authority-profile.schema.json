@@ -33,7 +33,7 @@
       "additionalProperties": {
         "type": "string"
       },
-      "description": "Map of \"action_type|target\" \u2192 scope_id."
+      "description": "Map of \"action_type|target\" → scope_id."
     },
     "scope_map": {
       "type": "array",
@@ -64,11 +64,11 @@
       "items": {
         "type": "string"
       },
-      "description": "Documented bypasses / out-of-band paths."
+      "description": "Vendor self-declaration of documented bypasses / out-of-band paths (string list). Distinct from ASA AUTH-08 disclosure files at targets/<target>/disclosures.json (see spec/auth08-disclosures.schema.json)."
     },
     "coverage_boundary": {
       "type": "string",
-      "description": "What the profile does and does not cover."
+      "description": "Vendor self-declaration of what the profile does and does not cover. Distinct from ASA AUTH-08 disclosure records (kind=coverage_boundary rows in targets/<target>/disclosures.json)."
     },
     "terminal_rules": {
       "type": "object",
@@ -89,5 +89,12 @@
       "type": "string"
     }
   },
-  "additionalProperties": true
+  "additionalProperties": true,
+  "known_bypasses": {
+    "type": "array",
+    "items": {
+      "type": "string"
+    },
+    "description": "Vendor self-declaration of documented bypasses / out-of-band paths (string list). Distinct from ASA AUTH-08 disclosure files at targets/<target>/disclosures.json (see spec/auth08-disclosures.schema.json)."
+  }
 }
