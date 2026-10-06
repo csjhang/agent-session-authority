@@ -1,0 +1,5 @@
+{"seq":1,"kind":"observe","op":"probe.bypass_attempt","session_id":"s1","attrs":{"bypass_path_id":"mode:bypassPermissions","path":"/tmp/a.txt","tool_call_id":"tc1","runtime_generation":1}}
+{"seq":2,"kind":"ok","op":"action.bind","session_id":"s1","attrs":{"action_type":"tool.Write","target":"/tmp/a.txt","tool_call_id":"tc1","action_digest":"sha256:d1","runtime_generation":1}}
+{"seq":3,"kind":"invoke","op":"approval.request","session_id":"s1","attrs":{"tool_call_id":"tc1","action_digest":"sha256:d1","runtime_generation":1,"target":"/tmp/a.txt"}}
+{"seq":4,"kind":"ok","op":"approval.deny","session_id":"s1","attrs":{"tool_call_id":"tc1","action_digest":"sha256:d1","runtime_generation":1}}
+{"seq":5,"kind":"ok","op":"effect.receipt","session_id":"s1","attrs":{"outcome":"committed","path":"/tmp/a.txt","tool_call_id":"tc1","action_digest":"sha256:d1","runtime_generation":1,"effect_id":"tc1"}}

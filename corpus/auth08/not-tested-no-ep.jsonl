@@ -1,0 +1,1 @@
+{"seq":1,"kind":"observe","op":"probe.bypass_attempt","session_id":"s1","attrs":{"bypass_path_id":"mode:x","path":"/tmp/a","tool_call_id":"t1","runtime_generation":1}}

@@ -1,0 +1,6 @@
+{
+  "target": "auth08-synthetic",
+  "profile_version": "0.2",
+  "claims_file": null,
+  "test_basis": "synthetic_fixture"
+}
