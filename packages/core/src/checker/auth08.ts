@@ -24,7 +24,9 @@ export type ReceiptAskClass =
   | "unmappable"
   | "standing_cross_gen"
   | "standing_unscoped"
+  | "standing_gen_unknown"
   | "bypass"
+  | "bypass_path_id_mismatch"
   | "skipped_replay";
 
 export interface ExaminedReceipt {
@@ -36,6 +38,8 @@ export interface ExaminedReceipt {
   grant_seq?: number;
   attempt_seq?: number;
   bypass_path_id?: string;
+  /** Attempt's bypass_path_id when classification is bypass_path_id_mismatch. */
+  attempt_bypass_path_id?: string;
 }
 
 function is_replay(ev: HistoryEvent): boolean {
@@ -249,56 +253,74 @@ export function classify_committed_receipt(
     };
   }
 
-  // A4: no request → allow_always then attempt correlation
+  // A4: no request → scan ALL same-session allow_always grants, then attempt correlation
   const grants = find_allow_always_grants(events, receipt);
   const effect_gen = num(a.runtime_generation);
   const effect_type = effect_action_type(receipt, maps);
 
+  let covered: { grant: (typeof grants)[number] } | undefined;
+  let uncertain:
+    | { grant: (typeof grants)[number]; kind: "standing_gen_unknown" | "standing_cross_gen" | "standing_unscoped" }
+    | undefined;
+
   for (const g of grants) {
     const ga = attrs(g);
     const grant_gen = num(ga.runtime_generation);
-    if (
-      effect_gen !== undefined &&
-      grant_gen !== undefined &&
-      grant_gen !== effect_gen
-    ) {
-      return {
-        ...base,
-        classification: "standing_cross_gen",
-        grant_seq: g.seq,
-      };
-    }
-    // same gen (or either gen missing — treat as same anonymous stream only if both missing or equal)
-    const same_gen =
-      effect_gen === undefined ||
-      grant_gen === undefined ||
-      grant_gen === effect_gen;
-    if (!same_gen) continue;
-
     const g_type = grant_action_type(g, maps);
-    if (!g_type || !effect_type) {
-      return {
-        ...base,
-        classification: "standing_unscoped",
-        grant_seq: g.seq,
-      };
+    const both_gen_known = effect_gen !== undefined && grant_gen !== undefined;
+    const same_gen = both_gen_known && grant_gen === effect_gen;
+    const both_types_known = g_type !== undefined && effect_type !== undefined;
+
+    // Covered: same gen (both known) AND both action_type known and equal
+    if (same_gen && both_types_known && g_type === effect_type) {
+      covered = { grant: g };
+      break;
     }
-    if (g_type === effect_type) {
-      return {
-        ...base,
-        classification: "standing_authorization",
-        grant_seq: g.seq,
-      };
+    // Not covered: both action_type known but different (regardless of generation)
+    if (both_types_known && g_type !== effect_type) {
+      continue;
     }
-    // different known types → not covering; continue
+    // Uncertain: everything else (gen different/unknown, action_type unknown)
+    if (!uncertain) {
+      let kind: "standing_gen_unknown" | "standing_cross_gen" | "standing_unscoped";
+      if (!both_gen_known) {
+        kind = "standing_gen_unknown";
+      } else if (grant_gen !== effect_gen) {
+        kind = "standing_cross_gen";
+      } else {
+        kind = "standing_unscoped";
+      }
+      uncertain = { grant: g, kind };
+    }
   }
 
-  const corr = correlate_attempt(attempts, receipt);
+  // Correlate attempt early so standing/uncertain axes still link attempt_seq
+  // (effect-without-ask uses examined.attempt_seq).
+  const corr_early = correlate_attempt(attempts, receipt);
+  const linked_attempt_seq =
+    corr_early.status === "ok" ? corr_early.attempt!.seq : undefined;
+
+  if (covered) {
+    return {
+      ...base,
+      classification: "standing_authorization",
+      grant_seq: covered.grant.seq,
+      attempt_seq: linked_attempt_seq,
+    };
+  }
+  if (uncertain) {
+    return {
+      ...base,
+      classification: uncertain.kind,
+      grant_seq: uncertain.grant.seq,
+      attempt_seq: linked_attempt_seq,
+    };
+  }
+  // all Not covered → normal bypass / correlation flow
+
+  const corr = corr_early;
   if (corr.status === "ambiguous" || corr.status === "none") {
-    // Unmappable only when no request AND cannot uniquely correlate (A)
-    // But receipt may already carry bypass_path_id — still need unique attempt? Plan f says
-    // missing bypass_path_id → inconclusive. If receipt has bypass_path_id and no attempt needed
-    // for id, we can still classify as bypass.
+    // Receipt may carry bypass_path_id with no linked attempt.
     const receipt_path_id = str(a.bypass_path_id);
     if (receipt_path_id && corr.status === "none") {
       return {
@@ -315,8 +337,22 @@ export function classify_committed_receipt(
   }
 
   const attempt = corr.attempt!;
-  const bypass_path_id =
-    str(a.bypass_path_id) ?? str(attrs(attempt).bypass_path_id);
+  const receipt_path_id = str(a.bypass_path_id);
+  const attempt_path_id = str(attrs(attempt).bypass_path_id);
+  if (
+    receipt_path_id !== undefined &&
+    attempt_path_id !== undefined &&
+    receipt_path_id !== attempt_path_id
+  ) {
+    return {
+      ...base,
+      classification: "bypass_path_id_mismatch",
+      attempt_seq: attempt.seq,
+      bypass_path_id: receipt_path_id,
+      attempt_bypass_path_id: attempt_path_id,
+    };
+  }
+  const bypass_path_id = receipt_path_id ?? attempt_path_id;
   return {
     ...base,
     classification: "bypass",
@@ -354,7 +390,8 @@ export function count_asked(examined: ExaminedReceipt[]): number {
 
 type AttemptClass = "asked" | "effect_without_ask" | "not_executed";
 
-function classify_attempt(
+/** Exported for unit tests: attempt asked / effect_without_ask / not_executed. */
+export function classify_bypass_attempt(
   events: HistoryEvent[],
   attempt: HistoryEvent,
   examined: ExaminedReceipt[],
@@ -364,7 +401,7 @@ function classify_attempt(
   const path = str(a.path);
   const attempt_gen = num(a.runtime_generation);
 
-  // With tool_call_id: approval.request with that id → asked
+  // With tool_call_id: non-replay approval.request with that id → asked
   if (tool) {
     const has_req = events.some(
       (ev) =>
@@ -389,31 +426,13 @@ function classify_attempt(
     if (has_path_req) return "asked";
   }
 
-  // Effect without ask: a examined receipt correlated to this attempt classified bypass
+  // Effect without ask = ANY examined receipt linked to this attempt (same attempt_seq)
+  // whose classification is NOT asked (PR-11d: attempt may carry tool_call_id while
+  // ACP disk-check receipt has only path).
   const linked = examined.some(
-    (ex) =>
-      ex.attempt_seq === attempt.seq &&
-      (ex.classification === "bypass" ||
-        ex.classification === "standing_authorization" ||
-        ex.classification === "standing_cross_gen" ||
-        ex.classification === "standing_unscoped" ||
-        ex.classification === "request_after_effect" ||
-        ex.classification === "unmappable"),
+    (ex) => ex.attempt_seq === attempt.seq && ex.classification !== "asked",
   );
-  // Better: committed receipt correlates to this attempt
-  const has_effect = events.some((ev) => {
-    if (ev.op !== "effect.receipt" || is_replay(ev)) return false;
-    if (str(attrs(ev).outcome) !== "committed") return false;
-    const ea = attrs(ev);
-    if (tool && str(ea.tool_call_id) === tool) return true;
-    if (!tool && path && str(ea.path) === path) {
-      // uniqueness already implied for executed classification
-      return true;
-    }
-    return false;
-  });
-  if (has_effect) return "effect_without_ask";
-  void linked;
+  if (linked) return "effect_without_ask";
   return "not_executed";
 }
 
@@ -519,20 +538,42 @@ export const check_auth08: Checker = (ctx) => {
   const attempts = ctx.events.filter(
     (e) => e.op === "probe.bypass_attempt" && !is_replay(e),
   );
-  // Soft-check forbidden attrs (do not fail the run; corpus should not include them)
-  for (const at of attempts) {
-    const a = attrs(at);
+
+  // Forbidden attrs on any probe.* → AUTH-08 inconclusive (lists seq + attr)
+  const forbidden_hits: Array<{ seq: number; attr: string }> = [];
+  for (const pe of ctx.events) {
+    if (typeof pe.op !== "string" || !pe.op.startsWith("probe.") || is_replay(pe)) continue;
+    const a = attrs(pe);
     for (const k of FORBIDDEN_PROBE_ATTRS) {
-      if (k in a) {
-        // ignore — history adapter responsibility
+      if (Object.prototype.hasOwnProperty.call(a, k)) {
+        forbidden_hits.push({ seq: pe.seq, attr: k });
       }
     }
+  }
+  if (forbidden_hits.length > 0) {
+    const detail = forbidden_hits
+      .map((h) => `seq=${h.seq} attr=${h.attr}`)
+      .join("; ");
+    const text = join_unique_sentences([
+      `AUTH-08 inconclusive: probe.* event(s) carry forbidden attr(s): ${detail}.`,
+      mode_note(ctx.events),
+    ]);
+    return [
+      finding(
+        inv,
+        cs,
+        "inconclusive",
+        text,
+        uniq_sort(forbidden_hits.map((h) => h.seq)),
+        b,
+      ),
+    ];
   }
 
   const examined = examine_committed_receipts(ctx.events);
   const attempt_classes = attempts.map((at) => ({
     ev: at,
-    cls: classify_attempt(ctx.events, at, examined),
+    cls: classify_bypass_attempt(ctx.events, at, examined),
   }));
   const executed = attempt_classes.filter(
     (x) => x.cls === "asked" || x.cls === "effect_without_ask",
@@ -547,8 +588,12 @@ export const check_auth08: Checker = (ctx) => {
     return [finding(inv, cs, "inconclusive", text, [], b)];
   }
 
-  // 5. attempts but none executed
-  if (executed.length === 0) {
+  // 5. attempts but none executed AND no examined receipt needing AUTH-08 axes
+  // (ambiguous/unlinked receipts may lack attempt_seq; still examine them).
+  const examined_relevant = examined.filter(
+    (e) => e.classification !== "asked" && e.classification !== "skipped_replay",
+  );
+  if (executed.length === 0 && examined_relevant.length === 0) {
     const text = join_unique_sentences([
       "No bypass path was executed (asked or effect-without-ask). Idle attempts with no agent action do not count.",
       mode_note(ctx.events),
@@ -610,6 +655,26 @@ export const check_auth08: Checker = (ctx) => {
         text: `allow_always grant at seq=${ex.grant_seq} present but action_type unscoped on grant or effect; AUTH-08 treats this as inconclusive.`,
         witnesses: uniq_sort(
           ex.grant_seq !== undefined ? [ex.grant_seq, ex.seq] : [ex.seq],
+        ),
+      });
+      continue;
+    }
+    if (ex.classification === "standing_gen_unknown") {
+      axes.push({
+        label: "inconclusive",
+        text: `allow_always grant at seq=${ex.grant_seq} or effect seq=${ex.seq} has runtime_generation unknown; AUTH-08 cannot treat this as same-generation standing authorization.`,
+        witnesses: uniq_sort(
+          ex.grant_seq !== undefined ? [ex.grant_seq, ex.seq] : [ex.seq],
+        ),
+      });
+      continue;
+    }
+    if (ex.classification === "bypass_path_id_mismatch") {
+      axes.push({
+        label: "inconclusive",
+        text: `Receipt seq=${ex.seq} bypass_path_id=${ex.bypass_path_id} mismatches linked attempt seq=${ex.attempt_seq} bypass_path_id=${ex.attempt_bypass_path_id}; AUTH-08 treats this as inconclusive.`,
+        witnesses: uniq_sort(
+          ex.attempt_seq !== undefined ? [ex.seq, ex.attempt_seq] : [ex.seq],
         ),
       });
       continue;
@@ -731,10 +796,14 @@ export const check_auth08: Checker = (ctx) => {
     ]);
     witnesses = uniq_sort(disclosed.flatMap((d) => d.witnesses));
   } else {
-    // SUP_NO_BYPASS (override G)
+    // SUP_NO_BYPASS (override G); standing-aware wording (must-fix 5)
     const id_list = executed_ids.join(",") || "(none)";
+    const no_bypass_sentence =
+      standings.length > 0
+        ? `Executed bypass probes: ${id_list}. Every committed effect correlated to these attempts had a permission request (by tool call, or by path for client file writes) or was covered by a same-generation allow_always grant noted below; whether the outcome matched the decision is checked by AUTH-02.`
+        : `Executed bypass probes: ${id_list}. Every committed effect correlated to these attempts had a permission request (by tool call, or by path for client file writes); whether the outcome matched the decision is checked by AUTH-02.`;
     explanation = join_unique_sentences([
-      `Executed bypass probes: ${id_list}. Every committed effect correlated to these attempts had a permission request (by tool call, or by path for client file writes); whether the outcome matched the decision is checked by AUTH-02.`,
+      no_bypass_sentence,
       ...standings.map((s) => s.text),
       mode,
     ]);
