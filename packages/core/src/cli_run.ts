@@ -5,6 +5,7 @@ import { load_history_file } from "./history.js";
 import { load_profile } from "./declaration.js";
 import { default_assessment, load_assessment } from "./assessment.js";
 import { run_checkers } from "./index.js";
+import { load_auth08_disclosures } from "./auth08_disclosures.js";
 import { build_report, format_report } from "./report.js";
 
 export interface CliIo {
@@ -18,7 +19,7 @@ function resolve_cwd(cwd: string, p: string): string {
 }
 
 function usage_text(): string {
-  return "Usage: asa check <history.jsonl> [--assessment path] [--profile path] [--json]";
+  return "Usage: asa check <history.jsonl> [--assessment path] [--profile path] [--disclosures path] [--json]";
 }
 
 /**
@@ -42,6 +43,7 @@ export function run_cli(argv: string[], io: CliIo): number {
     const positional: string[] = [];
     let assessment_path: string | undefined;
     let profile_path: string | undefined;
+    let disclosures_path: string | undefined;
     let json_out = false;
     for (let i = 1; i < args.length; i++) {
       const a = args[i]!;
@@ -61,6 +63,15 @@ export function run_cli(argv: string[], io: CliIo): number {
           return 2;
         }
         profile_path = v;
+        continue;
+      }
+      if (a === "--disclosures") {
+        const v = args[++i];
+        if (v === undefined || v.startsWith("-")) {
+          io.stderr(`--disclosures requires a path value\n`);
+          return 2;
+        }
+        disclosures_path = v;
         continue;
       }
       if (a === "--json") {
@@ -115,7 +126,20 @@ export function run_cli(argv: string[], io: CliIo): number {
     }
     if (!assessment.test_basis) assessment.test_basis = "synthetic_fixture";
 
-    const findings = run_checkers(events, profile, assessment);
+    let auth08_disclosures = undefined;
+    if (disclosures_path !== undefined) {
+      const resolved_disc = resolve_cwd(io.cwd, disclosures_path);
+      try {
+        auth08_disclosures = load_auth08_disclosures(resolved_disc, {
+          target: assessment.target ?? "synthetic",
+        });
+      } catch (err) {
+        io.stderr(`${String(err)}\n`);
+        return 2;
+      }
+    }
+
+    const findings = run_checkers(events, profile, assessment, { auth08_disclosures });
     const report = build_report(findings, assessment, profile);
     if (json_out) {
       io.stdout(JSON.stringify(report, null, 2) + "\n");

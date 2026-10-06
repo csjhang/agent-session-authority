@@ -40,6 +40,8 @@ export const KNOWN_OPS = [
   "task.complete",
   "task.timeout",
   "task.reconcile",
+  "probe.permission_mode",
+  "probe.bypass_attempt",
 ] as const;
 
 export type KnownOpName = (typeof KNOWN_OPS)[number];

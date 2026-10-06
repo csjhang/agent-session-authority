@@ -22,18 +22,29 @@ const CHECKERS: Checker[] = [
   check_auth08,
 ];
 
+export interface RunCheckersOptions {
+  auth08_disclosures?: import("./auth08_disclosures.js").Auth08Disclosures;
+}
+
 export function run_checkers(
   events: HistoryEvent[],
   profile: AuthorityProfile | null,
   assessment: AuthorityAssessment,
+  options?: RunCheckersOptions,
 ): CheckFinding[] {
-  const ctx: CheckerContext = { events, profile, assessment };
+  const ctx: CheckerContext = {
+    events,
+    profile,
+    assessment,
+    auth08_disclosures: options?.auth08_disclosures,
+  };
   const out: CheckFinding[] = [];
   for (const check of CHECKERS) out.push(...check(ctx));
   return out;
 }
 
 export * from "./history.js";
+export * from "./auth08_disclosures.js";
 export * from "./declaration.js";
 export * from "./assessment.js";
 export * from "./report.js";
@@ -46,3 +57,11 @@ export {
   KNOWN_INVARIANTS,
   INVARIANT_PARENTS,
 } from "./checker/index.js";
+export {
+  check_auth08,
+  examine_committed_receipts,
+  count_never_asked,
+  count_unmappable,
+  count_asked,
+  AUTH08_NT_SETUP,
+} from "./checker/auth08.js";

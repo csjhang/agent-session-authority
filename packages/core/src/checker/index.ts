@@ -3,7 +3,7 @@ import type { AuthorityProfile, ClaimStatus } from "../declaration.js";
 import { claimed_set } from "../declaration.js";
 import type { AuthorityAssessment, CheckFinding, ResultLabel, TestBasis } from "../assessment.js";
 
-/** Spec invariants vendors may claim (AUTH-08 has no checker but is in the profile). */
+/** Spec invariants vendors may claim (including AUTH-08). */
 export const KNOWN_INVARIANTS = [
   "AUTH-01a",
   "AUTH-01b",
@@ -26,6 +26,8 @@ export interface CheckerContext {
   events: HistoryEvent[];
   profile: AuthorityProfile | null;
   assessment: AuthorityAssessment;
+  /** Runtime-only AUTH-08 disclosures (override D); never persisted in assessment files. */
+  auth08_disclosures?: import("../auth08_disclosures.js").Auth08Disclosures;
 }
 
 export type Checker = (ctx: CheckerContext) => CheckFinding[];
