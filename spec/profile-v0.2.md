@@ -110,12 +110,13 @@ Order (prefer `inconclusive` over a wrong `violation`):
 
 1. Empty history → `not_tested`.
 2. No `auth08.enforcement_point` → `not_tested` (NT_SETUP).
-3. EP present but zero `probe.bypass_attempt` events → `inconclusive` (disclosure-only).
-4. Attempts exist but none executed (asked or effect-without-ask) → `inconclusive` (idle attempts do not count).
-5. For each committed non-replay receipt: find this effect's own permission request first (by `tool_call_id`, else by path). Request before effect → asked (not AUTH-08 bypass; stop — do not check `allow_always`). Request only after → inconclusive. No request → check same-session/same-generation `allow_always` (standing auth) then uniquely correlate a probe attempt for `bypass_path_id`.
-6. Disclosure match (exact `bypass_path_id`; only `verification.status=found` supports `supported` / e2e violation): no records in a **loaded** file → `violation` (`undisclosed_bypass`); found `e2e_claim` → `violation` (`e2e_claim_with_bypass`); non-found e2e → `inconclusive` (blocks other found non-e2e); found non-e2e → disclosed ok; else → `inconclusive`. Disclosures **not loaded** + observed bypass → `inconclusive` (never `undisclosed_bypass`).
-7. Aggregate: any violation → `violation`; else any inconclusive → `inconclusive`; else `supported`.
-8. Claim rewrite via `finding()` unchanged.
+3. Any non-replay `probe.*` event carries a forbidden attr → `inconclusive` (lists seq + attr).
+4. EP present but zero `probe.bypass_attempt` events → `inconclusive` (disclosure-only).
+5. Attempts exist but none executed (asked or effect-without-ask) → `inconclusive` (idle attempts do not count).
+6. For each committed non-replay receipt: find this effect's own permission request first (by `tool_call_id`, else by path). Path-asked matches require same session; when both sides have `runtime_generation`, they must be equal — a generation missing on either side does not exclude the match. Request before effect → asked (not AUTH-08 bypass; stop — do not check `allow_always`). Request only after → inconclusive. No request → scan all same-session `allow_always` grants (standing auth) then uniquely correlate a probe attempt for `bypass_path_id`.
+7. Disclosure match (exact `bypass_path_id`; only `verification.status=found` supports `supported` / e2e violation): no records in a **loaded** file → `violation` (`undisclosed_bypass`); found `e2e_claim` → `violation` (`e2e_claim_with_bypass`); non-found e2e → `inconclusive` (blocks other found non-e2e); found non-e2e → disclosed ok; else → `inconclusive`. Disclosures **not loaded** + observed bypass → `inconclusive` (never `undisclosed_bypass`).
+8. Aggregate: any violation → `violation`; else any inconclusive → `inconclusive`; else `supported`.
+9. Claim rewrite via `finding()` unchanged.
 
 `reproducible`: `observed_result !== "not_tested"`.
 
