@@ -1,0 +1,2 @@
+{"seq":1,"kind":"ok","op":"action.bind","session_id":"s1","attrs":{"action_type":"tool.Write","target":"/w/a.txt","tool_call_id":"tc0","action_digest":"d0","runtime_generation":1}}
+{"seq":2,"kind":"observe","op":"probe.bypass_attempt","session_id":"s2","attrs":{"bypass_path_id":"client:fs","path":"/w/a.txt","runtime_generation":1}}

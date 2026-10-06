@@ -8736,6 +8736,342 @@
     "result": "not_tested"
   },
   {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-01a",
+    "test_basis": "research_profile",
+    "observed_result": "not_declared",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-01a",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "not_declared",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-01b",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-01b",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-01c",
+    "test_basis": "research_profile",
+    "observed_result": "not_declared",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-01c",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "not_declared",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-02",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-02",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-03a",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-03a",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-03b",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-03b",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-03c",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-03c",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-04",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-04",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-05",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-05",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-06",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-06",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-07",
+    "test_basis": "research_profile",
+    "observed_result": "supported",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-07",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "supported",
+    "result": "supported"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-08",
+    "test_basis": "research_profile",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-gen.jsonl",
+    "invariant": "AUTH-08",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-01a",
+    "test_basis": "research_profile",
+    "observed_result": "not_declared",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-01a",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "not_declared",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-01b",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-01b",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-01c",
+    "test_basis": "research_profile",
+    "observed_result": "not_declared",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-01c",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "not_declared",
+    "result": "not_declared"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-02",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-02",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-03a",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-03a",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-03b",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-03b",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-03c",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-03c",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-04",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-04",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-05",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-05",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-06",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-06",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-07",
+    "test_basis": "research_profile",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-07",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "inconclusive",
+    "result": "inconclusive"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-08",
+    "test_basis": "research_profile",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
+    "file": "corpus/auth08/inconclusive-path-attempt-bind-diff-session.jsonl",
+    "invariant": "AUTH-08",
+    "test_basis": "synthetic_fixture",
+    "observed_result": "not_tested",
+    "result": "not_tested"
+  },
+  {
     "file": "corpus/auth08/inconclusive-replay-receipt-no-request.jsonl",
     "invariant": "AUTH-01a",
     "test_basis": "research_profile",

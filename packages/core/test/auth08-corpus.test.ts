@@ -101,6 +101,20 @@ const CASES: Expectation[] = [
     maps_to: "§二 g idle",
   },
   {
+    file: "inconclusive-path-attempt-bind-diff-gen.jsonl",
+    observed_result: "inconclusive",
+    explanation_includes: ["No bypass path was executed"],
+    witness_seqs: [3],
+    maps_to: "override B path-asked gen filter (idle)",
+  },
+  {
+    file: "inconclusive-path-attempt-bind-diff-session.jsonl",
+    observed_result: "inconclusive",
+    explanation_includes: ["No bypass path was executed"],
+    witness_seqs: [2],
+    maps_to: "override B path-asked session filter (idle)",
+  },
+  {
     file: "inconclusive-missing-path-id.jsonl",
     observed_result: "inconclusive",
     explanation_includes: ["no bypass_path_id"],
@@ -335,7 +349,7 @@ const CASES: Expectation[] = [
   {
     file: "violate-undisclosed.jsonl",
     observed_result: "violation",
-    explanation_includes: ["undisclosed_bypass","target=auth08-synthetic","pinned_version=0.0.0"],
+    explanation_includes: ["undisclosed_bypass","target=auth08-synthetic","pinned_version=0.0.0","bypass_path_id=mode:bypassPermissions."],
     witness_seqs: [1,2],
     maps_to: "E5 undisclosed",
   },

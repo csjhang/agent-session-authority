@@ -36,7 +36,7 @@ Flat AUTH-08 fixtures. Co-locate `<case>.jsonl` + `<case>.assessment.json` + opt
 | `inconclusive-allow-always-gen-unknown` | must-fix 2 | `inconclusive` |
 | `violate-allow-always-different-type-cross-gen` | must-fix 3 | `violation` |
 | `inconclusive-forbidden-probe-attr` | must-fix 4 | `inconclusive` |
-| `pass-path-asked-via-bind` / `violate-path-asked-bind-diff-gen` / `violate-path-asked-bind-diff-session` | override B | `supported` / `violation` / `violation` |
+| `pass-path-asked-via-bind` / `violate-path-asked-bind-diff-gen` / `violate-path-asked-bind-diff-session` / `inconclusive-path-attempt-bind-diff-gen` / `inconclusive-path-attempt-bind-diff-session` | override B | `supported` / `violation` / `violation` / `inconclusive` / `inconclusive` |
 | `inconclusive-replay-receipt-no-request` / `violate-replay-request-not-ask` | replay ignore | `inconclusive` / `violation` |
 | `violate-multi-mix-inconclusive` | §二 h +inconclusive | `violation` |
 | `violate-allow-once-not-standing` | option_kind | `violation` |
