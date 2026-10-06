@@ -1,0 +1,3 @@
+{"seq":1,"kind":"observe","op":"probe.bypass_attempt","session_id":"s1","attrs":{"bypass_path_id":"client:fs_write_text_file","path":"/tmp/e9.txt","runtime_generation":1}}
+{"seq":2,"kind":"ok","op":"action.bind","session_id":"s1","attrs":{"action_type":"tool.Write","target":"/tmp/e9.txt","action_digest":"sha256:d1","runtime_generation":1}}
+{"seq":3,"kind":"ok","op":"effect.receipt","session_id":"s1","attrs":{"outcome":"committed","path":"/tmp/e9.txt","runtime_generation":1,"effect_id":"fs1"}}

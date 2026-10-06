@@ -94,6 +94,41 @@ describe("load_auth08_disclosures", () => {
     );
   });
 
+
+  it("rejects pinned_version mismatch when expect.pinned_version set", () => {
+    const p = write_tmp({
+      target: "synthetic",
+      pinned_version: "0.0.0",
+      entries: [],
+    });
+    expect(() =>
+      load_auth08_disclosures(p, { target: "synthetic", pinned_version: "9.9.9" }),
+    ).toThrow(/disclosures pinned_version mismatch: file=0\.0\.0 expect=9\.9\.9/);
+  });
+
+  it("accepts matching pinned_version when expect.pinned_version set", () => {
+    const p = write_tmp({
+      target: "synthetic",
+      pinned_version: "0.0.0",
+      entries: [{ ...base_entry, quote: words(3) }],
+    });
+    const d = load_auth08_disclosures(p, {
+      target: "synthetic",
+      pinned_version: "0.0.0",
+    });
+    expect(d.pinned_version).toBe("0.0.0");
+  });
+
+  it("skips pinned_version check when expect.pinned_version omitted (CLI shape)", () => {
+    const p = write_tmp({
+      target: "synthetic",
+      pinned_version: "0.0.0",
+      entries: [],
+    });
+    const d = load_auth08_disclosures(p, { target: "synthetic" });
+    expect(d.pinned_version).toBe("0.0.0");
+  });
+
   it("rejects empty bypass_path_id after trim", () => {
     const p = write_tmp({
       target: "synthetic",

@@ -32,4 +32,15 @@ Flat AUTH-08 fixtures. Co-locate `<case>.jsonl` + `<case>.assessment.json` + opt
 | `inconclusive-ambiguous-path` | must-fix 6 | `inconclusive` |
 | `violate-case-mismatch` | §二 c | `violation` |
 
+| `violate-path-only-receipt-undisclosed` / `pass-path-only-receipt-disclosed` | must-fix 1 PR-11d | `violation` / `supported` |
+| `inconclusive-allow-always-gen-unknown` | must-fix 2 | `inconclusive` |
+| `violate-allow-always-different-type-cross-gen` | must-fix 3 | `violation` |
+| `inconclusive-forbidden-probe-attr` | must-fix 4 | `inconclusive` |
+| `pass-path-asked-via-bind` / `violate-path-asked-bind-diff-gen` / `violate-path-asked-bind-diff-session` | override B | `supported` / `violation` / `violation` |
+| `inconclusive-replay-receipt-no-request` / `violate-replay-request-not-ask` | replay ignore | `inconclusive` / `violation` |
+| `violate-multi-mix-inconclusive` | §二 h +inconclusive | `violation` |
+| `violate-allow-once-not-standing` | option_kind | `violation` |
+| `violate-receipt-bypass-id-unlinked` | receipt path_id unlinked | `violation` |
+| `inconclusive-bypass-path-id-mismatch` | must-fix 6 | `inconclusive` |
+
 Expectations live in `packages/core/test/auth08-corpus.test.ts` (explicit table; do not infer from filename alone).
