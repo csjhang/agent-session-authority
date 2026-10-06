@@ -101,9 +101,14 @@ These keys appear under `attrs` and are consumed by checkers / vocabulary types.
 
 ### AUTH-08 history notes
 
-- History records **observation only**. Do **not** introduce `enforcement_point_seen`; the future AUTH-08 checker derives "no permission request for this tool call" from missing `approval.request` / target permission events correlated to that tool call.
-- Probe-selected permission mode is a **separate** event (or session attribute event) marked via `field_provenance` as probe-set (`derived`). That mark distinguishes probe-chosen vs target-inherent bypass; it is not itself a violation.
-- Optional `bypass_path_id` is an observation attribute only (see attrs table). See `spec/profile-v0.2.md` AUTH-08.
+- History records **observation only**. Do **not** introduce `enforcement_point_seen`; the AUTH-08 checker derives "no permission request for this tool call" from missing `approval.request` / target permission events correlated to that tool call (or by path for client `fs/write_text_file`).
+- New ops (kind **`observe`** only):
+  - `probe.permission_mode` — attrs: `permission_mode` (string); optional top-level `session_id`. `field_provenance.permission_mode=derived`. Explanation only; does not change the verdict label.
+  - `probe.bypass_attempt` — attrs: `bypass_path_id`, `path` (path the probe asked to write), optional `tool_call_id`, optional `runtime_generation` in attrs; top-level `session_id`. All listed attrs → `derived`. **No** `outcome` on attempts. Checker derives asked / effect-without-ask / not-executed from `approval.request` + committed effects.
+- **Forbidden attrs on `probe.*`:** `terminal`, `terminal_kind`, `status`, `outcome`, `effect_id`, `task_id`, `action_digest` (other checkers read some of these). Any such attr on a non-replay `probe.*` event makes AUTH-08 `inconclusive`.
+- Path correlation: primary key `tool_call_id`. Path-only (E9 ACP `fs/write_text_file`): attempt↔effect path uniqueness (exactly one attempt); "asked" if same session+generation has non-replay `action.bind` / `approval.request` whose **target** equals the attempt path (exact equality; checker does not normalize).
+- Standing `allow_always` covers an effect only within the same `runtime_generation` and the same `action_type` (both known). A grant whose `action_type` is known and different never covers it; a different or unknown generation, or an unknown `action_type`, makes AUTH-08 `inconclusive` for that effect.
+- Optional `bypass_path_id` on `effect.receipt` is observation-only (see attrs table). See `spec/profile-v0.2.md` AUTH-08.
 
 ## Validation rules (parser)
 

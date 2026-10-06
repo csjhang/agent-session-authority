@@ -12,6 +12,7 @@ Handwritten pass/violate JSONL histories for checkers, plus ACP-shaped regenerat
 | auth06 | AUTH-06 | pass.jsonl, violate.jsonl, violate-noncommitted-receipt.jsonl |
 | auth07 | AUTH-07 | pass.jsonl, violate.jsonl, violate-markerfree.jsonl, violate-late-commit-after-restart.jsonl, violate-reconcile-required-missing.jsonl |
 | acp-shaped | AUTH-02 (+ AUTH-01b note) | a1–a7 JSONL via `scripts/generate-acp-shaped-corpus.ts` |
+| auth08 | AUTH-08 | flat `pass-*` / `violate-*` / `inconclusive-*` / `not-tested-*` (+ `e6-deny-then-write`); co-located `.assessment.json` / `.disclosures.json` — see `auth08/README.md` |
 
 Use (from repo root): `pnpm asa -- check corpus/<dir>/pass.jsonl --profile corpus/<dir>/profile.json`
 

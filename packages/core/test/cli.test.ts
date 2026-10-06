@@ -263,3 +263,122 @@ describe("CLI via symlink/junction entry (realpath)", () => {
     }
   });
 });
+
+describe("run_cli --disclosures (AUTH-08)", () => {
+  const hist = path.join(repo_root, "corpus/auth08/violate-undisclosed.jsonl");
+  const assessment = path.join(repo_root, "corpus/auth08/violate-undisclosed.assessment.json");
+  const profile = path.join(repo_root, "corpus/auth08/profile.json");
+  const disclosures = path.join(repo_root, "corpus/auth08/violate-undisclosed.disclosures.json");
+
+  it("valid --disclosures → AUTH-08 violation, exit 1", () => {
+    const { code, stdout } = capture_run(
+      [
+        "node",
+        "asa",
+        "check",
+        hist,
+        "--assessment",
+        assessment,
+        "--profile",
+        profile,
+        "--disclosures",
+        disclosures,
+        "--json",
+      ],
+      repo_root,
+    );
+    expect(code).toBe(1);
+    const report = JSON.parse(stdout);
+    const auth08 = report.findings.find((f: { invariant: string }) => f.invariant === "AUTH-08");
+    expect(auth08?.observed_result).toBe("violation");
+    expect(auth08?.explanation).toMatch(/undisclosed_bypass/);
+    expect(auth08?.explanation).toMatch(
+      /have no entry for bypass_path_id=[^\s.]+\./,
+    );
+  });
+
+  it("--disclosures with 26-word quote → exit 2", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "asa-cli-disc-"));
+    const bad = path.join(dir, "disc.json");
+    const words = Array.from({ length: 26 }, (_, i) => `w${i + 1}`).join(" ");
+    fs.writeFileSync(
+      bad,
+      JSON.stringify({
+        target: "auth08-synthetic",
+        pinned_version: "0.0.0",
+        entries: [
+          {
+            bypass_path_id: "mode:bypassPermissions",
+            quote: words,
+            url: "https://example.invalid/docs",
+            retrieved: "2026-10-06 Asia/Taipei",
+            section: "Permission modes",
+            doc_product_version: "0.0.0",
+            version_relationship: "matches pinned_version",
+            kind: "bypass",
+            verification: { status: "found" },
+          },
+        ],
+      }),
+      "utf8",
+    );
+    const { code, stderr } = capture_run(
+      [
+        "node",
+        "asa",
+        "check",
+        hist,
+        "--assessment",
+        assessment,
+        "--profile",
+        profile,
+        "--disclosures",
+        bad,
+      ],
+      repo_root,
+    );
+    expect(code).toBe(2);
+    expect(stderr).toMatch(/quote exceeds 25 English words/);
+  });
+
+  it("--disclosures target mismatch → exit 2", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "asa-cli-disc-"));
+    const bad = path.join(dir, "disc.json");
+    fs.writeFileSync(
+      bad,
+      JSON.stringify({
+        target: "other-target",
+        pinned_version: "0.0.0",
+        entries: [],
+      }),
+      "utf8",
+    );
+    const { code, stderr } = capture_run(
+      [
+        "node",
+        "asa",
+        "check",
+        hist,
+        "--assessment",
+        assessment,
+        "--profile",
+        profile,
+        "--disclosures",
+        bad,
+      ],
+      repo_root,
+    );
+    expect(code).toBe(2);
+    expect(stderr).toMatch(/disclosures target mismatch/);
+  });
+
+  it("--disclosures without value → exit 2", () => {
+    const { code, stderr } = capture_run(
+      ["node", "asa", "check", hist, "--disclosures"],
+      repo_root,
+    );
+    expect(code).toBe(2);
+    expect(stderr).toMatch(/--disclosures requires a path value/);
+  });
+});
+

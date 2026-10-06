@@ -123,7 +123,7 @@ export const ACP_LIVE: LiveConfig = {
     "AUTH-01c": "probe-derived: the only generation issuer in live history is the adapter itself (acp_adapter_live)",
     "AUTH-06":
       "not examined: claude-agent-acp has no effect receipts of its own and reports tool completion before the probe checks the disk, so AUTH-06 (success only after a committed receipt) would flag every write by construction; whether its completed/failed reports match the disk is checked under AUTH-07",
-    "AUTH-08": "no checker (always not_tested)",
+    "AUTH-08": "not probed: no live run tries to make an effect happen without a permission request, which AUTH-08 needs",
   },
   target_witness: {
     "AUTH-07": {

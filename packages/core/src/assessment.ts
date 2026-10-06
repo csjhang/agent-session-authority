@@ -13,6 +13,10 @@ export type ResultLabel =
   | "underspecified"
   | "not_tested";
 
+export interface Auth08AssessmentBlock {
+  enforcement_point: string;
+}
+
 export interface AuthorityAssessment {
   target?: string;
   profile_version?: string;
@@ -20,6 +24,8 @@ export interface AuthorityAssessment {
   claim_sources?: string[];
   test_basis?: TestBasis;
   notes?: string;
+  /** Offline AUTH-08 setup: enforcement point only (additionalProperties false in schema). */
+  auth08?: Auth08AssessmentBlock;
   [key: string]: unknown;
 }
 

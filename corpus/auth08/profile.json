@@ -1,0 +1,9 @@
+{
+  "target": "auth08-synthetic",
+  "profile_version": "0.2",
+  "claimed_invariants": [
+    "AUTH-08",
+    "AUTH-02"
+  ],
+  "claim_status_default": "declared"
+}

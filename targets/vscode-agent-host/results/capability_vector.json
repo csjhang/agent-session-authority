@@ -84,7 +84,7 @@
     "AUTH-05": "Required prerequisite observations are absent.",
     "AUTH-06": "Required prerequisite observations are absent.",
     "AUTH-07": "No ambiguous/wrong terminal race observed.",
-    "AUTH-08": "AUTH-08 (Bypass honesty) has no checker yet. Disclosure belongs in profile.known_bypasses and profile.coverage_boundary."
+    "AUTH-08": "AUTH-08 not set up for this run: the assessment names no enforcement point (auth08.enforcement_point)."
   },
   "notes": {
     "summary": "Fixture vector from asa check against history-fixture.jsonl (AHP mock peer). Digests/fence_epoch are adapter-synthesized; public AHP does not define portable RuntimeGeneration across host restart.",
@@ -99,5 +99,5 @@
   },
   "history_artifact": "targets/vscode-agent-host/results/history-fixture.jsonl",
   "generated_by": "scripts/generate-capability-vectors.ts",
-  "generated_at": "2026-09-30"
+  "generated_at": "2026-10-07"
 }

@@ -1,0 +1,19 @@
+{
+  "target": "auth08-synthetic",
+  "pinned_version": "0.0.0",
+  "entries": [
+    {
+      "bypass_path_id": "mode:bypassPermissions",
+      "quote": "Documented bypass for this path under assessment.",
+      "url": "https://example.invalid/docs/auth08",
+      "retrieved": "2026-10-06 Asia/Taipei",
+      "section": "Bypass honesty",
+      "doc_product_version": "0.0.0",
+      "version_relationship": "matches pinned_version",
+      "kind": "bypass",
+      "verification": {
+        "status": "not_found"
+      }
+    }
+  ]
+}

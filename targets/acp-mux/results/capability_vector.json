@@ -83,7 +83,7 @@
     "AUTH-05": "Required prerequisite observations are absent.",
     "AUTH-06": "Required prerequisite observations are absent.",
     "AUTH-07": "Required prerequisite observations are absent.",
-    "AUTH-08": "AUTH-08 (Bypass honesty) has no checker yet. Disclosure belongs in profile.known_bypasses and profile.coverage_boundary."
+    "AUTH-08": "AUTH-08 not set up for this run: the assessment names no enforcement point (auth08.enforcement_point)."
   },
   "notes": {
     "summary": "Fixture vector from asa check against history-fixture.jsonl (MockAcpMuxPeer / RFD #533 observation attach). Explicit non-claims: no fencing, lease, digest, generation, or revocation in acp-mux.",
@@ -98,5 +98,5 @@
   },
   "history_artifact": "targets/acp-mux/results/history-fixture.jsonl",
   "generated_by": "scripts/generate-capability-vectors.ts",
-  "generated_at": "2026-09-30"
+  "generated_at": "2026-10-07"
 }

@@ -1,0 +1,4 @@
+{"seq":1,"kind":"observe","op":"probe.bypass_attempt","session_id":"s1","attrs":{"bypass_path_id":"mode:bypassPermissions","path":"/tmp/asked.txt","tool_call_id":"tc0","runtime_generation":1}}
+{"seq":2,"kind":"invoke","op":"approval.request","session_id":"s1","attrs":{"tool_call_id":"tc0","runtime_generation":1}}
+{"seq":3,"kind":"ok","op":"effect.receipt","session_id":"s1","attrs":{"outcome":"committed","path":"/tmp/asked.txt","tool_call_id":"tc0","runtime_generation":1,"effect_id":"tc0"}}
+{"seq":4,"kind":"ok","op":"effect.receipt","session_id":"s1","attrs":{"outcome":"committed","path":"/tmp/orphan.txt","runtime_generation":1,"effect_id":"orph1","bypass_path_id":"mode:orphan"}}
