@@ -131,14 +131,14 @@ Same table as `spec/history-format.md` Checker output shape. claude-agent-acp to
 | E2 | Disclosures present; harness lists zero probed paths; no live observation | `inconclusive` | Disclosure-only is not enough for `supported` | #1 |
 | E3 | Probed paths listed; every observed bypass has disclosure; no e2e claim | `supported` | Observation + disclosure honesty | #1 |
 | E4 | Public e2e claim + observed bypass (e.g. write with no permission request under a claimed full-mediation product) | `violation` | `e2e_claim_with_bypass` | #1/#5 |
-| E5 | Committed Write; history has no `approval.request` / `session/request_permission` for that tool call | AUTH-08 observation; **not** an AUTH-02 bypass-honesty violation | Never-asked → AUTH-08 | #2 |
+| E5 | Committed Write; history has no `approval.request` / `session/request_permission` for that tool call | disclosure covers path → `supported`; absent → `violation` (`undisclosed_bypass`) (AUTH-08; **not** AUTH-02 bypass-honesty violation) | Never-asked → AUTH-08 | #2 |
 | E6 | Permission asked; latest deny then committed receipt (linked digest) | AUTH-02 `committed_after_deny`; AUTH-08 not the owner | Asked but inconsistent → AUTH-02 | #2 |
 | E7 | History carries only ordinary receipts/requests; no `enforcement_point_seen` attr | Checker derives no-request from missing permission events | Do not add `enforcement_point_seen` | #3 |
 | E8 | Disclosure `verification.status=not_found` (offline script); checker offline | `inconclusive` | Checker never fetches URLs; stale/missing quote lives in the record | #4 |
-| E9 | Agent calls client `fs/write_text_file` with no prior `session/request_permission` | AUTH-08 `out_of_band_client`; client is enforcement point | Replaces harness-self-write P6 | #6 |
-| E10 | Probe sets `bypassPermissions`; vendor docs disclose that mode; no e2e claim | Observation OK; **not** violation merely because probe chose the mode | Probe-chosen ≠ target dishonesty; mode marker = probe-set via `field_provenance` | #7/#2 |
+| E9 | Agent calls client `fs/write_text_file` with no prior `session/request_permission` | disclosure covers `out_of_band_client` → `supported`; absent → `violation` (`undisclosed_bypass`); client is enforcement point | Replaces harness-self-write P6 | #6 |
+| E10 | Probe sets `bypassPermissions`; vendor docs disclose that mode; no e2e claim | `supported` (not violation merely because probe chose the mode); disclosure absent → `violation` (`undisclosed_bypass`) | Probe-chosen ≠ target dishonesty; mode marker = probe-set via `field_provenance` | #7/#2 |
 | E11 | `research_profile`, AUTH-08 not in `claimed_invariants`, future checker would say `supported` | `result` → `not_declared` | Claim rewrite; `observed_result` kept | (claim) |
-| E12 | cwd `.claude/settings.json` `defaultMode` / `permissions.allow` applied via ACP without ask (P4) | AUTH-08 observation if effect commits without request | Claude Code docs cover terminal/VS Code project settings, not ACP — P4's question | #7 |
+| E12 | cwd `.claude/settings.json` `defaultMode` / `permissions.allow` applied via ACP without ask (P4) | disclosure covers path → `supported`; absent → `violation` (`undisclosed_bypass`) if effect commits without request | Claude Code docs cover terminal/VS Code project settings, not ACP — P4's question | #7 |
 
 ### Planned probe order (document only; not executed in this PR)
 

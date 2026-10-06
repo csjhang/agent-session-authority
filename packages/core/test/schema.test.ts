@@ -129,3 +129,59 @@ describe("validate_json RFC 6901 pointer escape", () => {
     expect(errs.some((e) => e.startsWith("/c~0d"))).toBe(true);
   });
 });
+
+describe("PR-11b: every spec/*.schema.json loads in validate_json", () => {
+  const schema_dir = path.join(repo_root, "spec");
+  const schema_files = fs
+    .readdirSync(schema_dir)
+    .filter((n) => n.endsWith(".schema.json"))
+    .map((n) => path.join(schema_dir, n));
+
+  it("lists at least the three known schemas", () => {
+    expect(schema_files.length).toBeGreaterThanOrEqual(3);
+  });
+
+  for (const file of schema_files) {
+    it(`${path.basename(file)} is loadable (no unsupported keyword throw on {})`, () => {
+      const schema = JSON.parse(fs.readFileSync(file, "utf8"));
+      // May return required-field errors; must not throw on schema walk.
+      expect(() => validate_json(schema, {})).not.toThrow();
+    });
+  }
+});
+
+describe("PR-11b: auth08-disclosures.schema.json", () => {
+  const schema = load_schema("auth08-disclosures.schema.json");
+
+  const minimal_valid = {
+    target: "example",
+    pinned_version: "0.0.0",
+    entries: [
+      {
+        bypass_path_id: "mode:bypassPermissions",
+        quote: "Bypass permissions mode will skip all permission prompts.",
+        url: "https://example.com/docs/permissions",
+        retrieved: "2026-10-06 Asia/Taipei",
+        section: "Permission modes",
+        doc_product_version: "0.0.0",
+        version_relationship: "matches pinned_version",
+        kind: "bypass",
+        verification: { status: "unverified" },
+      },
+    ],
+  };
+
+  it("minimal complete valid example passes", () => {
+    const errs = validate_json(schema, minimal_valid);
+    expect(errs).toEqual([]);
+  });
+
+  it("empty object reports missing target, pinned_version, entries", () => {
+    const errs = validate_json(schema, {});
+    expect(errs.some((e) => e.includes("/target") && /missing|required/i.test(e))).toBe(true);
+    expect(errs.some((e) => e.includes("/pinned_version") && /missing|required/i.test(e))).toBe(
+      true,
+    );
+    expect(errs.some((e) => e.includes("/entries") && /missing|required/i.test(e))).toBe(true);
+  });
+});

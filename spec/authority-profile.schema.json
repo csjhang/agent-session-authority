@@ -33,7 +33,7 @@
       "additionalProperties": {
         "type": "string"
       },
-      "description": "Map of \"action_type|target\" → scope_id."
+      "description": "Map of \"action_type|target\" \u2192 scope_id."
     },
     "scope_map": {
       "type": "array",
@@ -89,12 +89,5 @@
       "type": "string"
     }
   },
-  "additionalProperties": true,
-  "known_bypasses": {
-    "type": "array",
-    "items": {
-      "type": "string"
-    },
-    "description": "Vendor self-declaration of documented bypasses / out-of-band paths (string list). Distinct from ASA AUTH-08 disclosure files at targets/<target>/disclosures.json (see spec/auth08-disclosures.schema.json)."
-  }
+  "additionalProperties": true
 }
