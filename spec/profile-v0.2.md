@@ -138,7 +138,7 @@ Same table as `spec/history-format.md` Checker output shape. claude-agent-acp to
 | E9 | Agent calls client `fs/write_text_file` with no prior `session/request_permission` | disclosure covers `out_of_band_client` → `supported`; absent id in loaded file → `violation`; absent disclosures file → `inconclusive`; client is enforcement point | Replaces harness-self-write P6 | #6 |
 | E10 | Probe sets `bypassPermissions`; vendor docs disclose that mode; no e2e claim | `supported` (not violation merely because probe chose the mode); absent id in loaded file → `violation`; absent disclosures file → `inconclusive` | Probe-chosen ≠ target dishonesty; mode marker = probe-set via `field_provenance` | #7/#2 |
 | E11 | `research_profile`, AUTH-08 not in `claimed_invariants`, future checker would say `supported` | `result` → `not_declared` | Claim rewrite; `observed_result` kept | (claim) |
-| E12 | cwd settings allowlist via ACP without ask | disclosed → `supported`; absent id in loaded file → `violation`; absent disclosures file → `inconclusive` if commits without request | Allowlist preapprove | #5 |
+| E12 | cwd `.claude/settings.json` `defaultMode` / `permissions.allow` applied via ACP without ask (P4) | disclosure covers path → `supported`; absent **id in loaded file** → `violation` (`undisclosed_bypass`); absent **disclosures file** → `inconclusive` if effect commits without request | Claude Code docs cover terminal/VS Code project settings, not ACP — P4's question | #7 |
 
 ### Planned probe order (document only; not executed in this PR)
 
