@@ -96,6 +96,14 @@ These keys appear under `attrs` and are consumed by checkers / vocabulary types.
 | `terminal` / `resolved_terminal` | string | AUTH-07 terminal race. ACP live: the agent's own tool-call status (`completed` / `failed`) on the `session.attach` event that carried it, with `field_provenance.terminal = "target"` |
 | `replay` | boolean | ACP live: a tool-call update received while `session/load` replays the transcript. A replayed status is not a new report and carries no `terminal` |
 | `field_provenance` | object | Per-field origin of an attribute value: `derived` = computed by the probe or adapter; `target` = reported by the target itself. Keys name attributes, plus `ts` for the top-level timestamp. A field without an entry is not thereby `target`. |
+| `bypass_path_id` | string | Optional AUTH-08 observation attr on `effect.receipt` (or related observe): stable id of an observed bypass path. Checker correlates to `targets/<target>/disclosures.json` entries; not a verdict. |
+| `permission_mode` | string | Optional. When the probe selects a permission mode for a run/session, record it on a dedicated event (or session metadata event) with `field_provenance.permission_mode=derived` (probe-set), not as target-reported enforcement. |
+
+### AUTH-08 history notes
+
+- History records **observation only**. Do **not** introduce `enforcement_point_seen`; the future AUTH-08 checker derives "no permission request for this tool call" from missing `approval.request` / target permission events correlated to that tool call.
+- Probe-selected permission mode is a **separate** event (or session attribute event) marked via `field_provenance` as probe-set (`derived`). That mark distinguishes probe-chosen vs target-inherent bypass; it is not itself a violation.
+- Optional `bypass_path_id` is an observation attribute only (see attrs table). See `spec/profile-v0.2.md` AUTH-08.
 
 ## Validation rules (parser)
 
