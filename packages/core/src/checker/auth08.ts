@@ -470,7 +470,7 @@ function apply_disclosure_order(
     return {
       kind: "inconclusive", // will be rewritten to violation below — use a dedicated path
       code: "VIO_UNDISCLOSED",
-      text: `undisclosed_bypass: loaded disclosure records (target=${disclosures.target}, pinned_version=${disclosures.pinned_version}) have no entry for bypass_path_id=${path_id}`,
+      text: `undisclosed_bypass: loaded disclosure records (target=${disclosures.target}, pinned_version=${disclosures.pinned_version}) have no entry for bypass_path_id=${path_id}.`,
       witnesses,
     };
   }

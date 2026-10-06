@@ -292,6 +292,9 @@ describe("run_cli --disclosures (AUTH-08)", () => {
     const auth08 = report.findings.find((f: { invariant: string }) => f.invariant === "AUTH-08");
     expect(auth08?.observed_result).toBe("violation");
     expect(auth08?.explanation).toMatch(/undisclosed_bypass/);
+    expect(auth08?.explanation).toMatch(
+      /have no entry for bypass_path_id=[^\s.]+\./,
+    );
   });
 
   it("--disclosures with 26-word quote → exit 2", () => {

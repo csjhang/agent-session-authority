@@ -101,6 +101,9 @@ describe("AUTH-08 attempt/receipt shared correlation (PR-11d)", () => {
     const auth08 = findings.find((f) => f.invariant === "AUTH-08");
     expect(auth08?.observed_result).toBe("violation");
     expect(auth08?.explanation).toMatch(/undisclosed_bypass/);
+    expect(auth08?.explanation).toMatch(
+      /have no entry for bypass_path_id=[^\s.]+\./,
+    );
     expect(auth08?.explanation).not.toMatch(/No bypass path was executed/);
     expect(auth08?.witness_seqs).toEqual([1, 2]);
   });
