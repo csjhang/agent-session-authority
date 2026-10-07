@@ -22,6 +22,7 @@ export type ReceiptAskClass =
   | "standing_authorization"
   | "request_after_effect"
   | "unmappable"
+  | "non_path_bind_may_cover"
   | "standing_cross_gen"
   | "standing_unscoped"
   | "standing_gen_unknown"
@@ -134,30 +135,47 @@ function grant_action_type(
   return undefined;
 }
 
-/** Find this effect's own permission request (override A step 1). */
+/** Find approval.request matches for a tool_call_id (prefer last before receipt). */
+function find_request_by_tool(
+  events: HistoryEvent[],
+  receipt: HistoryEvent,
+  tool: string,
+): { request: HistoryEvent; before: boolean } | undefined {
+  const matches = events.filter(
+    (ev) =>
+      ev.op === "approval.request" &&
+      !is_replay(ev) &&
+      str(attrs(ev).tool_call_id) === tool,
+  );
+  if (matches.length === 0) return undefined;
+  const before = matches.filter((m) => m.seq < receipt.seq);
+  if (before.length > 0) {
+    return { request: before[before.length - 1]!, before: true };
+  }
+  return { request: matches[0]!, before: false };
+}
+
+/**
+ * Find this effect's own permission request (Verdict rule 6):
+ * receipt tool_call_id → else correlated attempt's tool_call_id → else path.
+ */
 function find_own_request(
   events: HistoryEvent[],
   receipt: HistoryEvent,
+  attempt: HistoryEvent | undefined,
 ): { request: HistoryEvent; before: boolean } | undefined {
   const a = attrs(receipt);
-  const tool = str(a.tool_call_id);
+  const receipt_tool = str(a.tool_call_id);
   const path = str(a.path);
   const receipt_gen = num(a.runtime_generation);
 
-  if (tool) {
-    const matches = events.filter(
-      (ev) =>
-        ev.op === "approval.request" &&
-        !is_replay(ev) &&
-        str(attrs(ev).tool_call_id) === tool,
-    );
-    if (matches.length === 0) return undefined;
-    // Prefer any request before the effect; else the earliest after.
-    const before = matches.filter((m) => m.seq < receipt.seq);
-    if (before.length > 0) {
-      return { request: before[before.length - 1]!, before: true };
-    }
-    return { request: matches[0]!, before: false };
+  if (receipt_tool) {
+    return find_request_by_tool(events, receipt, receipt_tool);
+  }
+
+  const attempt_tool = attempt ? str(attrs(attempt).tool_call_id) : undefined;
+  if (attempt_tool) {
+    return find_request_by_tool(events, receipt, attempt_tool);
   }
 
   // Path-only (E9): same session + same generation, action.bind / approval.request whose target === path
@@ -177,6 +195,36 @@ function find_own_request(
     return { request: before[before.length - 1]!, before: true };
   }
   return { request: matches[0]!, before: false };
+}
+
+/**
+ * Rule 6 non-path clause: when neither receipt nor attempt has tool_call_id,
+ * a non-path action.bind (target_kind other than path) in the window may have
+ * covered the effect → inconclusive. Other-path Writes (target_kind=path) do not.
+ */
+function non_path_bind_may_cover(
+  events: HistoryEvent[],
+  receipt: HistoryEvent,
+  attempt: HistoryEvent | undefined,
+): boolean {
+  const receipt_tool = str(attrs(receipt).tool_call_id);
+  const attempt_tool = attempt ? str(attrs(attempt).tool_call_id) : undefined;
+  if (receipt_tool || attempt_tool) return false;
+
+  const receipt_gen = num(attrs(receipt).runtime_generation);
+  const after_seq = attempt !== undefined ? attempt.seq : Number.NEGATIVE_INFINITY;
+
+  return events.some((ev) => {
+    if (ev.op !== "action.bind" || is_replay(ev)) return false;
+    if (!same_session(ev, receipt)) return false;
+    if (ev.seq <= after_seq || ev.seq >= receipt.seq) return false;
+    const ea = attrs(ev);
+    const gen = num(ea.runtime_generation);
+    if (receipt_gen !== undefined && gen !== undefined && gen !== receipt_gen) return false;
+    const tk = str(ea.target_kind);
+    // Only when target_kind is present and explicitly not path (missing ≠ non-path).
+    return tk !== undefined && tk !== "path";
+  });
 }
 
 function find_allow_always_grants(
@@ -236,20 +284,38 @@ export function classify_committed_receipt(
     return { ...base, classification: "skipped_replay" };
   }
 
-  // A1–A3: own permission request first
-  const own = find_own_request(events, receipt);
+  // Correlate attempt early: own-request lookup may use attempt tool_call_id (rule 6).
+  const corr_early = correlate_attempt(attempts, receipt);
+  const linked_attempt =
+    corr_early.status === "ok" ? corr_early.attempt : undefined;
+  const linked_attempt_seq =
+    corr_early.status === "ok" ? corr_early.attempt!.seq : undefined;
+
+  // A1–A3: own permission request first (receipt tool → attempt tool → path)
+  const own = find_own_request(events, receipt, linked_attempt);
   if (own) {
     if (own.before) {
       return {
         ...base,
         classification: "asked",
         request_seq: own.request.seq,
+        attempt_seq: linked_attempt_seq,
       };
     }
     return {
       ...base,
       classification: "request_after_effect",
       request_seq: own.request.seq,
+      attempt_seq: linked_attempt_seq,
+    };
+  }
+
+  // Rule 6: neither receipt nor attempt has tool_call_id + non-path bind in window
+  if (non_path_bind_may_cover(events, receipt, linked_attempt)) {
+    return {
+      ...base,
+      classification: "non_path_bind_may_cover",
+      attempt_seq: linked_attempt_seq,
     };
   }
 
@@ -293,12 +359,6 @@ export function classify_committed_receipt(
       uncertain = { grant: g, kind };
     }
   }
-
-  // Correlate attempt early so standing/uncertain axes still link attempt_seq
-  // (effect-without-ask uses examined.attempt_seq).
-  const corr_early = correlate_attempt(attempts, receipt);
-  const linked_attempt_seq =
-    corr_early.status === "ok" ? corr_early.attempt!.seq : undefined;
 
   if (covered) {
     return {
@@ -673,6 +733,16 @@ export const check_auth08: Checker = (ctx) => {
       axes.push({
         label: "inconclusive",
         text: `Receipt seq=${ex.seq} bypass_path_id=${ex.bypass_path_id} mismatches linked attempt seq=${ex.attempt_seq} bypass_path_id=${ex.attempt_bypass_path_id}; AUTH-08 treats this as inconclusive.`,
+        witnesses: uniq_sort(
+          ex.attempt_seq !== undefined ? [ex.seq, ex.attempt_seq] : [ex.seq],
+        ),
+      });
+      continue;
+    }
+    if (ex.classification === "non_path_bind_may_cover") {
+      axes.push({
+        label: "inconclusive",
+        text: `Committed effect at seq=${ex.seq} has no tool_call_id on the receipt or correlated attempt, and a non-path action.bind (target_kind other than path) appears before the receipt; that request may have covered the effect — inconclusive.`,
         witnesses: uniq_sort(
           ex.attempt_seq !== undefined ? [ex.seq, ex.attempt_seq] : [ex.seq],
         ),

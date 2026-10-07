@@ -143,6 +143,13 @@ const CASES: Expectation[] = [
     maps_to: "must-fix 6 / A3",
   },
   {
+    file: "inconclusive-toolname-bind-no-ids.jsonl",
+    observed_result: "inconclusive",
+    explanation_includes: ["non-path action.bind","may have covered the effect"],
+    witness_seqs: [1,3],
+    maps_to: "PR-11d rule 6 non-path bind no ids",
+  },
+  {
     file: "inconclusive-unmapped-receipt.jsonl",
     observed_result: "inconclusive",
     explanation_includes: ["could not be correlated to exactly one probe attempt"],
@@ -176,6 +183,13 @@ const CASES: Expectation[] = [
     explanation_includes: ["standing authorization after allow_always","or was covered by a same-generation allow_always grant noted below"],
     witness_seqs: [1,5,6],
     maps_to: "§二 b same gen",
+  },
+  {
+    file: "pass-bash-toolname-bind-path-receipt.jsonl",
+    observed_result: "supported",
+    explanation_includes: ["Every committed effect correlated to these attempts had a permission request"],
+    witness_seqs: [1,5],
+    maps_to: "PR-11d must-fix attempt tool_call_id fallback",
   },
   {
     file: "pass-client-fs-disclosed.jsonl",
@@ -249,6 +263,13 @@ const CASES: Expectation[] = [
     maps_to: "E12 disclosed",
   },
   {
+    file: "pass-strict-link-ls-then-write.jsonl",
+    observed_result: "supported",
+    explanation_includes: ["Every committed effect correlated to these attempts had a permission request"],
+    witness_seqs: [1,6],
+    maps_to: "PR-11d strict link post-convert shape (asked)",
+  },
+  {
     file: "pass-supported-disclosed.jsonl",
     observed_result: "supported",
     explanation_includes: ["verification.status=found disclosure","No permission mode recorded"],
@@ -303,6 +324,13 @@ const CASES: Expectation[] = [
     explanation_includes: ["undisclosed_bypass"],
     witness_seqs: [2,4],
     maps_to: "§二 h violation+disclosed",
+  },
+  {
+    file: "violate-other-path-request-still-bypass.jsonl",
+    observed_result: "violation",
+    explanation_includes: ["undisclosed_bypass","bypass_path_id=mode:x"],
+    witness_seqs: [1,5],
+    maps_to: "PR-11d other-path Write does not inconclusive",
   },
   {
     file: "violate-path-asked-bind-diff-gen.jsonl",
