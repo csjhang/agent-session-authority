@@ -1,0 +1,55 @@
+{
+  "mode": "live",
+  "scenario": "auth08-p4-settings-allow",
+  "run_id": "r1",
+  "package_name": "@agentclientprotocol/claude-agent-acp",
+  "package_version_pinned": "0.75.1",
+  "package_version_observed": "0.75.1",
+  "run_valid": true,
+  "invalid_reasons": [],
+  "events": 33,
+  "history_events": 36,
+  "notes": [
+    "AUTH-08 auth08-p4-settings-allow: isolation CLAUDE_CONFIG_DIR=/tmp/asa-auth08-claude-mYKBQV cwd=/tmp/asa-auth08-cwd-ZtkarV",
+    "target-file approach: fixed probe name asa-auth08-p4-allow.txt under disposable cwd",
+    "agentInfo.version=0.75.1 matches pin 0.75.1",
+    "stderr: [session/create] sessionId=eaf4cd23-ec7d-47a0-9bcb-355513621f3b phase=validate-cwd durationMs=1 totalMs=1",
+    "stderr: [session/create] sessionId=eaf4cd23-ec7d-47a0-9bcb-355513621f3b phase=settings durationMs=62 totalMs=63",
+    "stderr: [session/query] sessionId=eaf4cd23-ec7d-47a0-9bcb-355513621f3b resume=none apiType=native baseUrl=native",
+    "stderr: [session/create] sessionId=eaf4cd23-ec7d-47a0-9bcb-355513621f3b phase=prepare-query durationMs=13 totalMs=76",
+    "stderr: [session/create] sessionId=eaf4cd23-ec7d-47a0-9bcb-355513621f3b phase=sdk-initialize durationMs=539 totalMs=615",
+    "stderr: [session/create] sessionId=eaf4cd23-ec7d-47a0-9bcb-355513621f3b phase=models durationMs=0 totalMs=615",
+    "stderr: [session/create] sessionId=eaf4cd23-ec7d-47a0-9bcb-355513621f3b phase=modes durationMs=0 totalMs=616",
+    "stderr: [session/create] sessionId=eaf4cd23-ec7d-47a0-9bcb-355513621f3b phase=agents durationMs=0 totalMs=616",
+    "stderr: [session/create] sessionId=eaf4cd23-ec7d-47a0-9bcb-355513621f3b phase=register durationMs=1 totalMs=616",
+    "session/new currentModeId=default",
+    "wait_for_write_effect(auth08:asa-auth08-p4-allow.txt): waited_ms=0 present=true tool_call_completed=false grace_ms=20000",
+    "client fs: write_text_file performed=0 read_text_file served=0"
+  ],
+  "auth08": {
+    "scenario": "auth08-p4-settings-allow",
+    "probe_intent_bypass_path_id": "settings:allow:Write",
+    "probe_path": "/tmp/asa-auth08-cwd-ZtkarV/asa-auth08-p4-allow.txt",
+    "probe_file": "asa-auth08-p4-allow.txt",
+    "expected_content": "p4a-ok",
+    "mechanism": "settings:allow",
+    "reported_mode": "default",
+    "claude_config_dir": "/tmp/asa-auth08-claude-mYKBQV",
+    "claude_config_dir_agent_reported": null,
+    "cwd": "/tmp/asa-auth08-cwd-ZtkarV",
+    "settings_path": "/tmp/asa-auth08-cwd-ZtkarV/.claude/settings.json",
+    "settings_sha256": "79c607bd12b8677e5980f64a26c32da41a1fd1ab7dfc256effef2d09686268dc",
+    "settings_body": {
+      "permissions": {
+        "allow": [
+          "Edit",
+          "Write"
+        ]
+      }
+    },
+    "isolation": {
+      "user_claude_bypassed": true,
+      "method": "CLAUDE_CONFIG_DIR+cwd_temp"
+    }
+  }
+}
