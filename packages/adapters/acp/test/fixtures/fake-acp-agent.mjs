@@ -28,6 +28,15 @@
  *                                   tool_call_update (observed update.kind is then "edit")
  * ASA_FAKE_TOOL_CALL_THEN_PROMPT_ERROR "1" = on a Write prompt, announce a tool_call (kind "edit") and
  *                                   answer session/prompt with JSON-RPC error -32000 (no permission, no write)
+ * ASA_FAKE_MODES                 "1" = advertise availableModes; handle session/set_mode
+ * ASA_FAKE_PERMISSION_MODE       initial currentModeId (default "default")
+ * ASA_FAKE_NEVER_ASK             "1" = skip session/request_permission; still tool_call + write
+ * ASA_FAKE_TOOL                  "Write" | "Bash"
+ * ASA_FAKE_BASH_CLASS            "fs_command" | "redirect"
+ * ASA_FAKE_CLIENT_FS_WITHOUT_PERMISSION "1" = E9: fs/write_text_file without prior permission
+ * ASA_FAKE_SETTINGS_SHORT_CIRCUIT "1" = treat cwd settings allow/defaultMode as never-ask
+ * ASA_FAKE_LS_THEN_WRITE         "1" = emit Bash ls then Write (strict-link test)
+ * ASA_FAKE_DUAL_WRITE_UNLINKABLE "1" = two Write calls for same path (intent-id omit test)
  */
 
 import fs from "node:fs";
@@ -50,6 +59,15 @@ const no_tools = env.ASA_FAKE_NO_TOOLS === "1";
 const replay_terminal_on_load = env.ASA_FAKE_REPLAY_TERMINAL_ON_LOAD === "1";
 const post_load_as_tool_call = env.ASA_FAKE_POST_LOAD_AS_TOOL_CALL === "1";
 const tool_call_then_prompt_error = env.ASA_FAKE_TOOL_CALL_THEN_PROMPT_ERROR === "1";
+const fake_modes = env.ASA_FAKE_MODES === "1";
+const permission_mode = env.ASA_FAKE_PERMISSION_MODE ?? "default";
+const never_ask = env.ASA_FAKE_NEVER_ASK === "1";
+const fake_tool = env.ASA_FAKE_TOOL ?? "Write"; // Write | Bash
+const bash_class = env.ASA_FAKE_BASH_CLASS ?? "redirect"; // fs_command | redirect
+const client_fs_without_permission = env.ASA_FAKE_CLIENT_FS_WITHOUT_PERMISSION === "1";
+const settings_short_circuit = env.ASA_FAKE_SETTINGS_SHORT_CIRCUIT === "1";
+const ls_then_write = env.ASA_FAKE_LS_THEN_WRITE === "1";
+const dual_write_unlinkable = env.ASA_FAKE_DUAL_WRITE_UNLINKABLE === "1";
 const TRANSCRIPT = ".asa-fake-transcript.json";
 /**
  * The transcript file is only read back by the session/load modes below; every other mode
@@ -124,6 +142,7 @@ function replay_terminal_pending(session_id) {
 let session_cwd = process.cwd();
 let next_id = 1000;
 let tool_seq = 0;
+let current_mode = permission_mode;
 const pending = new Map();
 
 function send(msg) {
@@ -138,6 +157,46 @@ function request(method, params) {
 
 function notify_update(session_id, update) {
   send({ jsonrpc: "2.0", method: "session/update", params: { sessionId: session_id, update } });
+}
+
+
+const AVAILABLE_MODES = [
+  { id: "default", name: "Default", description: "Standard permissions" },
+  { id: "acceptEdits", name: "Accept edits", description: "Auto-accept file edits" },
+  { id: "plan", name: "Plan", description: "Plan before acting" },
+  { id: "auto", name: "Auto", description: "Model-gated" },
+  { id: "bypassPermissions", name: "Bypass permissions", description: "Skip permission prompts" },
+];
+
+function modes_payload() {
+  return { currentModeId: current_mode, availableModes: AVAILABLE_MODES };
+}
+
+function should_skip_permission() {
+  if (never_ask) return true;
+  if (current_mode === "bypassPermissions") return true;
+  if (current_mode === "acceptEdits" && fake_tool === "Write") return true;
+  if (current_mode === "acceptEdits" && fake_tool === "Bash" && bash_class === "fs_command") return true;
+  if (settings_short_circuit) return true;
+  return false;
+}
+
+function parse_write_prompt(text) {
+  // Match "write <file> with exactly: <content>" (existing) or Bash variants.
+  let m = /write (?:file )?(\S+) with exactly: (.+?)(?:\.|$)/i.exec(text);
+  if (m) return { file: m[1], content: m[2].trim() };
+  m = /create empty file (\S+) via touch/i.exec(text);
+  if (m) return { file: m[1], content: "" };
+  m = /write (\S+) with exactly: (.+)$/i.exec(text);
+  if (m) return { file: m[1], content: m[2] };
+  return null;
+}
+
+function bash_command_for(file, content) {
+  if (bash_class === "fs_command") return `touch ${file}`;
+  // redirect
+  const escaped = content.replace(/'/g, "'\''");
+  return `echo '${escaped}' > ${file}`;
 }
 
 function permission_options() {
@@ -163,50 +222,98 @@ async function handle_prompt(id, params) {
   if (echo_key) {
     notify_update(session_id, { sessionUpdate: "agent_message_chunk", content: { type: "text", text: `key=${env.ANTHROPIC_API_KEY ?? ""}` } });
   }
-  const m = /write (\S+) with exactly: (.*)$/i.exec(text);
+  const parsed = parse_write_prompt(text);
   // Never call tools — used by mid-write-restart never-reached-interrupt invalid-run probe.
-  if (no_tools || !m) {
+  if (no_tools || !parsed) {
     notify_update(session_id, { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "OK" } });
     send({ jsonrpc: "2.0", id, result: { stopReason: "end_turn" } });
     return;
   }
-  const file = m[1];
-  const content = m[2];
+  const file = parsed.file;
+  const content = parsed.content;
   const abs = escape_cwd ? path.resolve(session_cwd, "..", file) : path.resolve(session_cwd, file);
-  const tool_call_id = `toolu_fake_${++tool_seq}_${process.pid}`;
-  const title = `Write ${abs}`;
-  notify_update(session_id, { sessionUpdate: "tool_call", toolCallId: tool_call_id, title, kind: "edit", status: "pending" });
-  if (tool_call_then_prompt_error) {
-    send({ jsonrpc: "2.0", id, error: { code: -32000, message: "fake agent prompt error after tool_call" } });
-    return;
-  }
-  // Persist before awaiting permission so a mid-request SIGTERM leaves a recoverable transcript for gen2
-  // (no-op unless a session/load mode needs the transcript).
-  remember(tool_call_id, title, "pending_permission");
-  if (write_without_permission) {
-    await write_file(session_id, abs, content);
-  }
-  const resp = await request("session/request_permission", {
-    sessionId: session_id,
-    toolCall: { toolCallId: tool_call_id, title, kind: "edit", rawInput: { file_path: abs, content } },
-    options: permission_options(),
-  });
-  const outcome = resp?.result?.outcome ?? {};
-  const chosen = permission_options().find((o) => o.optionId === outcome.optionId);
-  const allowed = outcome.outcome === "selected" && chosen != null && chosen.kind.startsWith("allow");
-  if (allowed || write_on_reject) {
-    const reported = fail_after_write ? "failed" : "completed";
-    remember(tool_call_id, title, reported);
-    notify_update(session_id, { sessionUpdate: "tool_call_update", toolCallId: tool_call_id, title, status: reported });
+
+  // E9: client fs write without prior permission (and without tool permission).
+  if (client_fs_without_permission) {
+    await request("fs/write_text_file", { sessionId: session_id, path: abs, content });
+    notify_update(session_id, { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "OK" } });
     send({ jsonrpc: "2.0", id, result: { stopReason: "end_turn" } });
-    if (claim_without_write) return;
-    if (write_without_permission) return; // already written
-    if (write_delay_ms > 0) setTimeout(() => void write_file(session_id, abs, content), write_delay_ms);
-    else await write_file(session_id, abs, content);
     return;
   }
-  remember(tool_call_id, title, "failed");
-  notify_update(session_id, { sessionUpdate: "tool_call_update", toolCallId: tool_call_id, title, status: "failed" });
+
+  // Strict-link helper: ls then write
+  if (ls_then_write) {
+    const ls_id = `toolu_fake_${++tool_seq}_${process.pid}`;
+    notify_update(session_id, {
+      sessionUpdate: "tool_call",
+      toolCallId: ls_id,
+      title: "Bash",
+      kind: "execute",
+      status: "completed",
+      rawInput: { command: "ls /tmp" },
+    });
+  }
+
+  async function one_write(tool_call_id, title, kind, rawInput) {
+    notify_update(session_id, { sessionUpdate: "tool_call", toolCallId: tool_call_id, title, kind, status: "pending", rawInput });
+    if (tool_call_then_prompt_error) {
+      send({ jsonrpc: "2.0", id, error: { code: -32000, message: "fake agent prompt error after tool_call" } });
+      return false;
+    }
+    remember(tool_call_id, title, "pending_permission");
+    if (write_without_permission) {
+      await write_file(session_id, abs, content);
+    }
+    const skip = should_skip_permission();
+    let allowed = skip;
+    if (!skip) {
+      const resp = await request("session/request_permission", {
+        sessionId: session_id,
+        toolCall: { toolCallId: tool_call_id, title, kind, rawInput },
+        options: permission_options(),
+      });
+      const outcome = resp?.result?.outcome ?? {};
+      const chosen = permission_options().find((o) => o.optionId === outcome.optionId);
+      allowed = outcome.outcome === "selected" && chosen != null && chosen.kind.startsWith("allow");
+    }
+    if (allowed || write_on_reject) {
+      const reported = fail_after_write ? "failed" : "completed";
+      remember(tool_call_id, title, reported);
+      notify_update(session_id, { sessionUpdate: "tool_call_update", toolCallId: tool_call_id, title, status: reported });
+      if (claim_without_write) return true;
+      if (write_without_permission) return true;
+      if (write_delay_ms > 0) setTimeout(() => void write_file(session_id, abs, content), write_delay_ms);
+      else await write_file(session_id, abs, content);
+      return true;
+    }
+    remember(tool_call_id, title, "failed");
+    notify_update(session_id, { sessionUpdate: "tool_call_update", toolCallId: tool_call_id, title, status: "failed" });
+    return false;
+  }
+
+  // Intent-id omit test: two Writes for same path (unlinkable exact-one)
+  if (dual_write_unlinkable) {
+    const a = `toolu_fake_${++tool_seq}_${process.pid}`;
+    const b = `toolu_fake_${++tool_seq}_${process.pid}`;
+    await one_write(a, `Write ${abs}`, "edit", { file_path: abs, content: content + "-a" });
+    if (tool_call_then_prompt_error) return;
+    await one_write(b, `Write ${abs}`, "edit", { file_path: abs, content });
+    if (tool_call_then_prompt_error) return;
+    send({ jsonrpc: "2.0", id, result: { stopReason: "end_turn" } });
+    return;
+  }
+
+  const tool_call_id = `toolu_fake_${++tool_seq}_${process.pid}`;
+  if (fake_tool === "Bash") {
+    const cmd = bash_command_for(file, content);
+    await one_write(tool_call_id, "Bash", "execute", { command: cmd });
+    if (tool_call_then_prompt_error) return;
+    send({ jsonrpc: "2.0", id, result: { stopReason: "end_turn" } });
+    return;
+  }
+
+  await one_write(tool_call_id, `Write ${abs}`, "edit", { file_path: abs, content });
+  if (tool_call_then_prompt_error) return;
   send({ jsonrpc: "2.0", id, result: { stopReason: "end_turn" } });
 }
 
@@ -224,7 +331,22 @@ function handle(msg) {
     send({ jsonrpc: "2.0", id, result });
   } else if (method === "session/new") {
     if (typeof params.cwd === "string") session_cwd = params.cwd;
-    send({ jsonrpc: "2.0", id, result: { sessionId: "fake-session-1" } });
+    const result = { sessionId: "fake-session-1" };
+    if (fake_modes) {
+      result.modes = modes_payload();
+      result.configOptions = [{ id: "mode", category: "mode", currentValue: current_mode }];
+    }
+    send({ jsonrpc: "2.0", id, result });
+  } else if (method === "session/set_mode") {
+    const modeId = String(params.modeId ?? "");
+    const ok = AVAILABLE_MODES.some((m) => m.id === modeId);
+    if (!ok) {
+      send({ jsonrpc: "2.0", id, error: { code: -32602, message: `unknown mode: ${modeId}` } });
+    } else {
+      current_mode = modeId;
+      notify_update(params.sessionId ?? "fake-session-1", { sessionUpdate: "current_mode_update", currentModeId: current_mode });
+      send({ jsonrpc: "2.0", id, result: {} });
+    }
   } else if (method === "session/load") {
     if (typeof params.cwd === "string") session_cwd = params.cwd;
     if (replay_on_load) replay(params.sessionId);
