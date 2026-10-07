@@ -55,6 +55,7 @@ export async function collect_history(opts: AcpAdapterOptions = {}): Promise<Acp
       history,
       history_jsonl: history_to_jsonl(history),
       notes,
+      ...(out.auth08_run_json ? { auth08_run_json: out.auth08_run_json } : {}),
     };
   }
   notes.push("FIXTURE mode: MockAcpPeer (no cloud key, no ACP SDK in core).");

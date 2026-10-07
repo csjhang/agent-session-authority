@@ -3,6 +3,15 @@ import path from "node:path";
 import { observe_event, type AcpPeerEvent } from "./mock_peer.js";
 import { is_tool_call_session_update } from "./tool_update.js";
 
+
+/** AUTH-08 / Bash: echo adds trailing newline; touch creates empty file. */
+export function content_matches_expected(actual: string, expected: string): boolean {
+  if (actual === expected) return true;
+  if (expected === "" && actual === "") return true;
+  const strip1 = (s: string) => (s.endsWith("\n") ? s.slice(0, -1) : s);
+  return strip1(actual) === strip1(expected) || strip1(actual) === expected || actual === strip1(expected);
+}
+
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -101,7 +110,7 @@ export async function wait_for_write_effect(
       if (opts.expected === undefined) break;
       try {
         content = fs.readFileSync(abs, "utf8");
-        matched = content.trim() === opts.expected.trim();
+        matched = content_matches_expected(content, opts.expected);
         if (matched) break;
       } catch {
         matched = false;
@@ -123,7 +132,7 @@ export async function wait_for_write_effect(
   if (present && opts.expected !== undefined) {
     try {
       content = fs.readFileSync(abs, "utf8");
-      matched = content.trim() === opts.expected.trim();
+      matched = content_matches_expected(content, opts.expected);
     } catch {
       matched = false;
       content = undefined;

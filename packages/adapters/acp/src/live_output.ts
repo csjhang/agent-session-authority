@@ -15,6 +15,8 @@ export interface LiveRunWritable {
   history: unknown[];
   history_jsonl: string;
   notes: string[];
+  /** AUTH-08 isolation / intent stamp (optional). */
+  auth08_run_json?: Record<string, unknown>;
 }
 
 export function secret_leak_reason(
@@ -64,6 +66,7 @@ export function write_live_run(
     events: result.events.length,
     history_events: result.history.length,
     notes: result.notes,
+    ...(result.auth08_run_json ? { auth08: result.auth08_run_json } : {}),
   };
   const run_body = JSON.stringify(run_json, null, 2) + "\n";
 

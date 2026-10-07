@@ -14,8 +14,13 @@ import { agent_info_version, initialize } from "./live_rpc.js";
 import type { LiveRunOutput } from "./live_run_ctx.js";
 import { run_mid_write_restart } from "./live_run_mid_write.js";
 import { run_restart_probe } from "./live_run_restart_probe.js";
+import { run_auth08_probe } from "./live_run_auth08.js";
+import { is_auth08_scenario } from "./auth08_scenarios.js";
 
 export async function run_live(opts: AcpAdapterOptions, notes: string[]): Promise<LiveRunOutput> {
+  if (opts.scenario && is_auth08_scenario(opts.scenario)) {
+    return run_auth08_probe(opts, notes, opts.scenario);
+  }
   const events: AcpPeerEvent[] = [];
   const invalid_reasons: string[] = [];
   let package_version_observed: string | undefined;

@@ -12,7 +12,17 @@ const mode_idx = args.indexOf("--mode");
 if (mode_idx >= 0 && args[mode_idx + 1]) mode = args[mode_idx + 1] === "live" ? "live" : "fixture";
 const scenario_idx = args.indexOf("--scenario");
 if (scenario_idx >= 0 && args[scenario_idx + 1]) {
-  const raw = args[scenario_idx + 1];
+  const raw = args[scenario_idx + 1]!;
+  const auth08 = [
+    "auth08-p5-default-bash-write",
+    "auth08-p4-settings-allow",
+    "auth08-p4-settings-defaultMode",
+    "auth08-p2-acceptEdits-write",
+    "auth08-p2-acceptEdits-bash-fs-command",
+    "auth08-p2-acceptEdits-bash-redirect",
+    "auth08-p1-bypassPermissions-write",
+    "auth08-e9-client-fs-write",
+  ] as const;
   scenario =
     raw === "capped" ? "capped"
     : raw === "effect" ? "effect"
@@ -21,8 +31,11 @@ if (scenario_idx >= 0 && args[scenario_idx + 1]) {
     : raw === "always-grant" ? "always-grant"
     : raw === "reject-always" ? "reject-always"
     : raw === "mid-write-restart" ? "mid-write-restart"
+    : (auth08 as readonly string[]).includes(raw) ? (raw as AdapterScenario)
     : "initialize";
 }
+
+const allow_weakened = args.includes("--allow-weakened-permissions");
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo_root = path.resolve(here, "../../../..");
@@ -40,7 +53,7 @@ if (mode === "live" && !RUN_ID_PATTERN.test(run_id)) {
   process.exit(2);
 }
 
-const result = await collect_history({ mode, scenario });
+const result = await collect_history({ mode, scenario, allow_weakened_permissions: allow_weakened });
 
 if (mode === "live") {
   try {

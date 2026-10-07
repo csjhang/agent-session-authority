@@ -3,7 +3,23 @@ import type { AcpPeerEvent } from "./mock_peer.js";
 import type { HistoryEventLite } from "./history_from_acp.js";
 
 export type AdapterMode = "fixture" | "live";
-export type AdapterScenario = "initialize" | "capped" | "effect" | "stale-grant" | "stale-effect" | "always-grant" | "reject-always" | "mid-write-restart";
+export type AdapterScenario =
+  | "initialize"
+  | "capped"
+  | "effect"
+  | "stale-grant"
+  | "stale-effect"
+  | "always-grant"
+  | "reject-always"
+  | "mid-write-restart"
+  | "auth08-p5-default-bash-write"
+  | "auth08-p4-settings-allow"
+  | "auth08-p4-settings-defaultMode"
+  | "auth08-p2-acceptEdits-write"
+  | "auth08-p2-acceptEdits-bash-fs-command"
+  | "auth08-p2-acceptEdits-bash-redirect"
+  | "auth08-p1-bypassPermissions-write"
+  | "auth08-e9-client-fs-write";
 export interface AcpAdapterResult {
   mode: AdapterMode;
   target: "claude-agent-acp";
@@ -18,6 +34,7 @@ export interface AcpAdapterResult {
   history: HistoryEventLite[];
   history_jsonl: string;
   notes: string[];
+  auth08_run_json?: Record<string, unknown>;
 }
 export interface AcpAdapterOptions {
   mode?: AdapterMode;
@@ -31,4 +48,6 @@ export interface AcpAdapterOptions {
   effect_grace_ms?: number;
   /** always-grant / reject-always gen2 poll window (default 30000). */
   always_grant_poll_ms?: number;
+  /** Required for live P4/P2/P1 AUTH-08 scenarios that weaken permissions. */
+  allow_weakened_permissions?: boolean;
 }

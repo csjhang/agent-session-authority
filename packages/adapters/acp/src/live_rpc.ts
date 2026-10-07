@@ -221,6 +221,18 @@ export class LiveRpc {
       const raw_path = String(p.path ?? p.filePath ?? "");
       const content = p.content;
       const abs = this.path_inside_cwd(raw_path);
+      // Raw request fact (PR-11d A/E9): always record inbound params before perform/refuse.
+      this.events.push(observe_event({
+        type: "session_update",
+        sessionId: this.session,
+        update: {
+          kind: "fs_write_text_file_request",
+          path: raw_path,
+          content: typeof content === "string" ? content : null,
+          jsonrpc_id: id,
+          sessionId: this.session,
+        },
+      }));
       if (abs && typeof content === "string") {
         fs.mkdirSync(path.dirname(abs), { recursive: true });
         fs.writeFileSync(abs, content, "utf8");
@@ -249,12 +261,16 @@ export class LiveRpc {
       const params = (msg.params ?? {}) as Record<string, unknown>;
       const update = (params.update ?? params) as Record<string, unknown>;
       const sessionId = String(params.sessionId ?? this.session);
-      const sessionUpdate = update.sessionUpdate ?? update.kind;
-      let kind = typeof update.kind === "string" ? update.kind : undefined;
-      if (!kind && typeof sessionUpdate === "string") {
-        kind = sessionUpdate === "tool_call" || sessionUpdate === "tool_call_update"
-          ? String(sessionUpdate)
-          : String(sessionUpdate);
+      // Prefer sessionUpdate for tool_call / tool_call_update — update.kind is the ACP
+      // tool kind (edit/execute/…), not the session-update discriminant.
+      const sessionUpdate = update.sessionUpdate;
+      let kind: string | undefined;
+      if (sessionUpdate === "tool_call" || sessionUpdate === "tool_call_update") {
+        kind = String(sessionUpdate);
+      } else if (typeof update.kind === "string") {
+        kind = update.kind;
+      } else if (typeof sessionUpdate === "string") {
+        kind = String(sessionUpdate);
       }
       const status = update.status ?? update.toolCallStatus;
       const toolName = update.title ?? update.toolName ?? update.name;
