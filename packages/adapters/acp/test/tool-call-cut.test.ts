@@ -41,13 +41,17 @@ describe("tool-call cut (is_tool_call_session_update) for waits and counts", () 
         const result = await collect_history(
           opts(scenario, tmp_dir(scenario), { ASA_FAKE_TOOL_CALL_THEN_PROMPT_ERROR: "1", ASA_FAKE_OPTIONS: "with_reject_always" }),
         );
-        // The gen2 tool_call is on the wire (observed update.kind is the ACP category "edit").
+        // Peer update.kind is sessionUpdate ("tool_call"); ACP tool category "edit" stays on raw_update.kind.
         const gen2_start = result.events.findIndex((e) => e.type === "runtime_restart");
         const gen2_tool_calls = result.events
           .slice(gen2_start)
           .filter((e) => e.type === "session_update" && (e.update.raw_update as Record<string, unknown> | undefined)?.sessionUpdate === "tool_call");
         expect(gen2_tool_calls.length).toBeGreaterThanOrEqual(1);
-        expect(gen2_tool_calls[0]!.type === "session_update" && gen2_tool_calls[0]!.update.kind).toBe("edit");
+        expect(gen2_tool_calls[0]!.type === "session_update" && gen2_tool_calls[0]!.update.kind).toBe("tool_call");
+        const raw = gen2_tool_calls[0]!.type === "session_update"
+          ? (gen2_tool_calls[0]!.update.raw_update as Record<string, unknown> | undefined)
+          : undefined;
+        expect(raw?.kind).toBe("edit");
         // Old cut counted 0 tool events and issued a follow-up prompt.
         expect(result.notes.some((n) => /issuing short follow-up Write prompt/.test(n))).toBe(false);
         expect(
