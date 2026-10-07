@@ -71,16 +71,16 @@
       "os": "Linux 6.12.94+ x86_64",
       "node": "v20.19.2",
       "model_observed": [
-        "claude-haiku-4-5-20251001",
-        "claude-opus-5[1m]"
+        "claude-opus-5[1m]",
+        "claude-haiku-4-5-20251001"
       ],
-      "model_note": "P5/r1 observed claude-haiku-4-5-20251001; P4/P2/P1 observed claude-opus-5[1m]. Adapter default left unset (ANTHROPIC_MODEL/CLAUDE_MODEL unset)."
+      "model_note": "每次 run 的主模型都是 claude-opus-5[1m]，另有一次 claude-haiku-4-5-20251001 的小呼叫"
     },
     "cost": {
       "cap_usd": 5.0,
-      "estimate_usd": 0.334128,
+      "estimate_usd": 0.383327,
       "phase": "A",
-      "basis": "sum of per-run prompt_result usage \u00d7 list prices by observed model (Opus 5: in5/out25/cw6.25/cr0.50; Haiku 4.5: in1/out5/cw1.25/cr0.10 USD/MTok); upper-bound estimate; not billing data"
+      "basis": "依 model_usage 逐模型計價後加總（Opus 5: in5/out25/cw6.25/cr0.50; Haiku 4.5: in1/out5/cw1.25/cr0.10 USD/MTok）；upper-bound estimate；not billing data"
     }
   }
 }
