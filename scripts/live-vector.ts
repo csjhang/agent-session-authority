@@ -19,6 +19,8 @@
  *   (when any runs were examined) or not_tested.
  * - Invariants whose live evidence only reflects the probe itself are excluded by an explicit
  *   admissibility rule: observed_vector and capability_vector stay not_tested with the reason.
+ * - Scenario names starting with `auth08-` are always listed in `excluded` (even when valid) and
+ *   never enter `included`, so they cannot shift AUTH-01–07 aggregation; AUTH-08 stays in cfg.exclusions.
  * - target_witness: for listed invariants a run's supported counts only when at least one witness
  *   event was reported by the target itself; otherwise that run is inconclusive (see `downgraded`).
  * - capability_vector = claim rewrite of the aggregated observed result via core finding()
@@ -32,6 +34,11 @@ import { run_checkers } from "../packages/core/src/index.js";
 import { finding, KNOWN_INVARIANTS } from "../packages/core/src/checker/index.js";
 import type { ResultLabel, TestBasis } from "../packages/core/src/assessment.js";
 import { list_live_run_dirs } from "../packages/adapters/acp/src/live_run_dirs.js";
+
+/** Exact reason when an auth08-* scenario run is barred from AUTH-01–07 aggregation. */
+export const AUTH08_LIVE_RUN_EXCLUDE_REASON =
+  "AUTH-08 probe scenario: used only as AUTH-08 evidence (some probes run under probe-chosen permission settings)";
+
 
 export interface LiveConfig {
   /** Repo-relative directory holding <scenario>/<run_id>/ run folders. */
@@ -96,6 +103,10 @@ export function load_live_runs(
       continue;
     }
     const { scenario, run_id, dir: run_dir } = entry;
+    if (scenario.startsWith("auth08-")) {
+      excluded.push({ scenario, run_id, reasons: [AUTH08_LIVE_RUN_EXCLUDE_REASON] });
+      continue;
+    }
     const reasons: string[] = [];
     let manifest: Record<string, unknown> | undefined;
     try {

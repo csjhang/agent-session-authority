@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { parse_history_jsonl, run_checkers } from "../src/index.js";
 import type { HistoryEvent } from "../src/history.js";
 import { generate_all } from "../../../scripts/generate-capability-vectors.js";
+import { AUTH08_LIVE_RUN_EXCLUDE_REASON } from "../../../scripts/live-vector.js";
 
 const repo_root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -184,6 +185,39 @@ describe("claude-agent-acp capability vector from live runs", () => {
     expect(doc.live_runs.included[0]!.downgraded?.["AUTH-07"]).toMatch(/no claude-agent-acp tool-call status among the witnesses/);
     expect(doc.observed_vector["AUTH-07"]).toBe("inconclusive");
     expect(doc.capability_vector["AUTH-07"]).toBe("inconclusive");
+  });
+
+
+  it("auth08-* runs are excluded from AUTH-01–07 aggregation with the verbatim reason (removing the exclusion fails this test)", () => {
+    const root = tmp();
+    // Baseline non-auth08 evidence: AUTH-02 supported from a1-reask.
+    make_run(root, "effect", "r1", "a1-reask-after-restart");
+    const baseline = acp_doc(root);
+    const auth_keys = ["AUTH-01a", "AUTH-01b", "AUTH-01c", "AUTH-02", "AUTH-03a", "AUTH-03b", "AUTH-03c", "AUTH-04", "AUTH-05", "AUTH-06", "AUTH-07"] as const;
+    const snap = (doc: ReturnType<typeof acp_doc>) => ({
+      observed: Object.fromEntries(auth_keys.map((k) => [k, doc.observed_vector[k]])),
+      capability: Object.fromEntries(auth_keys.map((k) => [k, doc.capability_vector[k]])),
+      sources: Object.fromEntries(auth_keys.map((k) => [k, doc.capability_sources[k]])),
+    });
+    const before = snap(baseline);
+    expect(before.observed["AUTH-02"]).toBe("supported");
+
+    // Valid auth08-* run whose history would flip AUTH-02 to violation if included.
+    make_run(root, "auth08-p5-default-bash-write", "r1", "a3-deny-then-committed");
+    const doc = acp_doc(root);
+
+    const hit = doc.live_runs.excluded.find(
+      (r) => r.scenario === "auth08-p5-default-bash-write" && r.run_id === "r1",
+    );
+    expect(hit).toBeDefined();
+    expect(hit!.reasons).toEqual([AUTH08_LIVE_RUN_EXCLUDE_REASON]);
+    expect(doc.live_runs.included.every((r) => !r.scenario.startsWith("auth08-"))).toBe(true);
+    expect(doc.capability_exclusions["AUTH-08"]).toBeDefined();
+
+    // AUTH-01–07 unchanged vs baseline (a3 violation must not win).
+    expect(snap(doc)).toEqual(before);
+    expect(doc.observed_vector["AUTH-02"]).toBe("supported");
+    expect(doc.observed_vector["AUTH-02"]).not.toBe("violation");
   });
 
   it("other targets have no live configuration: all not_tested and no exclusions", () => {
