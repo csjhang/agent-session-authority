@@ -12,6 +12,13 @@ import { AUTH08_NT_SETUP } from "../src/checker/auth08.js";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo_root = path.resolve(here, "../../..");
 const CORPUS = path.join(repo_root, "corpus", "auth08");
+const DEFAULT_ASSESSMENT = path.join(CORPUS, "default.assessment.json");
+
+/** Dedicated assessment if present; else corpus/auth08 default (PR-11d hygiene). */
+function assessment_path_for(base: string): string {
+  const dedicated = path.join(CORPUS, `${base}.assessment.json`);
+  return fs.existsSync(dedicated) ? dedicated : DEFAULT_ASSESSMENT;
+}
 
 type Expectation = {
   file: string;
@@ -391,8 +398,7 @@ describe("AUTH-08 corpus (table-driven)", () => {
       const hist_path = path.join(CORPUS, c.file);
       const base = c.file.replace(/\.jsonl$/, "");
       const events = load_history_file(hist_path, { warn_unknown_vocab: false });
-      const assessment_path = path.join(CORPUS, `${base}.assessment.json`);
-      const assessment = load_assessment(assessment_path)!;
+      const assessment = load_assessment(assessment_path_for(base))!;
       const profile_override = path.join(CORPUS, `${base}.profile.json`);
       const profile = fs.existsSync(profile_override)
         ? load_profile(profile_override)
@@ -436,7 +442,7 @@ describe("AUTH-08 corpus (table-driven)", () => {
       if (!name.startsWith("pass") || !name.endsWith(".jsonl")) continue;
       const base = name.replace(/\.jsonl$/, "");
       const events = load_history_file(path.join(CORPUS, name), { warn_unknown_vocab: false });
-      const assessment = load_assessment(path.join(CORPUS, `${base}.assessment.json`))!;
+      const assessment = load_assessment(assessment_path_for(base))!;
       const profile_override = path.join(CORPUS, `${base}.profile.json`);
       const profile = fs.existsSync(profile_override)
         ? load_profile(profile_override)
