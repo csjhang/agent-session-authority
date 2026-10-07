@@ -221,6 +221,18 @@ export class LiveRpc {
       const raw_path = String(p.path ?? p.filePath ?? "");
       const content = p.content;
       const abs = this.path_inside_cwd(raw_path);
+      // Raw request fact (PR-11d A/E9): always record inbound params before perform/refuse.
+      this.events.push(observe_event({
+        type: "session_update",
+        sessionId: this.session,
+        update: {
+          kind: "fs_write_text_file_request",
+          path: raw_path,
+          content: typeof content === "string" ? content : null,
+          jsonrpc_id: id,
+          sessionId: this.session,
+        },
+      }));
       if (abs && typeof content === "string") {
         fs.mkdirSync(path.dirname(abs), { recursive: true });
         fs.writeFileSync(abs, content, "utf8");

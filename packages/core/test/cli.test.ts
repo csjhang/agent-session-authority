@@ -266,7 +266,7 @@ describe("CLI via symlink/junction entry (realpath)", () => {
 
 describe("run_cli --disclosures (AUTH-08)", () => {
   const hist = path.join(repo_root, "corpus/auth08/violate-undisclosed.jsonl");
-  const assessment = path.join(repo_root, "corpus/auth08/violate-undisclosed.assessment.json");
+  const assessment = path.join(repo_root, "corpus/auth08/default.assessment.json");
   const profile = path.join(repo_root, "corpus/auth08/profile.json");
   const disclosures = path.join(repo_root, "corpus/auth08/violate-undisclosed.disclosures.json");
 

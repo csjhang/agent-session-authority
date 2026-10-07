@@ -1,0 +1,6 @@
+{"seq":1,"kind":"observe","op":"probe.bypass_attempt","session_id":"s1","attrs":{"bypass_path_id":"mode:default:Write","path":"/tmp/a.txt","tool_call_id":"tc_write","runtime_generation":1}}
+{"seq":2,"kind":"ok","op":"action.bind","session_id":"s1","attrs":{"action_type":"tool.Bash","target":"Bash","target_kind":"tool_name","tool_call_id":"tc_ls","action_digest":"sha256:ls1","runtime_generation":1,"args":{"command":"ls /tmp"}}}
+{"seq":3,"kind":"ok","op":"action.bind","session_id":"s1","attrs":{"action_type":"tool.Write","target":"/tmp/a.txt","target_kind":"path","tool_call_id":"tc_write","action_digest":"sha256:w1","runtime_generation":1}}
+{"seq":4,"kind":"invoke","op":"approval.request","session_id":"s1","attrs":{"tool_call_id":"tc_write","action_digest":"sha256:w1","runtime_generation":1,"target":"/tmp/a.txt"}}
+{"seq":5,"kind":"ok","op":"approval.grant","session_id":"s1","attrs":{"tool_call_id":"tc_write","action_digest":"sha256:w1","option_kind":"allow_once","runtime_generation":1}}
+{"seq":6,"kind":"ok","op":"effect.receipt","session_id":"s1","attrs":{"outcome":"committed","path":"/tmp/a.txt","tool_call_id":"tc_write","runtime_generation":1,"effect_id":"tc_write"}}

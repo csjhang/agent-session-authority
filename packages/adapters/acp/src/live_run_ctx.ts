@@ -12,6 +12,7 @@ export interface LiveRunOutput {
   history: HistoryEventLite[];
   package_version_observed?: string;
   invalid_reasons: string[];
+  auth08_run_json?: Record<string, unknown>;
 }
 
 export interface LiveRunCtx {

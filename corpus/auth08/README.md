@@ -1,6 +1,8 @@
 # corpus/auth08
 
-Flat AUTH-08 fixtures. Co-locate `<case>.jsonl` + `<case>.assessment.json` + optional `<case>.disclosures.json` (and optional `<case>.profile.json`).
+Flat AUTH-08 fixtures. Co-locate `<case>.jsonl` + optional `<case>.assessment.json` + optional `<case>.disclosures.json` (and optional `<case>.profile.json`).
+
+When `<case>.assessment.json` is absent, the corpus loader uses `default.assessment.json` (EP=`client-permission`). Dedicated assessments remain only for non-default EP / no-EP / research_profile cases. **Disclosures have no default** — missing file means “not loaded”; empty `entries` means “loaded but empty.”
 
 | File | Maps to | AUTH-08 `observed_result` |
 | --- | --- | --- |
@@ -44,3 +46,8 @@ Flat AUTH-08 fixtures. Co-locate `<case>.jsonl` + `<case>.assessment.json` + opt
 | `inconclusive-bypass-path-id-mismatch` | must-fix 6 | `inconclusive` |
 
 Expectations live in `packages/core/test/auth08-corpus.test.ts` (explicit table; do not infer from filename alone).
+
+| `pass-bash-toolname-bind-path-receipt` | PR-11d rule 6 attempt tool_call_id | `supported` |
+| `inconclusive-toolname-bind-no-ids` | PR-11d rule 6 non-path bind | `inconclusive` |
+| `pass-strict-link-ls-then-write` | PR-11d strict link post-convert | `supported` |
+| `violate-other-path-request-still-bypass` | PR-11d other-path ≠ inconclusive | `violation` |

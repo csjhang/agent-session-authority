@@ -12,6 +12,13 @@ import { AUTH08_NT_SETUP } from "../src/checker/auth08.js";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo_root = path.resolve(here, "../../..");
 const CORPUS = path.join(repo_root, "corpus", "auth08");
+const DEFAULT_ASSESSMENT = path.join(CORPUS, "default.assessment.json");
+
+/** Dedicated assessment if present; else corpus/auth08 default (PR-11d hygiene). */
+function assessment_path_for(base: string): string {
+  const dedicated = path.join(CORPUS, `${base}.assessment.json`);
+  return fs.existsSync(dedicated) ? dedicated : DEFAULT_ASSESSMENT;
+}
 
 type Expectation = {
   file: string;
@@ -143,6 +150,13 @@ const CASES: Expectation[] = [
     maps_to: "must-fix 6 / A3",
   },
   {
+    file: "inconclusive-toolname-bind-no-ids.jsonl",
+    observed_result: "inconclusive",
+    explanation_includes: ["non-path action.bind","may have covered the effect"],
+    witness_seqs: [1,3],
+    maps_to: "PR-11d rule 6 non-path bind no ids",
+  },
+  {
     file: "inconclusive-unmapped-receipt.jsonl",
     observed_result: "inconclusive",
     explanation_includes: ["could not be correlated to exactly one probe attempt"],
@@ -176,6 +190,13 @@ const CASES: Expectation[] = [
     explanation_includes: ["standing authorization after allow_always","or was covered by a same-generation allow_always grant noted below"],
     witness_seqs: [1,5,6],
     maps_to: "§二 b same gen",
+  },
+  {
+    file: "pass-bash-toolname-bind-path-receipt.jsonl",
+    observed_result: "supported",
+    explanation_includes: ["Every committed effect correlated to these attempts had a permission request"],
+    witness_seqs: [1,5],
+    maps_to: "PR-11d must-fix attempt tool_call_id fallback",
   },
   {
     file: "pass-client-fs-disclosed.jsonl",
@@ -249,6 +270,13 @@ const CASES: Expectation[] = [
     maps_to: "E12 disclosed",
   },
   {
+    file: "pass-strict-link-ls-then-write.jsonl",
+    observed_result: "supported",
+    explanation_includes: ["Every committed effect correlated to these attempts had a permission request"],
+    witness_seqs: [1,6],
+    maps_to: "PR-11d strict link post-convert shape (asked)",
+  },
+  {
     file: "pass-supported-disclosed.jsonl",
     observed_result: "supported",
     explanation_includes: ["verification.status=found disclosure","No permission mode recorded"],
@@ -303,6 +331,13 @@ const CASES: Expectation[] = [
     explanation_includes: ["undisclosed_bypass"],
     witness_seqs: [2,4],
     maps_to: "§二 h violation+disclosed",
+  },
+  {
+    file: "violate-other-path-request-still-bypass.jsonl",
+    observed_result: "violation",
+    explanation_includes: ["undisclosed_bypass","bypass_path_id=mode:x"],
+    witness_seqs: [1,5],
+    maps_to: "PR-11d other-path Write does not inconclusive",
   },
   {
     file: "violate-path-asked-bind-diff-gen.jsonl",
@@ -363,8 +398,7 @@ describe("AUTH-08 corpus (table-driven)", () => {
       const hist_path = path.join(CORPUS, c.file);
       const base = c.file.replace(/\.jsonl$/, "");
       const events = load_history_file(hist_path, { warn_unknown_vocab: false });
-      const assessment_path = path.join(CORPUS, `${base}.assessment.json`);
-      const assessment = load_assessment(assessment_path)!;
+      const assessment = load_assessment(assessment_path_for(base))!;
       const profile_override = path.join(CORPUS, `${base}.profile.json`);
       const profile = fs.existsSync(profile_override)
         ? load_profile(profile_override)
@@ -408,7 +442,7 @@ describe("AUTH-08 corpus (table-driven)", () => {
       if (!name.startsWith("pass") || !name.endsWith(".jsonl")) continue;
       const base = name.replace(/\.jsonl$/, "");
       const events = load_history_file(path.join(CORPUS, name), { warn_unknown_vocab: false });
-      const assessment = load_assessment(path.join(CORPUS, `${base}.assessment.json`))!;
+      const assessment = load_assessment(assessment_path_for(base))!;
       const profile_override = path.join(CORPUS, `${base}.profile.json`);
       const profile = fs.existsSync(profile_override)
         ? load_profile(profile_override)
