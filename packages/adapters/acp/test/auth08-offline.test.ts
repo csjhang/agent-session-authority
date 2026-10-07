@@ -82,7 +82,7 @@ describe("AUTH-08 offline fake matrix", () => {
       async () => {
         const cwd = tmp_dir(scenario.slice(0, 20));
         // Force ask for scenarios that would otherwise short-circuit
-        const extra =
+        const extra: Record<string, string> =
           scenario === "auth08-e9-client-fs-write"
             ? {}
             : { ASA_FAKE_NEVER_ASK: "0", ASA_FAKE_SETTINGS_SHORT_CIRCUIT: "0" };
