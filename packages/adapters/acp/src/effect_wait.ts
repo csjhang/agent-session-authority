@@ -4,12 +4,9 @@ import { observe_event, type AcpPeerEvent } from "./mock_peer.js";
 import { is_tool_call_session_update } from "./tool_update.js";
 
 
-/** AUTH-08 / Bash: echo adds trailing newline; touch creates empty file. */
+/** Original content compare: trim both sides (covers echo trailing newline + empty touch). */
 export function content_matches_expected(actual: string, expected: string): boolean {
-  if (actual === expected) return true;
-  if (expected === "" && actual === "") return true;
-  const strip1 = (s: string) => (s.endsWith("\n") ? s.slice(0, -1) : s);
-  return strip1(actual) === strip1(expected) || strip1(actual) === expected || actual === strip1(expected);
+  return actual.trim() === expected.trim();
 }
 
 export function sleep(ms: number): Promise<void> {

@@ -261,16 +261,12 @@ export class LiveRpc {
       const params = (msg.params ?? {}) as Record<string, unknown>;
       const update = (params.update ?? params) as Record<string, unknown>;
       const sessionId = String(params.sessionId ?? this.session);
-      // Prefer sessionUpdate for tool_call / tool_call_update — update.kind is the ACP
-      // tool kind (edit/execute/…), not the session-update discriminant.
-      const sessionUpdate = update.sessionUpdate;
-      let kind: string | undefined;
-      if (sessionUpdate === "tool_call" || sessionUpdate === "tool_call_update") {
-        kind = String(sessionUpdate);
-      } else if (typeof update.kind === "string") {
-        kind = update.kind;
-      } else if (typeof sessionUpdate === "string") {
-        kind = String(sessionUpdate);
+      const sessionUpdate = update.sessionUpdate ?? update.kind;
+      let kind = typeof update.kind === "string" ? update.kind : undefined;
+      if (!kind && typeof sessionUpdate === "string") {
+        kind = sessionUpdate === "tool_call" || sessionUpdate === "tool_call_update"
+          ? String(sessionUpdate)
+          : String(sessionUpdate);
       }
       const status = update.status ?? update.toolCallStatus;
       const toolName = update.title ?? update.toolName ?? update.name;

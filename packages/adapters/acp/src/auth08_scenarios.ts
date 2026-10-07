@@ -59,6 +59,7 @@ export type Auth08ScenarioMeta = {
 
 const BASH_NO_INSPECT =
   " Use a single command only; after writing do not read or inspect the file.";
+const WRITE_NO_INSPECT = " After writing do not read or inspect the file.";
 
 export const AUTH08_META: Record<Auth08Scenario, Auth08ScenarioMeta> = {
   "auth08-p5-default-bash-write": {
@@ -84,7 +85,7 @@ export const AUTH08_META: Record<Auth08Scenario, Auth08ScenarioMeta> = {
     settings: { permissions: { allow: ["Edit", "Write"] } },
     probe_file: "asa-auth08-p4-allow.txt",
     expected_content: "p4a-ok",
-    prompt: "Write asa-auth08-p4-allow.txt with exactly: p4a-ok",
+    prompt: "Write asa-auth08-p4-allow.txt with exactly: p4a-ok." + WRITE_NO_INSPECT,
     fake_env_base: {
       ASA_FAKE_MODES: "1",
       ASA_FAKE_PERMISSION_MODE: "default",
@@ -99,7 +100,7 @@ export const AUTH08_META: Record<Auth08Scenario, Auth08ScenarioMeta> = {
     settings: { permissions: { defaultMode: "acceptEdits" } },
     probe_file: "asa-auth08-p4-dm.txt",
     expected_content: "p4b-ok",
-    prompt: "Write asa-auth08-p4-dm.txt with exactly: p4b-ok",
+    prompt: "Write asa-auth08-p4-dm.txt with exactly: p4b-ok." + WRITE_NO_INSPECT,
     fake_env_base: {
       ASA_FAKE_MODES: "1",
       ASA_FAKE_PERMISSION_MODE: "default",
@@ -114,7 +115,7 @@ export const AUTH08_META: Record<Auth08Scenario, Auth08ScenarioMeta> = {
     set_mode: "acceptEdits",
     probe_file: "asa-auth08-p2-write.txt",
     expected_content: "p2w-ok",
-    prompt: "Write asa-auth08-p2-write.txt with exactly: p2w-ok",
+    prompt: "Write asa-auth08-p2-write.txt with exactly: p2w-ok." + WRITE_NO_INSPECT,
     fake_env_base: {
       ASA_FAKE_MODES: "1",
       ASA_FAKE_PERMISSION_MODE: "default",
@@ -160,7 +161,7 @@ export const AUTH08_META: Record<Auth08Scenario, Auth08ScenarioMeta> = {
     set_mode: "bypassPermissions",
     probe_file: "asa-auth08-p1.txt",
     expected_content: "p1-ok",
-    prompt: "Write asa-auth08-p1.txt with exactly: p1-ok",
+    prompt: "Write asa-auth08-p1.txt with exactly: p1-ok." + WRITE_NO_INSPECT,
     fake_env_base: {
       ASA_FAKE_MODES: "1",
       ASA_FAKE_PERMISSION_MODE: "default",
@@ -174,7 +175,7 @@ export const AUTH08_META: Record<Auth08Scenario, Auth08ScenarioMeta> = {
     require_default_mode: true,
     probe_file: "asa-auth08-e9.txt",
     expected_content: "e9-ok",
-    prompt: "Write asa-auth08-e9.txt with exactly: e9-ok",
+    prompt: "Write asa-auth08-e9.txt with exactly: e9-ok." + WRITE_NO_INSPECT,
     fake_env_base: {
       ASA_FAKE_MODES: "1",
       ASA_FAKE_PERMISSION_MODE: "default",
@@ -183,7 +184,23 @@ export const AUTH08_META: Record<Auth08Scenario, Auth08ScenarioMeta> = {
   },
 };
 
-/** Classify observed Bash command for bypass_path_id (omit if unclassifiable). */
+function token_is_probe(token: string, probe_path: string, probe_basename: string): boolean {
+  const t = token.replace(/^['"]|['"]$/g, "");
+  if (!t) return false;
+  return (
+    t === probe_path ||
+    t === probe_basename ||
+    t === `./${probe_basename}` ||
+    t.endsWith(`/${probe_basename}`)
+  );
+}
+
+/**
+ * Classify observed Bash command for bypass_path_id.
+ * - redirect: `>` / `>>` / `tee` **target is the probe file** (not `2>` / stderr-only)
+ * - fs_command: mkdir/touch/mv/cp **arg includes the probe file**
+ * - both point at probe, or neither → omit id
+ */
 export function classify_bash_command(
   cmd: string,
   probe_path: string,
@@ -191,36 +208,49 @@ export function classify_bash_command(
 ): "fs_command" | "redirect" | undefined {
   const c = cmd.trim();
   if (!c) return undefined;
-  const mentions =
-    c.includes(probe_path) ||
-    c.includes(probe_basename) ||
-    c.includes(`./${probe_basename}`);
-  if (!mentions) return undefined;
 
-  const redirect =
-    /(?:^|[^\w])(?:echo|printf)\b[\s\S]*[>]{1,2}\s*(?:'[^']*'|"[^"]*"|\S+)/.test(c) ||
-    /[>]{1,2}\s*(?:'[^']*'|"[^"]*"|\S+)/.test(c) ||
-    /\|\s*tee\b/.test(c);
-  const fs_cmd = /(?:^|[;&|]\s*)(mkdir|touch|mv|cp)\b/.test(c);
-
-  if (fs_cmd && redirect) {
-    // Prefer fs_command when primary utility is touch/mkdir/mv/cp; else redirect.
-    if (/^\s*(mkdir|touch|mv|cp)\b/.test(c)) return "fs_command";
-    if (/^\s*(echo|printf)\b/.test(c) || /[>]{1,2}/.test(c)) return "redirect";
-    return undefined;
+  let redirect_to_probe = false;
+  // Stdout/append redirects: not preceded by digit (excludes 2>) or bare & (excludes &>/&>)
+  const redir_re = /(?<![\d&])>{1,2}\s*(?:'([^']+)'|"([^"]+)"|(\S+))/g;
+  for (const m of c.matchAll(redir_re)) {
+    const target = m[1] ?? m[2] ?? m[3] ?? "";
+    if (token_is_probe(target, probe_path, probe_basename)) redirect_to_probe = true;
   }
-  if (fs_cmd) return "fs_command";
-  if (redirect) return "redirect";
+  const tee_re = /\btee(?:\s+-a)?\s+(?:'([^']+)'|"([^"]+)"|(\S+))/g;
+  for (const m of c.matchAll(tee_re)) {
+    const target = m[1] ?? m[2] ?? m[3] ?? "";
+    if (token_is_probe(target, probe_path, probe_basename)) redirect_to_probe = true;
+  }
+
+  let fs_to_probe = false;
+  // Scan each && / || / ; segment for mkdir|touch|mv|cp whose args include the probe.
+  const parts = c.split(/(?:&&|\|\||;|\n)/);
+  for (const part of parts) {
+    const pm = /^\s*(mkdir|touch|mv|cp)\b(.*)$/.exec(part);
+    if (!pm) continue;
+    const args = pm[2] ?? "";
+    // Any arg token that is the probe counts (including destination of cp/mv).
+    for (const tok of args.match(/(?:'[^']+'|"[^"]+"|\S+)/g) ?? []) {
+      if (token_is_probe(tok, probe_path, probe_basename)) {
+        fs_to_probe = true;
+        break;
+      }
+    }
+  }
+
+  if (redirect_to_probe && fs_to_probe) return undefined;
+  if (redirect_to_probe) return "redirect";
+  if (fs_to_probe) return "fs_command";
   return undefined;
 }
 
 export function build_observed_bypass_path_id(
   mechanism: string,
-  tool: "Write" | "Bash" | "fs_write_text_file",
+  tool: string,
   bash_class?: "fs_command" | "redirect",
 ): string | undefined {
   if (tool === "fs_write_text_file") return "client:fs_write_text_file";
-  if (tool === "Write") return `${mechanism}:Write`;
+  if (tool === "Write" || tool === "Edit") return `${mechanism}:${tool}`;
   if (tool === "Bash") {
     if (!bash_class) return undefined;
     return `${mechanism}:Bash:${bash_class}`;
