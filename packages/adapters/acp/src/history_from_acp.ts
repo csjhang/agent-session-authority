@@ -225,9 +225,38 @@ function earliest_observed_at_ms(events: readonly AcpPeerEvent[]): number | unde
  * Same-path receipts merge only when adjacent (no bind/approval/restart between).
  */
 
+function is_readonly_tool(name: string, acp_kind: string): boolean {
+  const n = name.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
+  const k = acp_kind.toLowerCase();
+  if (k === "read" || k === "search" || k === "fetch" || k === "think") return true;
+  if (n === "read" || n === "glob" || n === "grep") return true;
+  return false;
+}
+
+/** Map observed tool title/kind/input to Write | Edit | Bash | other name; undefined = skip candidate. */
+function observed_tool_name(
+  title: string,
+  acp_kind: string,
+  rawInput: Record<string, unknown>,
+): string | undefined {
+  if (is_readonly_tool(title, acp_kind)) return undefined;
+  if (typeof rawInput.command === "string" || title === "Bash" || acp_kind === "execute") {
+    return "Bash";
+  }
+  const base = title.trim().split(/\s+/)[0] ?? "";
+  if (base === "Write" || base === "Edit") return base;
+  if (typeof rawInput.file_path === "string" || typeof rawInput.path === "string") {
+    // Path-bearing write-like tools: keep actual name when known, else Write.
+    return base || "Write";
+  }
+  if (base) return base;
+  return undefined;
+}
+
 /**
- * PR-11d A/B: derive tool_call_id link, observed tool, Bash class, bypass_path_id
+ * PR-11d A/B (+ round-2): derive tool_call_id link, observed tool, Bash class, bypass_path_id
  * from recorded history. Peer-events stay raw; reconvert re-derives after rule fixes.
+ * Candidates are deduped by tool_call_id (bind + session.attach can both observe the same call).
  */
 function finalize_probe_attempts(out: HistoryEventLite[], session_cwd: string | undefined): void {
   const attempts = out
@@ -239,18 +268,30 @@ function finalize_probe_attempts(out: HistoryEventLite[], session_cwd: string | 
     const probe_path = typeof attempt.attrs?.path === "string" ? attempt.attrs.path : undefined;
     const mechanism =
       typeof attempt.attrs?.mechanism === "string" ? attempt.attrs.mechanism : undefined;
-    const intent_id =
-      typeof attempt.attrs?.bypass_path_id === "string" ? attempt.attrs.bypass_path_id : undefined;
     if (!probe_path) continue;
     const basename = probe_path.split("/").pop() ?? probe_path;
 
     type Cand = {
       tool_call_id: string;
-      tool: "Write" | "Bash" | "fs_write_text_file";
+      tool: string;
       command?: string;
       path_match: boolean;
     };
-    const candidates: Cand[] = [];
+    const by_id = new Map<string, Cand>();
+
+    const upsert = (c: Cand): void => {
+      const prev = by_id.get(c.tool_call_id);
+      if (!prev) {
+        by_id.set(c.tool_call_id, c);
+        return;
+      }
+      prev.path_match = prev.path_match || c.path_match;
+      if (c.command && !prev.command) prev.command = c.command;
+      // Prefer a more specific tool name when later evidence arrives (e.g. bind after attach).
+      if (c.tool === "Bash" || c.tool === "Write" || c.tool === "Edit" || c.tool === "fs_write_text_file") {
+        prev.tool = c.tool;
+      }
+    };
 
     for (let i = attempt_idx + 1; i < next_attempt_idx; i++) {
       const e = out[i]!;
@@ -261,30 +302,33 @@ function finalize_probe_attempts(out: HistoryEventLite[], session_cwd: string | 
         const target_kind = e.attrs?.target_kind;
         const action_type = String(e.attrs?.action_type ?? "");
         const args = (e.attrs?.args ?? {}) as Record<string, unknown>;
-        if (
-          typeof args.file_path === "string" ||
-          typeof args.path === "string" ||
-          target_kind === "path"
-        ) {
-          const fp = normalize_path(
-            String(args.file_path ?? args.path ?? target),
-            session_cwd,
-          );
-          const path_match = paths_equal(fp, probe_path);
-          candidates.push({ tool_call_id: tc, tool: "Write", path_match });
-        } else if (
-          typeof args.command === "string" ||
-          action_type.includes("Bash") ||
-          target === "Bash"
-        ) {
+        const tool_name_raw = action_type.startsWith("tool.")
+          ? action_type.slice("tool.".length)
+          : target_kind === "tool_name"
+            ? target
+            : String(e.attrs?.tool_name ?? target);
+        const tool = observed_tool_name(tool_name_raw, "", args);
+        if (!tool) continue;
+        if (tool === "Bash" || typeof args.command === "string") {
           const cmd = typeof args.command === "string" ? args.command : "";
           const path_match =
             cmd.includes(probe_path) ||
             cmd.includes(basename) ||
             cmd.includes(`./${basename}`);
-          candidates.push({ tool_call_id: tc, tool: "Bash", command: cmd, path_match });
+          upsert({ tool_call_id: tc, tool: "Bash", command: cmd, path_match });
+        } else if (
+          typeof args.file_path === "string" ||
+          typeof args.path === "string" ||
+          target_kind === "path"
+        ) {
+          const fp = normalize_path(String(args.file_path ?? args.path ?? target), session_cwd);
+          upsert({
+            tool_call_id: tc,
+            tool: tool === "Edit" ? "Edit" : tool === "Write" ? "Write" : tool,
+            path_match: paths_equal(fp, probe_path),
+          });
         } else {
-          candidates.push({ tool_call_id: tc, tool: "Write", path_match: false });
+          upsert({ tool_call_id: tc, tool, path_match: false });
         }
       }
       if (e.op === "session.attach" && e.attrs?.update_kind === "fs_write_text_file_request") {
@@ -292,7 +336,7 @@ function finalize_probe_attempts(out: HistoryEventLite[], session_cwd: string | 
         const raw_path = raw?.path !== undefined ? String(raw.path) : undefined;
         const path_norm = raw_path !== undefined ? normalize_path(raw_path, session_cwd) : undefined;
         if (path_norm && paths_equal(path_norm, probe_path)) {
-          candidates.push({
+          upsert({
             tool_call_id: `fs:${path_norm}`,
             tool: "fs_write_text_file",
             path_match: true,
@@ -313,41 +357,41 @@ function finalize_probe_attempts(out: HistoryEventLite[], session_cwd: string | 
           su === "tool_call_update" ||
           su === "edit" ||
           su === "execute";
-        if (is_tool) {
-          const tc =
-            (typeof raw?.toolCallId === "string" ? raw.toolCallId : undefined) ||
-            (typeof nested?.toolCallId === "string" ? nested.toolCallId : undefined) ||
-            (typeof e.attrs?.tool_call_id === "string" ? e.attrs.tool_call_id : undefined);
-          if (!tc) continue;
-          // Skip if we already have this tool_call_id from a bind
-          if (candidates.some((c) => c.tool_call_id === tc)) continue;
-          const rawInput = (raw?.rawInput ?? nested?.rawInput ?? {}) as Record<string, unknown>;
-          const title = String(raw?.title ?? e.attrs?.toolName ?? "");
-          const kind = String(raw?.kind ?? "");
-          if (typeof rawInput.file_path === "string" || typeof rawInput.path === "string") {
-            const fp = normalize_path(
-              String(rawInput.file_path ?? rawInput.path),
-              session_cwd,
-            );
-            candidates.push({
-              tool_call_id: tc,
-              tool: "Write",
-              path_match: paths_equal(fp, probe_path),
-            });
-          } else if (typeof rawInput.command === "string" || kind === "execute" || title === "Bash") {
-            const cmd = typeof rawInput.command === "string" ? rawInput.command : "";
-            const path_match =
-              cmd.includes(probe_path) ||
-              cmd.includes(basename) ||
-              cmd.includes(`./${basename}`);
-            candidates.push({ tool_call_id: tc, tool: "Bash", command: cmd, path_match });
-          } else {
-            candidates.push({ tool_call_id: tc, tool: "Write", path_match: false });
-          }
+        if (!is_tool) continue;
+        const tc =
+          (typeof raw?.toolCallId === "string" ? raw.toolCallId : undefined) ||
+          (typeof nested?.toolCallId === "string" ? nested.toolCallId : undefined) ||
+          (typeof e.attrs?.tool_call_id === "string" ? e.attrs.tool_call_id : undefined);
+        if (!tc) continue;
+        const rawInput = (raw?.rawInput ?? nested?.rawInput ?? {}) as Record<string, unknown>;
+        // Prefer nested ACP sessionUpdate fields (title/kind); peer update.kind is often the ACP category ("edit").
+        const title = String(
+          nested?.title ?? raw?.title ?? nested?.toolName ?? raw?.toolName ?? e.attrs?.toolName ?? "",
+        );
+        const kind = String(nested?.kind ?? "");
+        const tool = observed_tool_name(title, kind, rawInput);
+        if (!tool) continue;
+        if (tool === "Bash" || typeof rawInput.command === "string") {
+          const cmd = typeof rawInput.command === "string" ? rawInput.command : "";
+          const path_match =
+            cmd.includes(probe_path) ||
+            cmd.includes(basename) ||
+            cmd.includes(`./${basename}`);
+          upsert({ tool_call_id: tc, tool: "Bash", command: cmd, path_match });
+        } else if (typeof rawInput.file_path === "string" || typeof rawInput.path === "string") {
+          const fp = normalize_path(String(rawInput.file_path ?? rawInput.path), session_cwd);
+          upsert({
+            tool_call_id: tc,
+            tool: tool === "Edit" ? "Edit" : tool === "Write" ? "Write" : tool,
+            path_match: paths_equal(fp, probe_path),
+          });
+        } else {
+          upsert({ tool_call_id: tc, tool, path_match: false });
         }
       }
     }
 
+    const candidates = [...by_id.values()];
     const path_matches = candidates.filter((c) => c.path_match);
     const attrs = { ...(attempt.attrs ?? {}) };
 
@@ -359,6 +403,7 @@ function finalize_probe_attempts(out: HistoryEventLite[], session_cwd: string | 
     }
 
     if (path_matches.length !== 1) {
+      // Link failed (zero or multiple path matches) — no intent-id fallback (PR-11d B).
       delete attrs.bypass_path_id;
       delete attrs.tool_call_id;
       delete attrs.mechanism;
@@ -377,7 +422,7 @@ function finalize_probe_attempts(out: HistoryEventLite[], session_cwd: string | 
     } else if (hit.tool === "fs_write_text_file") {
       observed = "client:fs_write_text_file";
     } else {
-      observed = mechanism ? build_observed_bypass_path_id(mechanism, "Write") : intent_id;
+      observed = mechanism ? build_observed_bypass_path_id(mechanism, hit.tool) : undefined;
     }
     if (observed) attrs.bypass_path_id = observed;
     else delete attrs.bypass_path_id;

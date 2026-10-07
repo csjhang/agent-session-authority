@@ -50,10 +50,24 @@ function dir_is_empty(dir: string): boolean {
   }
 }
 
+/** True only when the offline fake-acp-agent fixture is the target (not bare `node`). */
+export function is_auth08_fake_agent(opts: {
+  live_command?: string;
+  live_args?: string[];
+}): boolean {
+  const cmd = opts.live_command ?? "";
+  const args = opts.live_args ?? [];
+  return cmd.includes("fake-acp-agent") || args.some((a) => a.includes("fake-acp-agent"));
+}
+
 export function assert_auth08_live_safety(
   scenario: Auth08Scenario,
   cwd: string,
-  opts: { allow_weakened_permissions?: boolean; live_command?: string },
+  opts: {
+    allow_weakened_permissions?: boolean;
+    live_command?: string;
+    live_args?: string[];
+  },
 ): void {
   const repo = repo_root_from_here();
   if (is_path_inside(cwd, repo)) {
@@ -64,15 +78,15 @@ export function assert_auth08_live_safety(
   if (!dir_is_empty(cwd)) {
     throw new Error(`AUTH-08 refuse: cwd ${cwd} is not empty`);
   }
+  const fake = is_auth08_fake_agent(opts);
+  if (scenario === "auth08-e9-client-fs-write" && !fake) {
+    throw new Error(
+      "AUTH-08 refuse: auth08-e9-client-fs-write is fake-agent only; do not run against a real agent",
+    );
+  }
   const weakened = (AUTH08_WEAKENED_LIVE as readonly string[]).includes(scenario);
-  // Real agent (not fake node fixture): require explicit weakened flag for P4/P2/P1.
-  const is_fake =
-    typeof opts.live_command === "string" &&
-    (opts.live_command.includes("fake-acp-agent") ||
-      opts.live_command === process.execPath ||
-      opts.live_command.endsWith("/node") ||
-      opts.live_command.endsWith("\\node.exe"));
-  if (weakened && !opts.allow_weakened_permissions && !is_fake) {
+  // No node/execPath exemption — tests must pass --allow-weakened-permissions explicitly.
+  if (weakened && !opts.allow_weakened_permissions) {
     throw new Error(
       `AUTH-08 refuse: scenario ${scenario} weakens permissions; pass --allow-weakened-permissions`,
     );
@@ -121,6 +135,7 @@ export async function run_auth08_probe(
     assert_auth08_live_safety(scenario, cwd, {
       allow_weakened_permissions: opts.allow_weakened_permissions,
       live_command: opts.live_command,
+      live_args: opts.live_args,
     });
   } catch (e) {
     invalid_reasons.push(String(e instanceof Error ? e.message : e));
@@ -270,15 +285,9 @@ export async function run_auth08_probe(
       }),
     );
     notes.push(`set_mode → ${meta.set_mode}`);
-  } else if (reported_mode) {
-    events.push(
-      observe_event({
-        type: "session_update",
-        sessionId: sid,
-        update: { kind: "probe_permission_mode", permission_mode: reported_mode },
-      }),
-    );
   }
+  // Target-reported mode from session/new stays in run.json (reported_mode) only —
+  // probe.permission_mode is emitted only after a successful set_mode above.
 
   if (meta.require_default_mode) {
     if (reported_mode !== "default") {
@@ -300,6 +309,13 @@ export async function run_auth08_probe(
       mechanism: meta.mechanism,
       reported_mode: reported_mode ?? null,
       claude_config_dir,
+      claude_config_dir_agent_reported: (() => {
+        const result = (n as Record<string, unknown> | undefined)?.result as
+          | Record<string, unknown>
+          | undefined;
+        const v = result?.asa_claude_config_dir;
+        return typeof v === "string" ? v : null;
+      })(),
       cwd,
       settings_path: settings_path ?? null,
       settings_sha256: settings_sha256 ?? null,

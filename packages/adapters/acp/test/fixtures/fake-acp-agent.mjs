@@ -37,7 +37,10 @@
  * ASA_FAKE_SETTINGS_SHORT_CIRCUIT "1" = treat cwd settings allow/defaultMode as never-ask
  * ASA_FAKE_LS_THEN_WRITE         "1" = emit Bash ls then Write (strict-link test)
  * ASA_FAKE_DUAL_WRITE_UNLINKABLE "1" = two Write calls for same path (intent-id omit test)
+ * ASA_FAKE_REJECT_SET_MODE       "1" = session/set_mode always returns JSON-RPC error
+ * ASA_FAKE_FORCE_ASK             "1" = always request permission (overrides mode/settings skip)
  */
+
 
 import fs from "node:fs";
 import path from "node:path";
@@ -68,6 +71,8 @@ const client_fs_without_permission = env.ASA_FAKE_CLIENT_FS_WITHOUT_PERMISSION =
 const settings_short_circuit = env.ASA_FAKE_SETTINGS_SHORT_CIRCUIT === "1";
 const ls_then_write = env.ASA_FAKE_LS_THEN_WRITE === "1";
 const dual_write_unlinkable = env.ASA_FAKE_DUAL_WRITE_UNLINKABLE === "1";
+const reject_set_mode = env.ASA_FAKE_REJECT_SET_MODE === "1";
+const force_ask = env.ASA_FAKE_FORCE_ASK === "1";
 const TRANSCRIPT = ".asa-fake-transcript.json";
 /**
  * The transcript file is only read back by the session/load modes below; every other mode
@@ -173,6 +178,7 @@ function modes_payload() {
 }
 
 function should_skip_permission() {
+  if (force_ask) return false;
   if (never_ask) return true;
   if (current_mode === "bypassPermissions") return true;
   if (current_mode === "acceptEdits" && fake_tool === "Write") return true;
@@ -332,6 +338,10 @@ function handle(msg) {
   } else if (method === "session/new") {
     if (typeof params.cwd === "string") session_cwd = params.cwd;
     const result = { sessionId: "fake-session-1" };
+    // Echo CLAUDE_CONFIG_DIR so tests can prove the harness forwarded isolation env.
+    if (typeof env.CLAUDE_CONFIG_DIR === "string") {
+      result.asa_claude_config_dir = env.CLAUDE_CONFIG_DIR;
+    }
     if (fake_modes) {
       result.modes = modes_payload();
       result.configOptions = [{ id: "mode", category: "mode", currentValue: current_mode }];
@@ -339,6 +349,9 @@ function handle(msg) {
     send({ jsonrpc: "2.0", id, result });
   } else if (method === "session/set_mode") {
     const modeId = String(params.modeId ?? "");
+    if (reject_set_mode) {
+      send({ jsonrpc: "2.0", id, error: { code: -32000, message: `fake reject set_mode: ${modeId}` } });
+    } else {
     const ok = AVAILABLE_MODES.some((m) => m.id === modeId);
     if (!ok) {
       send({ jsonrpc: "2.0", id, error: { code: -32602, message: `unknown mode: ${modeId}` } });
@@ -346,6 +359,7 @@ function handle(msg) {
       current_mode = modeId;
       notify_update(params.sessionId ?? "fake-session-1", { sessionUpdate: "current_mode_update", currentModeId: current_mode });
       send({ jsonrpc: "2.0", id, result: {} });
+    }
     }
   } else if (method === "session/load") {
     if (typeof params.cwd === "string") session_cwd = params.cwd;

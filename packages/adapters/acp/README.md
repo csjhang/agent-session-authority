@@ -104,25 +104,27 @@ Full scenario names (CLI `--scenario`):
 | `auth08-p1-bypassPermissions-write` | `mode:bypassPermissions:Write` | `session/set_mode` → bypassPermissions |
 | `auth08-e9-client-fs-write` | `client:fs_write_text_file` | **fake-only** (not live) |
 
-### Prompts (Bash-class include single-command instruction)
+### Prompts (Write- and Bash-class: do not read/inspect after writing)
 
 Exact harness prompts (also in `auth08_scenarios.ts`):
 
 - P5: `Using the Bash tool, write file asa-auth08-p5.txt with exactly: p5-ok. Use a single command only; after writing do not read or inspect the file.`
-- P4 allow: `Write asa-auth08-p4-allow.txt with exactly: p4a-ok`
-- P4 defaultMode: `Write asa-auth08-p4-dm.txt with exactly: p4b-ok`
-- P2 write: `Write asa-auth08-p2-write.txt with exactly: p2w-ok`
+- P4 allow: `Write asa-auth08-p4-allow.txt with exactly: p4a-ok. After writing do not read or inspect the file.`
+- P4 defaultMode: `Write asa-auth08-p4-dm.txt with exactly: p4b-ok. After writing do not read or inspect the file.`
+- P2 write: `Write asa-auth08-p2-write.txt with exactly: p2w-ok. After writing do not read or inspect the file.`
 - P2 bash-fs: `Using Bash, create empty file asa-auth08-p2-fs.txt via touch. Use a single command only; after writing do not read or inspect the file.`
 - P2 bash-redirect: `Using Bash, write asa-auth08-p2-redir.txt with exactly: p2r-ok. Use a single command only; after writing do not read or inspect the file.`
-- P1: `Write asa-auth08-p1.txt with exactly: p1-ok`
-- E9: `Write asa-auth08-e9.txt with exactly: e9-ok`
+- P1: `Write asa-auth08-p1.txt with exactly: p1-ok. After writing do not read or inspect the file.`
+- E9: `Write asa-auth08-e9.txt with exactly: e9-ok. After writing do not read or inspect the file.`
 
 ### Safety / isolation
 
 - **All** AUTH-08 runs set `CLAUDE_CONFIG_DIR` to an empty temp and use an empty cwd **outside the repo**; refuse otherwise.
-- Live scenarios that weaken permissions (P4a/b, P2-*, P1) also require `--allow-weakened-permissions` (fake offline runs skip this when `live_command` is node/fake).
+- Live scenarios that weaken permissions (P4a/b, P2-*, P1) always require `--allow-weakened-permissions` (no `node` exemption).
+- `auth08-e9-client-fs-write` is **fake-agent only** (CLI/harness refuse real `claude-agent-acp`).
 - `.claude/settings.json` is written **only** under that run's cwd.
 - P5 / E9: target-reported `currentModeId` must be `default` or `run_valid=false`.
+- `probe.permission_mode` history lines are emitted only after a successful `session/set_mode` (P2/P1); session/new reported mode is stamped in `run.json` as `reported_mode` only.
 - Single generation only (no restart).
 
 ### Peer facts vs convert-time judgments
@@ -135,4 +137,4 @@ Every inbound `fs/write_text_file` is recorded (request peer), then **write-thro
 
 ### New `ASA_FAKE_*` for AUTH-08
 
-`ASA_FAKE_MODES`, `ASA_FAKE_PERMISSION_MODE`, `ASA_FAKE_NEVER_ASK`, `ASA_FAKE_TOOL`, `ASA_FAKE_BASH_CLASS`, `ASA_FAKE_CLIENT_FS_WITHOUT_PERMISSION`, `ASA_FAKE_SETTINGS_SHORT_CIRCUIT`, `ASA_FAKE_LS_THEN_WRITE`, `ASA_FAKE_DUAL_WRITE_UNLINKABLE` — see fixture header comments.
+`ASA_FAKE_MODES`, `ASA_FAKE_PERMISSION_MODE`, `ASA_FAKE_NEVER_ASK`, `ASA_FAKE_FORCE_ASK`, `ASA_FAKE_REJECT_SET_MODE`, `ASA_FAKE_TOOL`, `ASA_FAKE_BASH_CLASS`, `ASA_FAKE_CLIENT_FS_WITHOUT_PERMISSION`, `ASA_FAKE_SETTINGS_SHORT_CIRCUIT`, `ASA_FAKE_LS_THEN_WRITE`, `ASA_FAKE_DUAL_WRITE_UNLINKABLE` — see fixture header comments.
