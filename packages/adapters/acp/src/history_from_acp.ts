@@ -6,6 +6,10 @@ import {
   type HistoryEvent,
 } from "@asa/core";
 import type { AcpPeerEvent } from "./mock_peer.js";
+import {
+  build_observed_bypass_path_id,
+  classify_bash_command,
+} from "./auth08_scenarios.js";
 
 export type HistoryEventLite = HistoryEvent;
 
@@ -220,6 +224,171 @@ function earliest_observed_at_ms(events: readonly AcpPeerEvent[]): number | unde
  * effect_receipt session updates become effect.receipt with derived field_provenance.
  * Same-path receipts merge only when adjacent (no bind/approval/restart between).
  */
+
+/**
+ * PR-11d A/B: derive tool_call_id link, observed tool, Bash class, bypass_path_id
+ * from recorded history. Peer-events stay raw; reconvert re-derives after rule fixes.
+ */
+function finalize_probe_attempts(out: HistoryEventLite[], session_cwd: string | undefined): void {
+  const attempts = out
+    .map((ev, idx) => ({ ev, idx }))
+    .filter(({ ev }) => ev.op === "probe.bypass_attempt");
+  for (let ai = 0; ai < attempts.length; ai++) {
+    const { ev: attempt, idx: attempt_idx } = attempts[ai]!;
+    const next_attempt_idx = ai + 1 < attempts.length ? attempts[ai + 1]!.idx : out.length;
+    const probe_path = typeof attempt.attrs?.path === "string" ? attempt.attrs.path : undefined;
+    const mechanism =
+      typeof attempt.attrs?.mechanism === "string" ? attempt.attrs.mechanism : undefined;
+    const intent_id =
+      typeof attempt.attrs?.bypass_path_id === "string" ? attempt.attrs.bypass_path_id : undefined;
+    if (!probe_path) continue;
+    const basename = probe_path.split("/").pop() ?? probe_path;
+
+    type Cand = {
+      tool_call_id: string;
+      tool: "Write" | "Bash" | "fs_write_text_file";
+      command?: string;
+      path_match: boolean;
+    };
+    const candidates: Cand[] = [];
+
+    for (let i = attempt_idx + 1; i < next_attempt_idx; i++) {
+      const e = out[i]!;
+      if (e.op === "action.bind") {
+        const tc = typeof e.attrs?.tool_call_id === "string" ? e.attrs.tool_call_id : undefined;
+        if (!tc) continue;
+        const target = String(e.attrs?.target ?? "");
+        const target_kind = e.attrs?.target_kind;
+        const action_type = String(e.attrs?.action_type ?? "");
+        const args = (e.attrs?.args ?? {}) as Record<string, unknown>;
+        if (
+          typeof args.file_path === "string" ||
+          typeof args.path === "string" ||
+          target_kind === "path"
+        ) {
+          const fp = normalize_path(
+            String(args.file_path ?? args.path ?? target),
+            session_cwd,
+          );
+          const path_match = paths_equal(fp, probe_path);
+          candidates.push({ tool_call_id: tc, tool: "Write", path_match });
+        } else if (
+          typeof args.command === "string" ||
+          action_type.includes("Bash") ||
+          target === "Bash"
+        ) {
+          const cmd = typeof args.command === "string" ? args.command : "";
+          const path_match =
+            cmd.includes(probe_path) ||
+            cmd.includes(basename) ||
+            cmd.includes(`./${basename}`);
+          candidates.push({ tool_call_id: tc, tool: "Bash", command: cmd, path_match });
+        } else {
+          candidates.push({ tool_call_id: tc, tool: "Write", path_match: false });
+        }
+      }
+      if (e.op === "session.attach" && e.attrs?.update_kind === "fs_write_text_file_request") {
+        const raw = e.attrs.raw_update as Record<string, unknown> | undefined;
+        const raw_path = raw?.path !== undefined ? String(raw.path) : undefined;
+        const path_norm = raw_path !== undefined ? normalize_path(raw_path, session_cwd) : undefined;
+        if (path_norm && paths_equal(path_norm, probe_path)) {
+          candidates.push({
+            tool_call_id: `fs:${path_norm}`,
+            tool: "fs_write_text_file",
+            path_match: true,
+          });
+        }
+      }
+      // Never-ask / short-circuit: tool_call session_update carries rawInput but no permission_request → no action.bind.
+      if (e.op === "session.attach") {
+        const raw = e.attrs?.raw_update as Record<string, unknown> | undefined;
+        const nested = raw?.raw_update as Record<string, unknown> | undefined;
+        const su =
+          raw?.sessionUpdate ??
+          nested?.sessionUpdate ??
+          e.attrs?.update_kind ??
+          raw?.kind;
+        const is_tool =
+          su === "tool_call" ||
+          su === "tool_call_update" ||
+          su === "edit" ||
+          su === "execute";
+        if (is_tool) {
+          const tc =
+            (typeof raw?.toolCallId === "string" ? raw.toolCallId : undefined) ||
+            (typeof nested?.toolCallId === "string" ? nested.toolCallId : undefined) ||
+            (typeof e.attrs?.tool_call_id === "string" ? e.attrs.tool_call_id : undefined);
+          if (!tc) continue;
+          // Skip if we already have this tool_call_id from a bind
+          if (candidates.some((c) => c.tool_call_id === tc)) continue;
+          const rawInput = (raw?.rawInput ?? nested?.rawInput ?? {}) as Record<string, unknown>;
+          const title = String(raw?.title ?? e.attrs?.toolName ?? "");
+          const kind = String(raw?.kind ?? "");
+          if (typeof rawInput.file_path === "string" || typeof rawInput.path === "string") {
+            const fp = normalize_path(
+              String(rawInput.file_path ?? rawInput.path),
+              session_cwd,
+            );
+            candidates.push({
+              tool_call_id: tc,
+              tool: "Write",
+              path_match: paths_equal(fp, probe_path),
+            });
+          } else if (typeof rawInput.command === "string" || kind === "execute" || title === "Bash") {
+            const cmd = typeof rawInput.command === "string" ? rawInput.command : "";
+            const path_match =
+              cmd.includes(probe_path) ||
+              cmd.includes(basename) ||
+              cmd.includes(`./${basename}`);
+            candidates.push({ tool_call_id: tc, tool: "Bash", command: cmd, path_match });
+          } else {
+            candidates.push({ tool_call_id: tc, tool: "Write", path_match: false });
+          }
+        }
+      }
+    }
+
+    const path_matches = candidates.filter((c) => c.path_match);
+    const attrs = { ...(attempt.attrs ?? {}) };
+
+    if (candidates.length === 0) {
+      // Idle: keep intent bypass_path_id
+      delete attrs.mechanism;
+      attempt.attrs = attrs;
+      continue;
+    }
+
+    if (path_matches.length !== 1) {
+      delete attrs.bypass_path_id;
+      delete attrs.tool_call_id;
+      delete attrs.mechanism;
+      attempt.attrs = attrs;
+      continue;
+    }
+
+    const hit = path_matches[0]!;
+    attrs.tool_call_id = hit.tool_call_id;
+    let observed: string | undefined;
+    if (hit.tool === "Bash") {
+      const cls = classify_bash_command(hit.command ?? "", probe_path, basename);
+      observed = mechanism
+        ? build_observed_bypass_path_id(mechanism, "Bash", cls)
+        : undefined;
+    } else if (hit.tool === "fs_write_text_file") {
+      observed = "client:fs_write_text_file";
+    } else {
+      observed = mechanism ? build_observed_bypass_path_id(mechanism, "Write") : intent_id;
+    }
+    if (observed) attrs.bypass_path_id = observed;
+    else delete attrs.bypass_path_id;
+    delete attrs.mechanism;
+    const fp_fields = ["path", "runtime_generation", "tool_call_id"];
+    if (attrs.bypass_path_id) fp_fields.push("bypass_path_id");
+    attrs.field_provenance = derived_provenance(fp_fields);
+    attempt.attrs = attrs;
+  }
+}
+
 export function acp_events_to_history(
   events: readonly AcpPeerEvent[],
   opts: {
@@ -492,6 +661,70 @@ export function acp_events_to_history(
           ev.observed_at_ms,
           );
         }
+      } else if (kind === "probe_bypass_attempt") {
+        const path_raw = ev.update.path !== undefined ? String(ev.update.path) : undefined;
+        const path_norm = path_raw !== undefined ? normalize_path(path_raw, session_cwd) : undefined;
+        const intent_id =
+          typeof ev.update.bypass_path_id === "string" ? ev.update.bypass_path_id : undefined;
+        const mechanism =
+          typeof ev.update.mechanism === "string" ? ev.update.mechanism : undefined;
+        const gen =
+          typeof ev.update.runtime_generation === "number"
+            ? ev.update.runtime_generation
+            : runtime_generation;
+        const fp_fields = ["runtime_generation"];
+        if (intent_id) fp_fields.push("bypass_path_id");
+        if (path_norm) fp_fields.push("path");
+        next(
+          {
+            kind: "observe",
+            op: "probe.bypass_attempt",
+            session_id: ev.sessionId,
+            attrs: {
+              ...(intent_id ? { bypass_path_id: intent_id } : {}),
+              ...(path_norm ? { path: path_norm } : {}),
+              ...(mechanism ? { mechanism } : {}),
+              runtime_generation: gen,
+              field_provenance: derived_provenance(fp_fields),
+            },
+            note: "probe attempt at prompt-send (raw peer)",
+          },
+          ev.observed_at_ms,
+        );
+      } else if (kind === "probe_permission_mode") {
+        const mode =
+          typeof ev.update.permission_mode === "string" ? ev.update.permission_mode : undefined;
+        if (mode) {
+          next(
+            {
+              kind: "observe",
+              op: "probe.permission_mode",
+              session_id: ev.sessionId,
+              attrs: {
+                permission_mode: mode,
+                field_provenance: derived_provenance(["permission_mode"]),
+              },
+              note: "probe permission mode (raw peer)",
+            },
+            ev.observed_at_ms,
+          );
+        }
+      } else if (
+        kind === "fs_write_text_file_request" ||
+        kind === "set_mode_request" ||
+        kind === "set_mode_response" ||
+        kind === "auth08_settings"
+      ) {
+        next(
+          {
+            kind: "observe",
+            op: "session.attach",
+            session_id: ev.sessionId,
+            attrs: { update_kind: kind, raw_update: ev.update },
+            note: "acp auth08 raw peer fact",
+          },
+          ev.observed_at_ms,
+        );
       } else {
         if (kind === "session_load" || kind === "session_resume") replaying = false;
         next(
@@ -709,6 +942,7 @@ export function acp_events_to_history(
       );
     }
   }
+  finalize_probe_attempts(out, session_cwd);
   return out;
 }
 
