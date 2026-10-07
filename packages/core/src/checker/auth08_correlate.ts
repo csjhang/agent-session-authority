@@ -207,8 +207,8 @@ function non_path_bind_may_cover(
     const gen = num(ea.runtime_generation);
     if (receipt_gen !== undefined && gen !== undefined && gen !== receipt_gen) return false;
     const tk = str(ea.target_kind);
-    // Only when target_kind is present and explicitly not path (missing ≠ non-path).
-    return tk !== undefined && tk !== "path";
+    // Spec: "target_kind other than path" — missing target_kind also counts as not-path.
+    return tk !== "path";
   });
 }
 

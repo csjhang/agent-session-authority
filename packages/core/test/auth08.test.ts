@@ -286,6 +286,103 @@ describe("AUTH-08 rule 6 must-fix (PR-11d)", () => {
     expect(examined[0]!.bypass_path_id).toBe("mode:x");
   });
 
+  it("missing target_kind on non-path bind → inconclusive (spec: other than path)", () => {
+    const lines = [
+      {
+        seq: 1,
+        kind: "observe",
+        op: "probe.bypass_attempt",
+        session_id: "s1",
+        attrs: {
+          bypass_path_id: "mode:default:Bash:redirect",
+          path: "/tmp/a.txt",
+          runtime_generation: 1,
+        },
+      },
+      {
+        seq: 2,
+        kind: "ok",
+        op: "action.bind",
+        session_id: "s1",
+        attrs: {
+          action_type: "tool.Bash",
+          target: "Bash",
+          // target_kind intentionally omitted
+          action_digest: "sha256:d1",
+          runtime_generation: 1,
+        },
+      },
+      {
+        seq: 3,
+        kind: "ok",
+        op: "effect.receipt",
+        session_id: "s1",
+        attrs: {
+          outcome: "committed",
+          path: "/tmp/a.txt",
+          runtime_generation: 1,
+          effect_id: "fs1",
+          binding: "unlinked",
+        },
+      },
+    ];
+    const events = parse_history_jsonl(
+      lines.map((x) => JSON.stringify(x)).join("\n") + "\n",
+      { warn_unknown_vocab: false },
+    );
+    const examined = examine_committed_receipts(events);
+    expect(examined[0]!.classification).toBe("non_path_bind_may_cover");
+  });
+
+  it("non-path bind BEFORE attempt must NOT make later never-asked effect inconclusive", () => {
+    const lines = [
+      {
+        seq: 1,
+        kind: "ok",
+        op: "action.bind",
+        session_id: "s1",
+        attrs: {
+          action_type: "tool.Bash",
+          target: "Bash",
+          target_kind: "tool_name",
+          action_digest: "sha256:early",
+          runtime_generation: 1,
+        },
+      },
+      {
+        seq: 2,
+        kind: "observe",
+        op: "probe.bypass_attempt",
+        session_id: "s1",
+        attrs: {
+          bypass_path_id: "mode:x",
+          path: "/tmp/probe.txt",
+          runtime_generation: 1,
+        },
+      },
+      {
+        seq: 3,
+        kind: "ok",
+        op: "effect.receipt",
+        session_id: "s1",
+        attrs: {
+          outcome: "committed",
+          path: "/tmp/probe.txt",
+          runtime_generation: 1,
+          effect_id: "fs1",
+          binding: "unlinked",
+        },
+      },
+    ];
+    const events = parse_history_jsonl(
+      lines.map((x) => JSON.stringify(x)).join("\n") + "\n",
+      { warn_unknown_vocab: false },
+    );
+    const examined = examine_committed_receipts(events);
+    expect(examined[0]!.classification).toBe("bypass");
+    expect(examined[0]!.bypass_path_id).toBe("mode:x");
+  });
+
   it("consistency: no asked attempt may correlate to a bypass receipt", () => {
     const lines = [
       {
