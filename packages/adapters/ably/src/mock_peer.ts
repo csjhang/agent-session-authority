@@ -19,5 +19,5 @@ export class MockAblyPeer {
     this.push({type:"tool_approval_response",sessionId:this.sessionId,runId,toolCallId,decision:"allow",clientId:"device-phone",firstResponseWins:true});
     this.push({type:"tool_approval_response",sessionId:this.sessionId,runId,toolCallId,decision:"deny",clientId:"device-desktop",firstResponseWins:true,ignored:true});
     this.push({type:"run_resume",sessionId:this.sessionId,runId,newInvocationId:"inv-2",note:"resume = new invocation; old approval validity across invocation undefined in docs"}); this.push({type:"session_closed",sessionId:this.sessionId,reason:"fixture_done"}); return [...this.events]; }
-  private push(e: AblyPeerEvent): void { this.events.push(e); } get_events(): readonly AblyPeerEvent[] { return this.events; }
+  private push(e: AblyPeerEvent): void { this.events.push(e); }
 }

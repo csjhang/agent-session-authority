@@ -738,19 +738,3 @@ export function verifyCrossRecords(
     reports,
   };
 }
-
-/** Parse JSONL text into objects (skips blank lines). */
-export function parseJsonl(text: string): unknown[] {
-  const out: unknown[] = [];
-  const lines = text.split(/\r?\n/);
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!.trim();
-    if (line === "") continue;
-    try {
-      out.push(JSON.parse(line));
-    } catch (e) {
-      throw new Error(`JSONL line ${i + 1}: ${(e as Error).message}`);
-    }
-  }
-  return out;
-}
