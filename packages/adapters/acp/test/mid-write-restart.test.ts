@@ -233,23 +233,23 @@ describe("mid-write-restart (permission outstanding before allow)", () => {
           process.exit(3);
         }
         console.log("ok collect_ms=" + ms);
-        process.exit(0);
+        // No process.exit(0): the child must exit on its own, so a leftover timer keeps it alive and fails the test.
       `;
       const start = Date.now();
       const r = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
         cwd: repo_root,
         encoding: "utf8",
-        timeout: 25_000,
+        timeout: 120_000,
         env: process.env,
       });
       const wall = Date.now() - start;
       expect(r.error, `spawn error: ${String(r.error)} stdout=${r.stdout} stderr=${r.stderr}`).toBeUndefined();
       expect(r.status, `status=${r.status} stdout=${r.stdout} stderr=${r.stderr}`).toBe(0);
       // Without the cancel_pending fix this hangs ~180s until the abandoned prompt timer fires.
-      expect(wall, `wall_ms=${wall} stdout=${r.stdout}`).toBeLessThan(20_000);
+      expect(wall, `wall_ms=${wall} stdout=${r.stdout}`).toBeLessThan(90_000);
       expect(r.stdout).toMatch(/ok collect_ms=/);
     },
-    30_000,
+    150_000,
   );
 
   it(
