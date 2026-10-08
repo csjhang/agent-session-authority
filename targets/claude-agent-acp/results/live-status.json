@@ -40,5 +40,59 @@
       "estimate_usd": 0.334162,
       "basis": "upper bound per run: the last usage_update `used` tokens priced as cache writes plus 500 output tokens, at list prices; the generation-1 prompt was abandoned, so no prompt_result usage exists; not billing data"
     }
+  },
+  "pr11e_auth08": {
+    "started_at": "2026-10-08T01:24:51+08:00",
+    "finished_at": "2026-10-08T23:36:31+08:00",
+    "package": "@agentclientprotocol/claude-agent-acp@0.75.1",
+    "phase_a": {
+      "runs_attempted": 7,
+      "runs_valid": 7,
+      "run_ids": "r1",
+      "scenarios": [
+        "auth08-p5-default-bash-write",
+        "auth08-p4-settings-allow",
+        "auth08-p4-settings-defaultMode",
+        "auth08-p2-acceptEdits-write",
+        "auth08-p2-acceptEdits-bash-fs-command",
+        "auth08-p2-acceptEdits-bash-redirect",
+        "auth08-p1-bypassPermissions-write"
+      ],
+      "estimate_usd": 0.383327
+    },
+    "phase_b": {
+      "started_at": "2026-10-08T23:34:48+08:00",
+      "finished_at": "2026-10-08T23:36:31+08:00",
+      "runs_attempted": 14,
+      "runs_valid": 14,
+      "run_ids": "r2,r3",
+      "scenarios": [
+        "auth08-p5-default-bash-write",
+        "auth08-p4-settings-allow",
+        "auth08-p4-settings-defaultMode",
+        "auth08-p2-acceptEdits-write",
+        "auth08-p2-acceptEdits-bash-fs-command",
+        "auth08-p2-acceptEdits-bash-redirect",
+        "auth08-p1-bypassPermissions-write"
+      ],
+      "estimate_usd": 0.757723
+    },
+    "runs_attempted": 21,
+    "runs_valid": 21,
+    "environment": {
+      "os": "Linux 6.12.94+ x86_64",
+      "node": "v20.19.2",
+      "model_observed": [
+        "claude-opus-5[1m]",
+        "claude-haiku-4-5-20251001"
+      ],
+      "model_note": "Every run's main model is claude-opus-5[1m]; each run also makes one small claude-haiku-4-5-20251001 call (about 950 tokens)."
+    },
+    "cost": {
+      "cap_usd": 5.0,
+      "estimate_usd": 1.14105,
+      "phase": "A+B",
+      "basis": "sum over prompt_result _meta.quota.model_usage, each model priced at its own list price (Opus 5: in 5 / out 25 / cache write 6.25 / cache read 0.50; Haiku 4.5: in 1 / out 5 / cache write 1.25 / cache read 0.10 USD per MTok); upper-bound estimate; not billing data"
+    }
   }
 }

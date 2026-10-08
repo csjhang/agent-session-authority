@@ -99,5 +99,5 @@
   },
   "history_artifact": "targets/vscode-agent-host/results/history-fixture.jsonl",
   "generated_by": "scripts/generate-capability-vectors.ts",
-  "generated_at": "2026-10-07"
+  "generated_at": "2026-10-08"
 }

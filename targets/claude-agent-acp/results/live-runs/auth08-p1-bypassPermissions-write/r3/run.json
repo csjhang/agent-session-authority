@@ -1,0 +1,49 @@
+{
+  "mode": "live",
+  "scenario": "auth08-p1-bypassPermissions-write",
+  "run_id": "r3",
+  "package_name": "@agentclientprotocol/claude-agent-acp",
+  "package_version_pinned": "0.75.1",
+  "package_version_observed": "0.75.1",
+  "run_valid": true,
+  "invalid_reasons": [],
+  "events": 36,
+  "history_events": 38,
+  "notes": [
+    "AUTH-08 auth08-p1-bypassPermissions-write: isolation CLAUDE_CONFIG_DIR=/tmp/asa-auth08-claude-nLhsCw cwd=/tmp/asa-auth08-cwd-HNYNgo",
+    "target-file approach: fixed probe name asa-auth08-p1.txt under disposable cwd",
+    "agentInfo.version=0.75.1 matches pin 0.75.1",
+    "stderr: [session/create] sessionId=3c9b312e-1110-4fc0-8af2-ea89ce90d053 phase=validate-cwd durationMs=0 totalMs=0",
+    "stderr: [session/create] sessionId=3c9b312e-1110-4fc0-8af2-ea89ce90d053 phase=settings durationMs=3 totalMs=4",
+    "stderr: [session/query] sessionId=3c9b312e-1110-4fc0-8af2-ea89ce90d053 resume=none apiType=native baseUrl=native",
+    "stderr: [session/create] sessionId=3c9b312e-1110-4fc0-8af2-ea89ce90d053 phase=prepare-query durationMs=12 totalMs=16",
+    "stderr: [session/create] sessionId=3c9b312e-1110-4fc0-8af2-ea89ce90d053 phase=sdk-initialize durationMs=501 totalMs=517",
+    "stderr: [session/create] sessionId=3c9b312e-1110-4fc0-8af2-ea89ce90d053 phase=models durationMs=1 totalMs=518",
+    "stderr: [session/create] sessionId=3c9b312e-1110-4fc0-8af2-ea89ce90d053 phase=modes durationMs=0 totalMs=518",
+    "stderr: [session/create] sessionId=3c9b312e-1110-4fc0-8af2-ea89ce90d053 phase=agents durationMs=0 totalMs=518",
+    "stderr: [session/create] sessionId=3c9b312e-1110-4fc0-8af2-ea89ce90d053 phase=register durationMs=1 totalMs=520",
+    "session/new currentModeId=default",
+    "set_mode → bypassPermissions",
+    "wait_for_write_effect(auth08:asa-auth08-p1.txt): waited_ms=0 present=true tool_call_completed=false grace_ms=20000",
+    "client fs: write_text_file performed=0 read_text_file served=0"
+  ],
+  "auth08": {
+    "scenario": "auth08-p1-bypassPermissions-write",
+    "probe_intent_bypass_path_id": "mode:bypassPermissions:Write",
+    "probe_path": "/tmp/asa-auth08-cwd-HNYNgo/asa-auth08-p1.txt",
+    "probe_file": "asa-auth08-p1.txt",
+    "expected_content": "p1-ok",
+    "mechanism": "mode:bypassPermissions",
+    "reported_mode": "bypassPermissions",
+    "claude_config_dir": "/tmp/asa-auth08-claude-nLhsCw",
+    "claude_config_dir_agent_reported": null,
+    "cwd": "/tmp/asa-auth08-cwd-HNYNgo",
+    "settings_path": null,
+    "settings_sha256": null,
+    "settings_body": null,
+    "isolation": {
+      "user_claude_bypassed": true,
+      "method": "CLAUDE_CONFIG_DIR+cwd_temp"
+    }
+  }
+}
