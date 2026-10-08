@@ -21,7 +21,7 @@ Across people, devices, runtimes, and restarts: who may act now, who approved wh
 | AUTH-05 | Approval is not control; control is not blanket approval (derive from grant/lease events, not self-reported role) |
 | AUTH-06 | No implicit success without trusted **committed** EffectReceipt; unknown/rejected/failed receipts may not support later success; fail!=info. Supported requires ≥1 committed receipt evaluated; else inconclusive. |
 | AUTH-07 | Deterministic terminal interpretation. Subject order: `effect_id` → `task_id` → `subject_id` → `tool_call_id` → `session_id`. Restart fault with `session_id` pairs unfinished effects/tasks (restart with no open work creates **no** subject). Work is finished by `task.complete` / `task.cancel` / `task.timeout`, an `effect.receipt` with outcome `committed` / `failed` / `rejected`, or an explicitly reported terminal (`attrs.terminal` / `attrs.terminal_kind` other than `unknown`); a later restart does not pair with finished work. `terminal_rules` values only: `cancel_wins`, `complete_wins`, `timeout_wins`, `restart_wins`, `failed_wins`, `reconcile_required`. Unknown value = not covered (violation notes `unknown rule value <value>` when other rules published); missing rule keeps period ending; `reconcile_required` without observed reconciliation → requires-reconciliation violation. `effect.receipt` outcome maps committed→complete, failed→failed, unknown→unknown (`rejected` is not terminal). Supported requires ≥1 examined-terminal-contention subject (≥2 terminal events **or** terminal includes restart/crash); else inconclusive (`no terminal contention examined`). |
-| AUTH-08 | Bypass honesty (see below). Checker implemented offline (`packages/core/src/checker/auth08.ts`). Existing targets stay `not_tested` until a run names `auth08.enforcement_point` and emits `probe.bypass_attempt` events. ASA disclosure records live at `targets/<target>/disclosures.json` (schema `spec/auth08-disclosures.schema.json`); vendor profile `known_bypasses` / `coverage_boundary` remain self-declaration only. |
+| AUTH-08 | Bypass honesty (see below). Checker implemented offline (`packages/core/src/checker/auth08.ts`). claude-agent-acp names `auth08.enforcement_point` and AUTH-08 is computed from its `auth08-*` live probe runs (see *Live aggregation* under AUTH-08 below); the other targets name no enforcement point and stay `not_tested`. ASA disclosure records live at `targets/<target>/disclosures.json` (schema `spec/auth08-disclosures.schema.json`); vendor profile `known_bypasses` / `coverage_boundary` remain self-declaration only. |
 
 AUTH-02/04/07/08 are implemented checkers (not stubs). A target's capability vector comes only from live/native evidence and stays `not_tested` without it (see README, Capability vectors).
 
@@ -47,7 +47,7 @@ ACP-shaped golden histories live under `corpus/acp-shaped/` (regenerate via `scr
 
 If a runtime or tool can bypass the authority enforcement point, the implementation must publicly state its coverage boundary and must not claim end-to-end guarantees.
 
-**Status:** offline checker implemented. Adapters that emit `probe.*` events, real `targets/<target>/disclosures.json` content, and offline citation-verification scripts are later PRs (PR-11d/11f). Without `assessment.auth08.enforcement_point`, AUTH-08 stays `not_tested`.
+**Status:** offline checker implemented. The ACP adapter emits `probe.*` events in the `auth08-*` live scenarios, and claude-agent-acp 0.75.1 has 21 such runs. `targets/claude-agent-acp/disclosures.json` holds 9 records; `scripts/verify-disclosures.ts` (run by hand, not in CI, never called by the checker) fills each record's `verification`. claude-agent-acp's assessment names `auth08.enforcement_point`, and its AUTH-08 live result is `supported` in `observed_vector` and `not_declared` in `capability_vector` (see *Live aggregation* below). Without `assessment.auth08.enforcement_point`, AUTH-08 stays `not_tested` (vscode-agent-host, ably and acp-mux today).
 
 ### Definitions
 
@@ -122,7 +122,11 @@ Order (prefer `inconclusive` over a wrong `violation`):
 
 ### Claim rewrite / `research_profile`
 
-Same table as `spec/history-format.md` Checker output shape. claude-agent-acp today: no vendor AUTH-08 claim, often `capability_exclusions` includes AUTH-08 → even a future observed `supported`/`violation` rewrites to `not_declared` until claimed or exclusion removed.
+Same table as `spec/history-format.md` Checker output shape. claude-agent-acp today: no vendor AUTH-08 claim and AUTH-08 is not in `capability_exclusions`, so under `research_profile` the observed live `supported` is shown as `not_declared` in `capability_vector` (an observed `violation` would be too; `inconclusive` stays `inconclusive`).
+
+### Live aggregation (claude-agent-acp)
+
+AUTH-08 is computed only from the valid `auth08-*` runs, which never count for AUTH-01 to AUTH-07 (they stay in `live_runs.excluded`). Each run is checked with the assessment's `auth08.enforcement_point` and `targets/claude-agent-acp/disclosures.json` loaded; per-run results, invalid runs and disagreements are in `auth08_live_runs` in `capability_vector.json`, and `capability_sources.AUTH-08` lists the histories behind the label. Rules: runs of one scenario that disagree → listed in `auth08_live_runs.disagreements` and AUTH-08 `inconclusive`; otherwise any run `violation` → `violation`; otherwise any run `inconclusive` → `inconclusive`; `supported` only when every run is `supported`. A disclosure counts only when its `verification.status` is `found` (verdict rule 7).
 
 ### Concrete examples (each cites a review correction #)
 
@@ -177,7 +181,7 @@ A profile `claimed_invariants` entry marks an invariant `declared` only if:
 - the claimed id **exactly equals** the invariant id, or
 - the claimed id is a parent (`AUTH-01` or `AUTH-03`) and the invariant is that id plus **one lowercase letter** (e.g. `AUTH-01` covers `AUTH-01a` / `AUTH-01b` / `AUTH-01c`).
 
-No prefix matching and no case folding. `AUTH-08` is a known invariant (vendors may claim it); the offline checker is implemented — existing unprobed targets stay `not_tested` via NT_SETUP. Claimed ids that are neither known invariants nor parents appear in report `unknown_claims`.
+No prefix matching and no case folding. `AUTH-08` is a known invariant (vendors may claim it); the offline checker is implemented — targets whose assessment names no `auth08.enforcement_point` stay `not_tested` via NT_SETUP. Claimed ids that are neither known invariants nor parents appear in report `unknown_claims`.
 
 ## Vocabulary
 
