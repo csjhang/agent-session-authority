@@ -124,7 +124,7 @@ Exact harness prompts (also in `auth08_scenarios.ts`):
 - `auth08-e9-client-fs-write` is **fake-agent only** (CLI/harness refuse real `claude-agent-acp`).
 - `.claude/settings.json` is written **only** under that run's cwd.
 - P5 / E9: target-reported `currentModeId` must be `default` or `run_valid=false`.
-- `probe.permission_mode` history lines are emitted only after a successful `session/set_mode` (P2/P1); session/new reported mode is stamped in `run.json` as `reported_mode` only.
+- `probe.permission_mode` history lines are emitted only after a successful `session/set_mode` (P2/P1). `run.json` `auth08.reported_mode` holds the `currentModeId` from `session/new`, or, when the probe called `session/set_mode` and it succeeded, the mode the probe requested. It is not the mode claude-agent-acp confirmed afterwards; that confirmation is recorded in `peer-events.jsonl` as a `config_option_update` session update.
 - Single generation only (no restart).
 
 ### Peer facts vs convert-time judgments
