@@ -131,7 +131,8 @@ describe("claude-agent-acp capability vector from live runs", () => {
     expect(doc.capability_exclusions["AUTH-01b"]).toMatch(/probe-derived/);
     expect(doc.capability_exclusions["AUTH-06"]).toMatch(/not examined/);
     expect(doc.capability_exclusions["AUTH-07"]).toBeUndefined();
-    expect(Object.keys(doc.capability_exclusions).sort()).toEqual(["AUTH-01a", "AUTH-01b", "AUTH-01c", "AUTH-06", "AUTH-08"]);
+    // AUTH-08 is no longer excluded: it comes from the auth08-* runs only (pr11f-auth08-live-vector.test.ts).
+    expect(Object.keys(doc.capability_exclusions).sort()).toEqual(["AUTH-01a", "AUTH-01b", "AUTH-01c", "AUTH-06"]);
   });
 
   const REJECT_ALWAYS_R1 = path.join(repo_root, "targets/claude-agent-acp/results/live-runs/reject-always/r1/history.jsonl");
@@ -212,7 +213,10 @@ describe("claude-agent-acp capability vector from live runs", () => {
     expect(hit).toBeDefined();
     expect(hit!.reasons).toEqual([AUTH08_LIVE_RUN_EXCLUDE_REASON]);
     expect(doc.live_runs.included.every((r) => !r.scenario.startsWith("auth08-"))).toBe(true);
-    expect(doc.capability_exclusions["AUTH-08"]).toBeDefined();
+    // The same run is AUTH-08 evidence only.
+    expect(doc.capability_exclusions["AUTH-08"]).toBeUndefined();
+    expect(doc.auth08_live_runs!.included.map((r) => `${r.scenario}/${r.run_id}`)).toEqual(["auth08-p5-default-bash-write/r1"]);
+    expect(Object.keys(doc.auth08_live_runs!.included[0]!.observed)).toEqual(["AUTH-08"]);
 
     // AUTH-01–07 unchanged vs baseline (a3 violation must not win).
     expect(snap(doc)).toEqual(before);

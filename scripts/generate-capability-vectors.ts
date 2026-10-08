@@ -18,6 +18,11 @@
  *   for this target (probe-derived or not examined by the adapter).
  * - `live_runs` — included runs (with per-run observed), excluded runs (with
  *   reasons) and per-scenario run disagreements (reported, never voted).
+ *   `auth08-*` probe runs are always in `excluded` here (AUTH-01–07 never use them).
+ * - `auth08_live_runs` — (targets with an AUTH-08 live channel) the `auth08-*` runs used
+ *   only for AUTH-08: included (per-run AUTH-08 observed), excluded (with reasons) and
+ *   per-scenario disagreements; checked with the assessment's auth08.enforcement_point and
+ *   targets/<target>/disclosures.json loaded (verification.status is read, never re-fetched).
  * - `claim_status_vector` — from profile claims. `load_profile(undefined)`
  *   currently loads no target profile, so every invariant is
  *   `not_declared`.
@@ -36,7 +41,15 @@ import { load_assessment, default_assessment } from "../packages/core/src/assess
 import { run_checkers } from "../packages/core/src/index.js";
 import { build_report } from "../packages/core/src/report.js";
 import type { ResultLabel } from "../packages/core/src/assessment.js";
-import { aggregate_live, load_live_runs, no_live_vector, type LiveConfig, type LiveVector } from "./live-vector.js";
+import { load_auth08_disclosures } from "../packages/core/src/auth08_disclosures.js";
+import {
+  aggregate_live,
+  load_auth08_live_runs,
+  load_live_runs,
+  no_live_vector,
+  type LiveConfig,
+  type LiveVector,
+} from "./live-vector.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo_root = path.resolve(here, "..");
@@ -52,7 +65,7 @@ const HAND_NOTES: Record<string, NotesBlock> = {
     summary:
       "Fixture vector from asa check against history-fixture.jsonl. Public ACP docs do not declare portable ActionBinding+generation; digests and fence_epoch are adapter-synthesized for the probe.",
     live_status:
-      "Re-run (2026-09-30): 13 valid live runs; mid-write-restart (2026-10-06): 3 valid of 3 attempted. All under targets/claude-agent-acp/results/live-runs (see live_runs, observed_vector and capability_vector). The earlier live permission-axis conclusions (2026-09-06..14) remain WITHDRAWN and are not used as evidence.",
+      "Re-run (2026-09-30): 13 valid live runs; mid-write-restart (2026-10-06): 3 valid of 3 attempted; AUTH-08 probes (auth08-*): 21 valid of 21, used only for AUTH-08 (see auth08_live_runs). All under targets/claude-agent-acp/results/live-runs (see live_runs, observed_vector and capability_vector). The earlier live permission-axis conclusions (2026-09-06..14) remain WITHDRAWN and are not used as evidence.",
     invariants: {
       "AUTH-02":
         "Fixture maps ACP permission allow/deny to approval.grant/deny with synthesized action_digest; public docs describe permission extension but not canonical ActionBinding+generation binding. This note describes fixture_vector; the live result is in observed_vector and capability_vector.",
@@ -123,7 +136,6 @@ export const ACP_LIVE: LiveConfig = {
     "AUTH-01c": "probe-derived: the only generation issuer in live history is the adapter itself (acp_adapter_live)",
     "AUTH-06":
       "not examined: claude-agent-acp has no effect receipts of its own and reports tool completion before the probe checks the disk, so AUTH-06 (success only after a committed receipt) would flag every write by construction; whether its completed/failed reports match the disk is checked under AUTH-07",
-    "AUTH-08": "not probed: no live run tries to make an effect happen without a permission request, which AUTH-08 needs",
   },
   target_witness: {
     "AUTH-07": {
@@ -131,6 +143,7 @@ export const ACP_LIVE: LiveConfig = {
       test: (e) => (e.attrs?.field_provenance as Record<string, unknown> | undefined)?.terminal === "target",
     },
   },
+  auth08: { disclosures: "targets/claude-agent-acp/disclosures.json" },
 };
 
 const TARGETS: Array<{
@@ -208,6 +221,8 @@ export type CapabilityVectorDoc = {
   observed_vector: Record<string, ResultLabel>;
   capability_exclusions: Record<string, string>;
   live_runs: LiveVector["live_runs"];
+  /** auth08-* runs used only for AUTH-08 (targets with an AUTH-08 live channel). */
+  auth08_live_runs?: LiveVector["auth08_live_runs"];
   fixture_vector: Record<string, ResultLabel>;
   claim_status_vector: Record<string, string>;
   checker_explanation: Record<string, string>;
@@ -222,7 +237,14 @@ export type CapabilityVectorDoc = {
   [extra: string]: unknown;
 };
 
-export function generate_all(opts: { write?: boolean; live_runs_root?: string } = {}): CapabilityVectorDoc[] {
+export function generate_all(
+  opts: {
+    write?: boolean;
+    live_runs_root?: string;
+    /** Test override for the target's disclosures.json (absolute path). */
+    auth08_disclosures_path?: string;
+  } = {},
+): CapabilityVectorDoc[] {
   const write = opts.write !== false;
   const generated_at = today_ymd();
   const docs: CapabilityVectorDoc[] = [];
@@ -256,7 +278,19 @@ export function generate_all(opts: { write?: boolean; live_runs_root?: string } 
     if (t.live) {
       const runs_root = opts.live_runs_root ?? path.join(repo_root, t.live.runs_dir);
       const { included, excluded } = load_live_runs(runs_root, repo_root, t.live, t.id);
-      live = aggregate_live(included, excluded, t.live);
+      let auth08_runs: ReturnType<typeof load_auth08_live_runs> | undefined;
+      if (t.live.auth08) {
+        const disclosures = load_auth08_disclosures(
+          opts.auth08_disclosures_path ?? path.join(repo_root, t.live.auth08.disclosures),
+          { target: t.id, pinned_version: t.live.pinned_version },
+        );
+        const ep = assessment.auth08?.enforcement_point;
+        auth08_runs = load_auth08_live_runs(runs_root, repo_root, t.live, t.id, {
+          ...(typeof ep === "string" && ep.trim().length > 0 ? { enforcement_point: ep } : {}),
+          disclosures,
+        });
+      }
+      live = aggregate_live(included, excluded, t.live, auth08_runs);
     }
 
     const out: CapabilityVectorDoc = {
@@ -271,6 +305,7 @@ export function generate_all(opts: { write?: boolean; live_runs_root?: string } 
       observed_vector: live.observed_vector,
       capability_exclusions: live.capability_exclusions,
       live_runs: live.live_runs,
+      ...(live.auth08_live_runs ? { auth08_live_runs: live.auth08_live_runs } : {}),
       // Adapter+checker self-consistency against fixture history only.
       fixture_vector: report.capability_vector,
       claim_status_vector: report.claim_status_vector,

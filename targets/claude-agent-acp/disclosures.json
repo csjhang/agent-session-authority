@@ -1,0 +1,141 @@
+{
+  "target": "claude-agent-acp",
+  "pinned_version": "0.75.1",
+  "entries": [
+    {
+      "bypass_path_id": "mode:acceptEdits:Write",
+      "quote": "Automatically accept all file edits",
+      "url": "https://raw.githubusercontent.com/agentclientprotocol/claude-agent-acp/v0.75.1/src/session-mode.ts",
+      "retrieved": "2026-10-09 Asia/Taipei",
+      "section": "`buildAvailableModes` — id `acceptEdits`",
+      "doc_product_version": "claude-agent-acp 0.75.1 (tag v0.75.1)",
+      "version_relationship": "Same version as pinned_version",
+      "kind": "bypass",
+      "verification": {
+        "status": "found",
+        "verified_at": "2026-10-09T02:41:09+08:00",
+        "notes": "fetched=https://raw.githubusercontent.com/agentclientprotocol/claude-agent-acp/v0.75.1/src/session-mode.ts; sha256=e2cbf46854695dee2c26ebb85171a529936eb1ba3e4f3bf5607c6e6cbbc1a557; content_type=text/plain; charset=utf-8"
+      }
+    },
+    {
+      "bypass_path_id": "mode:acceptEdits:Write",
+      "quote": "Automatically accepts file edits and common filesystem commands such as `mkdir`, `touch`, `mv`, and `cp`",
+      "url": "https://code.claude.com/docs/en/permissions",
+      "retrieved": "2026-10-09 Asia/Taipei",
+      "section": "Permission modes (`acceptEdits` row)",
+      "doc_product_version": "undated page",
+      "version_relationship": "Cannot be mapped: the page names no Claude Code version; claude-agent-acp 0.75.1 depends on @anthropic-ai/claude-agent-sdk 0.3.257",
+      "kind": "bypass",
+      "verification": {
+        "status": "found",
+        "verified_at": "2026-10-09T02:41:09+08:00",
+        "notes": "fetched=https://code.claude.com/docs/en/permissions.md; sha256=dbb28c955b6a9f90cdf0dd242ddfb10ab6d89b3b7f9ccab0f20be8c203b15bc4; content_type=text/markdown; charset=utf-8"
+      }
+    },
+    {
+      "bypass_path_id": "mode:acceptEdits:Bash:fs_command",
+      "quote": "`acceptEdits` mode auto-approves common filesystem Bash commands: `mkdir`, `touch`, `rm`, `rmdir`, `mv`, `cp`, and `sed`",
+      "url": "https://code.claude.com/docs/en/permission-modes",
+      "retrieved": "2026-10-09 Asia/Taipei",
+      "section": "Auto-approve file edits with acceptEdits mode",
+      "doc_product_version": "undated page",
+      "version_relationship": "Cannot be mapped: the page names no Claude Code version; claude-agent-acp 0.75.1 depends on @anthropic-ai/claude-agent-sdk 0.3.257",
+      "kind": "bypass",
+      "verification": {
+        "status": "found",
+        "verified_at": "2026-10-09T02:41:09+08:00",
+        "notes": "fetched=https://code.claude.com/docs/en/permission-modes.md; sha256=46f030df949e3302cf5c6400182513eb4df8e073a421d4beaca0c9e8f937e3f5; content_type=text/markdown; charset=utf-8"
+      }
+    },
+    {
+      "bypass_path_id": "mode:acceptEdits:Bash:redirect",
+      "quote": "Claude Code checks the redirect target against your file rules as if Claude wrote or read that file directly",
+      "url": "https://code.claude.com/docs/en/permissions",
+      "retrieved": "2026-10-09 Asia/Taipei",
+      "section": "Tool-specific permission rules → Bash → Redirections",
+      "doc_product_version": "undated page",
+      "version_relationship": "Cannot be mapped: the page names no Claude Code version; claude-agent-acp 0.75.1 depends on @anthropic-ai/claude-agent-sdk 0.3.257",
+      "kind": "bypass",
+      "verification": {
+        "status": "found",
+        "verified_at": "2026-10-09T02:41:09+08:00",
+        "notes": "fetched=https://code.claude.com/docs/en/permissions.md; sha256=dbb28c955b6a9f90cdf0dd242ddfb10ab6d89b3b7f9ccab0f20be8c203b15bc4; content_type=text/markdown; charset=utf-8"
+      }
+    },
+    {
+      "bypass_path_id": "mode:acceptEdits:Bash:redirect",
+      "quote": "Automatically accepts file edits and common filesystem commands such as `mkdir`, `touch`, `mv`, and `cp`",
+      "url": "https://code.claude.com/docs/en/permissions",
+      "retrieved": "2026-10-09 Asia/Taipei",
+      "section": "Permission modes (`acceptEdits` row)",
+      "doc_product_version": "undated page",
+      "version_relationship": "Cannot be mapped: the page names no Claude Code version; claude-agent-acp 0.75.1 depends on @anthropic-ai/claude-agent-sdk 0.3.257",
+      "kind": "bypass",
+      "verification": {
+        "status": "found",
+        "verified_at": "2026-10-09T02:41:09+08:00",
+        "notes": "fetched=https://code.claude.com/docs/en/permissions.md; sha256=dbb28c955b6a9f90cdf0dd242ddfb10ab6d89b3b7f9ccab0f20be8c203b15bc4; content_type=text/markdown; charset=utf-8"
+      }
+    },
+    {
+      "bypass_path_id": "mode:acceptEdits:Bash:redirect",
+      "quote": "Claude Code recognizes a built-in set of Bash commands as read-only and runs them without a permission prompt in every mode",
+      "url": "https://code.claude.com/docs/en/permissions",
+      "retrieved": "2026-10-09 Asia/Taipei",
+      "section": "Tool-specific permission rules → Bash → Read-only commands",
+      "doc_product_version": "undated page",
+      "version_relationship": "Cannot be mapped: the page names no Claude Code version; claude-agent-acp 0.75.1 depends on @anthropic-ai/claude-agent-sdk 0.3.257",
+      "kind": "bypass",
+      "verification": {
+        "status": "found",
+        "verified_at": "2026-10-09T02:41:09+08:00",
+        "notes": "fetched=https://code.claude.com/docs/en/permissions.md; sha256=dbb28c955b6a9f90cdf0dd242ddfb10ab6d89b3b7f9ccab0f20be8c203b15bc4; content_type=text/markdown; charset=utf-8"
+      }
+    },
+    {
+      "bypass_path_id": "mode:bypassPermissions:Bash:redirect",
+      "quote": "Accepts all permissions",
+      "url": "https://raw.githubusercontent.com/agentclientprotocol/claude-agent-acp/v0.75.1/src/session-mode.ts",
+      "retrieved": "2026-10-09 Asia/Taipei",
+      "section": "`buildAvailableModes` — id `bypassPermissions` (only when `ALLOW_BYPASS`)",
+      "doc_product_version": "claude-agent-acp 0.75.1 (tag v0.75.1)",
+      "version_relationship": "Same version as pinned_version",
+      "kind": "bypass",
+      "verification": {
+        "status": "found",
+        "verified_at": "2026-10-09T02:41:09+08:00",
+        "notes": "fetched=https://raw.githubusercontent.com/agentclientprotocol/claude-agent-acp/v0.75.1/src/session-mode.ts; sha256=e2cbf46854695dee2c26ebb85171a529936eb1ba3e4f3bf5607c6e6cbbc1a557; content_type=text/plain; charset=utf-8"
+      }
+    },
+    {
+      "bypass_path_id": "mode:bypassPermissions:Bash:redirect",
+      "quote": "Skips permission prompts, except for the actions no mode auto-approves",
+      "url": "https://code.claude.com/docs/en/permissions",
+      "retrieved": "2026-10-09 Asia/Taipei",
+      "section": "Permission modes (`bypassPermissions` row)",
+      "doc_product_version": "undated page",
+      "version_relationship": "Cannot be mapped: the page names no Claude Code version; claude-agent-acp 0.75.1 depends on @anthropic-ai/claude-agent-sdk 0.3.257",
+      "kind": "bypass",
+      "verification": {
+        "status": "found",
+        "verified_at": "2026-10-09T02:41:09+08:00",
+        "notes": "fetched=https://code.claude.com/docs/en/permissions.md; sha256=dbb28c955b6a9f90cdf0dd242ddfb10ab6d89b3b7f9ccab0f20be8c203b15bc4; content_type=text/markdown; charset=utf-8"
+      }
+    },
+    {
+      "bypass_path_id": "mode:default:Bash:redirect",
+      "quote": "Always ask before making changes",
+      "url": "https://raw.githubusercontent.com/agentclientprotocol/claude-agent-acp/v0.75.1/src/session-mode.ts",
+      "retrieved": "2026-10-09 Asia/Taipei",
+      "section": "`SessionModeManager.buildAvailableModes` — id `default`, name `Manual`",
+      "doc_product_version": "claude-agent-acp 0.75.1 (tag v0.75.1)",
+      "version_relationship": "Same version as pinned_version",
+      "kind": "e2e_claim",
+      "verification": {
+        "status": "found",
+        "verified_at": "2026-10-09T02:41:09+08:00",
+        "notes": "fetched=https://raw.githubusercontent.com/agentclientprotocol/claude-agent-acp/v0.75.1/src/session-mode.ts; sha256=e2cbf46854695dee2c26ebb85171a529936eb1ba3e4f3bf5607c6e6cbbc1a557; content_type=text/plain; charset=utf-8"
+      }
+    }
+  ]
+}
