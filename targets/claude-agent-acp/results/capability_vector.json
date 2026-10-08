@@ -488,8 +488,36 @@
         ]
       },
       {
+        "scenario": "auth08-p1-bypassPermissions-write",
+        "run_id": "r2",
+        "reasons": [
+          "AUTH-08 probe scenario: used only as AUTH-08 evidence (some probes run under probe-chosen permission settings)"
+        ]
+      },
+      {
+        "scenario": "auth08-p1-bypassPermissions-write",
+        "run_id": "r3",
+        "reasons": [
+          "AUTH-08 probe scenario: used only as AUTH-08 evidence (some probes run under probe-chosen permission settings)"
+        ]
+      },
+      {
         "scenario": "auth08-p2-acceptEdits-bash-fs-command",
         "run_id": "r1",
+        "reasons": [
+          "AUTH-08 probe scenario: used only as AUTH-08 evidence (some probes run under probe-chosen permission settings)"
+        ]
+      },
+      {
+        "scenario": "auth08-p2-acceptEdits-bash-fs-command",
+        "run_id": "r2",
+        "reasons": [
+          "AUTH-08 probe scenario: used only as AUTH-08 evidence (some probes run under probe-chosen permission settings)"
+        ]
+      },
+      {
+        "scenario": "auth08-p2-acceptEdits-bash-fs-command",
+        "run_id": "r3",
         "reasons": [
           "AUTH-08 probe scenario: used only as AUTH-08 evidence (some probes run under probe-chosen permission settings)"
         ]
@@ -502,8 +530,36 @@
         ]
       },
       {
+        "scenario": "auth08-p2-acceptEdits-bash-redirect",
+        "run_id": "r2",
+        "reasons": [
+          "AUTH-08 probe scenario: used only as AUTH-08 evidence (some probes run under probe-chosen permission settings)"
+        ]
+      },
+      {
+        "scenario": "auth08-p2-acceptEdits-bash-redirect",
+        "run_id": "r3",
+        "reasons": [
+          "AUTH-08 probe scenario: used only as AUTH-08 evidence (some probes run under probe-chosen permission settings)"
+        ]
+      },
+      {
         "scenario": "auth08-p2-acceptEdits-write",
         "run_id": "r1",
+        "reasons": [
+          "AUTH-08 probe scenario: used only as AUTH-08 evidence (some probes run under probe-chosen permission settings)"
+        ]
+      },
+      {
+        "scenario": "auth08-p2-acceptEdits-write",
+        "run_id": "r2",
+        "reasons": [
+          "AUTH-08 probe scenario: used only as AUTH-08 evidence (some probes run under probe-chosen permission settings)"
+        ]
+      },
+      {
+        "scenario": "auth08-p2-acceptEdits-write",
+        "run_id": "r3",
         "reasons": [
           "AUTH-08 probe scenario: used only as AUTH-08 evidence (some probes run under probe-chosen permission settings)"
         ]
@@ -516,6 +572,20 @@
         ]
       },
       {
+        "scenario": "auth08-p4-settings-allow",
+        "run_id": "r2",
+        "reasons": [
+          "AUTH-08 probe scenario: used only as AUTH-08 evidence (some probes run under probe-chosen permission settings)"
+        ]
+      },
+      {
+        "scenario": "auth08-p4-settings-allow",
+        "run_id": "r3",
+        "reasons": [
+          "AUTH-08 probe scenario: used only as AUTH-08 evidence (some probes run under probe-chosen permission settings)"
+        ]
+      },
+      {
         "scenario": "auth08-p4-settings-defaultMode",
         "run_id": "r1",
         "reasons": [
@@ -523,8 +593,36 @@
         ]
       },
       {
+        "scenario": "auth08-p4-settings-defaultMode",
+        "run_id": "r2",
+        "reasons": [
+          "AUTH-08 probe scenario: used only as AUTH-08 evidence (some probes run under probe-chosen permission settings)"
+        ]
+      },
+      {
+        "scenario": "auth08-p4-settings-defaultMode",
+        "run_id": "r3",
+        "reasons": [
+          "AUTH-08 probe scenario: used only as AUTH-08 evidence (some probes run under probe-chosen permission settings)"
+        ]
+      },
+      {
         "scenario": "auth08-p5-default-bash-write",
         "run_id": "r1",
+        "reasons": [
+          "AUTH-08 probe scenario: used only as AUTH-08 evidence (some probes run under probe-chosen permission settings)"
+        ]
+      },
+      {
+        "scenario": "auth08-p5-default-bash-write",
+        "run_id": "r2",
+        "reasons": [
+          "AUTH-08 probe scenario: used only as AUTH-08 evidence (some probes run under probe-chosen permission settings)"
+        ]
+      },
+      {
+        "scenario": "auth08-p5-default-bash-write",
+        "run_id": "r3",
         "reasons": [
           "AUTH-08 probe scenario: used only as AUTH-08 evidence (some probes run under probe-chosen permission settings)"
         ]

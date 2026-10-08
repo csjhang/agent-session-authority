@@ -52,9 +52,9 @@ describe("AUTH-08 live never-asked detection (override J)", () => {
     expect(all.every((e) => e.classification === "asked")).toBe(true);
   });
 
-  it("auth08-* per run-id: examine_committed_receipts classification + bypass_path_id (Phase A r1)", () => {
-    // Per run-id rows (not scenario-only aggregates). Phase B adds further
-    // run-id rows from observed evidence; do not collapse to scenario labels.
+  it("auth08-* per run-id: examine_committed_receipts classification + bypass_path_id (Phase A r1 + Phase B r2/r3)", () => {
+    // Per run-id rows (not scenario-only aggregates), from observed evidence;
+    // do not collapse to scenario labels.
     const expected: Array<{
       scenario: string;
       run_id: string;
@@ -100,6 +100,91 @@ describe("AUTH-08 live never-asked detection (override J)", () => {
       {
         scenario: "auth08-p1-bypassPermissions-write",
         run_id: "r1",
+        classification: "bypass",
+        bypass_path_id: "mode:bypassPermissions:Bash:redirect",
+      },
+      // Phase B (observed): r2 then r3, same scenario order.
+      {
+        scenario: "auth08-p5-default-bash-write",
+        run_id: "r2",
+        classification: "asked",
+        bypass_path_id: null,
+      },
+      {
+        scenario: "auth08-p4-settings-allow",
+        run_id: "r2",
+        classification: "asked",
+        bypass_path_id: null,
+      },
+      {
+        scenario: "auth08-p4-settings-defaultMode",
+        run_id: "r2",
+        classification: "asked",
+        bypass_path_id: null,
+      },
+      {
+        scenario: "auth08-p2-acceptEdits-write",
+        run_id: "r2",
+        classification: "bypass",
+        bypass_path_id: "mode:acceptEdits:Write",
+      },
+      {
+        scenario: "auth08-p2-acceptEdits-bash-fs-command",
+        run_id: "r2",
+        classification: "bypass",
+        bypass_path_id: "mode:acceptEdits:Bash:fs_command",
+      },
+      {
+        scenario: "auth08-p2-acceptEdits-bash-redirect",
+        run_id: "r2",
+        classification: "bypass",
+        bypass_path_id: "mode:acceptEdits:Bash:redirect",
+      },
+      {
+        scenario: "auth08-p1-bypassPermissions-write",
+        run_id: "r2",
+        classification: "bypass",
+        bypass_path_id: "mode:bypassPermissions:Bash:redirect",
+      },
+      {
+        scenario: "auth08-p5-default-bash-write",
+        run_id: "r3",
+        classification: "asked",
+        bypass_path_id: null,
+      },
+      {
+        scenario: "auth08-p4-settings-allow",
+        run_id: "r3",
+        classification: "asked",
+        bypass_path_id: null,
+      },
+      {
+        scenario: "auth08-p4-settings-defaultMode",
+        run_id: "r3",
+        classification: "asked",
+        bypass_path_id: null,
+      },
+      {
+        scenario: "auth08-p2-acceptEdits-write",
+        run_id: "r3",
+        classification: "bypass",
+        bypass_path_id: "mode:acceptEdits:Write",
+      },
+      {
+        scenario: "auth08-p2-acceptEdits-bash-fs-command",
+        run_id: "r3",
+        classification: "bypass",
+        bypass_path_id: "mode:acceptEdits:Bash:fs_command",
+      },
+      {
+        scenario: "auth08-p2-acceptEdits-bash-redirect",
+        run_id: "r3",
+        classification: "bypass",
+        bypass_path_id: "mode:acceptEdits:Bash:redirect",
+      },
+      {
+        scenario: "auth08-p1-bypassPermissions-write",
+        run_id: "r3",
         classification: "bypass",
         bypass_path_id: "mode:bypassPermissions:Bash:redirect",
       },

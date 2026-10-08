@@ -1,0 +1,49 @@
+{
+  "mode": "live",
+  "scenario": "auth08-p2-acceptEdits-write",
+  "run_id": "r3",
+  "package_name": "@agentclientprotocol/claude-agent-acp",
+  "package_version_pinned": "0.75.1",
+  "package_version_observed": "0.75.1",
+  "run_valid": true,
+  "invalid_reasons": [],
+  "events": 29,
+  "history_events": 31,
+  "notes": [
+    "AUTH-08 auth08-p2-acceptEdits-write: isolation CLAUDE_CONFIG_DIR=/tmp/asa-auth08-claude-56LAsO cwd=/tmp/asa-auth08-cwd-CrDIS7",
+    "target-file approach: fixed probe name asa-auth08-p2-write.txt under disposable cwd",
+    "agentInfo.version=0.75.1 matches pin 0.75.1",
+    "stderr: [session/create] sessionId=69a2599c-31dc-4e1f-b772-6f84fe6494cf phase=validate-cwd durationMs=1 totalMs=1",
+    "stderr: [session/create] sessionId=69a2599c-31dc-4e1f-b772-6f84fe6494cf phase=settings durationMs=5 totalMs=5",
+    "stderr: [session/query] sessionId=69a2599c-31dc-4e1f-b772-6f84fe6494cf resume=none apiType=native baseUrl=native",
+    "stderr: [session/create] sessionId=69a2599c-31dc-4e1f-b772-6f84fe6494cf phase=prepare-query durationMs=14 totalMs=19",
+    "stderr: [session/create] sessionId=69a2599c-31dc-4e1f-b772-6f84fe6494cf phase=sdk-initialize durationMs=584 totalMs=603",
+    "stderr: [session/create] sessionId=69a2599c-31dc-4e1f-b772-6f84fe6494cf phase=models durationMs=0 totalMs=604",
+    "stderr: [session/create] sessionId=69a2599c-31dc-4e1f-b772-6f84fe6494cf phase=modes durationMs=0 totalMs=604",
+    "stderr: [session/create] sessionId=69a2599c-31dc-4e1f-b772-6f84fe6494cf phase=agents durationMs=0 totalMs=604",
+    "stderr: [session/create] sessionId=69a2599c-31dc-4e1f-b772-6f84fe6494cf phase=register durationMs=1 totalMs=605",
+    "session/new currentModeId=default",
+    "set_mode → acceptEdits",
+    "wait_for_write_effect(auth08:asa-auth08-p2-write.txt): waited_ms=0 present=true tool_call_completed=false grace_ms=20000",
+    "client fs: write_text_file performed=0 read_text_file served=0"
+  ],
+  "auth08": {
+    "scenario": "auth08-p2-acceptEdits-write",
+    "probe_intent_bypass_path_id": "mode:acceptEdits:Write",
+    "probe_path": "/tmp/asa-auth08-cwd-CrDIS7/asa-auth08-p2-write.txt",
+    "probe_file": "asa-auth08-p2-write.txt",
+    "expected_content": "p2w-ok",
+    "mechanism": "mode:acceptEdits",
+    "reported_mode": "acceptEdits",
+    "claude_config_dir": "/tmp/asa-auth08-claude-56LAsO",
+    "claude_config_dir_agent_reported": null,
+    "cwd": "/tmp/asa-auth08-cwd-CrDIS7",
+    "settings_path": null,
+    "settings_sha256": null,
+    "settings_body": null,
+    "isolation": {
+      "user_claude_bypassed": true,
+      "method": "CLAUDE_CONFIG_DIR+cwd_temp"
+    }
+  }
+}
