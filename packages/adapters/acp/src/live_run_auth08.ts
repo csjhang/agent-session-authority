@@ -275,7 +275,7 @@ export async function run_auth08_probe(
       await stop(c1);
       return finish([], auth08_stamp());
     }
-    // Prefer current_mode_update from agent; else trust set_mode success for fake.
+    // reported_mode now holds the requested mode; the target's own confirmation (config_option_update) is kept only in peer events.
     reported_mode = meta.set_mode;
     events.push(
       observe_event({
@@ -286,8 +286,8 @@ export async function run_auth08_probe(
     );
     notes.push(`set_mode → ${meta.set_mode}`);
   }
-  // Target-reported mode from session/new stays in run.json (reported_mode) only —
-  // probe.permission_mode is emitted only after a successful set_mode above.
+  // Without set_mode, reported_mode is the session/new currentModeId. probe.permission_mode is
+  // emitted only after a successful set_mode above.
 
   if (meta.require_default_mode) {
     if (reported_mode !== "default") {

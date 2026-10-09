@@ -138,7 +138,7 @@ Events without `ts_unix_nano` remain valid (backward compatible).
 
 ## Write helper
 
-`serialize_history_jsonl(events)` / `write_history_file(path, events)` emit one JSON object per line. Writers should validate monotonic `seq` before writing.
+`serialize_history_jsonl(events)` emits one JSON object per line. Writers should validate monotonic `seq` before writing.
 
 When writing new events, prefer setting both `ts` (ISO-8601 wall-clock hint) and `ts_unix_nano` (decimal string). Core helper `format_unix_nano_decimal()` uses `BigInt(Date.now()) * 1_000_000n` — millisecond precision expanded to nanosecond units, not true OS nanosecond resolution.
 

@@ -216,7 +216,7 @@ Live aggregation (claude-agent-acp, `targets/claude-agent-acp/results/live-runs/
 ### Repository layout
 
 - `packages/core` — history format, checkers and the `asa` CLI; free of target SDKs.
-- `packages/adapters/` — `acp`, `ahp`, `ably`, `acp-mux` adapters (plus a `dogwood` stub).
+- `packages/adapters/` — `acp`, `ahp`, `ably`, `acp-mux` adapters.
 - `packages/sink` — mock effect sink used by the Docker repro.
 - `corpus/` — small example histories per rule.
 - `spec/` — profile, history format, glossary, draft agent-effect attributes.

@@ -2,9 +2,6 @@ import fs from "node:fs";
 
 export type EventKind = "invoke" | "ok" | "fail" | "info" | "observe" | "fault";
 
-export type FieldProvenance = "native" | "derived" | "test-injected" | "unavailable";
-export type FieldProvenanceMap = Record<string, FieldProvenance>;
-
 export const EVENT_KINDS: readonly EventKind[] = [
   "invoke",
   "ok",
@@ -181,10 +178,6 @@ export function format_unix_nano_decimal(epoch_ms: number = Date.now()): string 
   return String(BigInt(Math.trunc(epoch_ms)) * 1_000_000n);
 }
 
-export function is_ts_unix_nano_string(v: unknown): v is string {
-  return typeof v === "string" && TS_UNIX_NANO_PATTERN.test(v);
-}
-
 /**
  * Validate a single parsed object as a HistoryEvent.
  * Rejects missing/invalid required fields and unknown kinds.
@@ -323,16 +316,6 @@ export function parse_history_jsonl(
   return events;
 }
 
-/* Return explicit adapter provenance; absence is unavailable, never native. */
-export function field_provenance(ev: HistoryEvent, field: string): FieldProvenance {
-  const map = ev.attrs?.field_provenance;
-  if (map && typeof map === "object" && !Array.isArray(map)) {
-    const value = (map as Record<string, unknown>)[field];
-    if (value === "native" || value === "derived" || value === "test-injected" || value === "unavailable") return value;
-  }
-  return "unavailable";
-}
-
 export function load_history_file(
   path: string,
   options: ParseHistoryOptions = {},
@@ -344,13 +327,4 @@ export function load_history_file(
 export function serialize_history_jsonl(events: HistoryEvent[]): string {
   if (events.length === 0) return "";
   return events.map((ev) => JSON.stringify(ev)).join("\n") + "\n";
-}
-
-/** Write events to a JSONL file after validating seq monotonicity. */
-export function write_history_file(path: string, events: HistoryEvent[]): void {
-  assert_seq_monotonic(events);
-  for (let i = 0; i < events.length; i++) {
-    validate_history_event(events[i], i + 1, { warn_unknown_vocab: false });
-  }
-  fs.writeFileSync(path, serialize_history_jsonl(events), "utf8");
 }

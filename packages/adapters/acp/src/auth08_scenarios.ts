@@ -30,11 +30,6 @@ export const AUTH08_WEAKENED_LIVE: readonly Auth08Scenario[] = [
   "auth08-p1-bypassPermissions-write",
 ];
 
-/** E9 is fake-only (not in live matrix). */
-export const AUTH08_LIVE_SCENARIOS: readonly Auth08Scenario[] = AUTH08_SCENARIOS.filter(
-  (s) => s !== "auth08-e9-client-fs-write",
-);
-
 export type Auth08ScenarioMeta = {
   scenario: Auth08Scenario;
   /** Intent bypass_path_id (run.json + peer attempt; history may replace with observed). */

@@ -196,10 +196,4 @@ export class MockAcpPeer {
     });
     return [...this.events];
   }
-
-  get_events(): readonly AcpPeerEvent[] {
-    return this.events;
-  }
 }
-
-export { MockAcpPeer as default };

@@ -29,5 +29,4 @@ export class MockAhpPeer {
   }
   private nextSeq(): number { this.serverSeq += 1; return this.serverSeq; }
   private push(ev: AhpPeerEvent): void { this.events.push(ev); }
-  get_events(): readonly AhpPeerEvent[] { return this.events; }
 }
