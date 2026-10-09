@@ -4,16 +4,6 @@ import { attrs, basis, claim_for, finding, num, str, observation_guard } from ".
 /** Fields that define the action for rebound detection (nonce/runtime_generation/expiry are request identity, not rebound). */
 const ACTION_DEFINING_KEYS = ["action_type", "target", "args", "policy_version"] as const;
 
-/** Binding-field compare for receipt vs grant (unchanged set; gen mismatch also yields cross_generation_grant). */
-const BINDING_KEYS = [
-  "target",
-  "args",
-  "policy_version",
-  "runtime_generation",
-  "nonce",
-  "expiry",
-] as const;
-
 type BindingSnap = {
   seq: number;
   action_digest: string;
@@ -63,7 +53,7 @@ type Decision = {
   option_kind?: string;
 };
 
-type ViolationNote = { text: string; witnesses: number[]; marker?: boolean };
+type ViolationNote = { text: string; witnesses: number[] };
 
 /**
  * AUTH-02 — action-bound approval.
@@ -101,8 +91,8 @@ export const check_auth02: Checker = (ctx) => {
   let counted_receipts = 0;
   let uncompared_generation_receipts = 0;
 
-  const push_violation = (text: string, witnesses: number[], marker = false) => {
-    violations.push({ text, witnesses, marker });
+  const push_violation = (text: string, witnesses: number[]) => {
+    violations.push({ text, witnesses });
   };
 
   for (const ev of ctx.events) {
@@ -165,61 +155,12 @@ export const check_auth02: Checker = (ctx) => {
 
     // approval.record intentionally ignored for grant/deny matching
 
-    if (ev.op === "effect.receipt" || ev.op === "effect.dispatch") {
+    if (ev.op === "effect.receipt") {
       const outcome = str(a.outcome) ?? str(a.status);
       const digest = str(a.action_digest);
-      const is_committed_receipt = ev.op === "effect.receipt" && outcome === "committed";
 
-      // Marker-only paths (kept for existing corpora)
-      if (a.reuse_stale_approval === true && (outcome === "committed" || outcome === "success" || outcome === "completed" || ev.op === "effect.receipt")) {
-        const approved = digest
-          ? [...decisions].reverse().find((d) => d.kind === "grant" && d.snap.action_digest === digest)
-          : undefined;
-        push_violation(
-          `test-injected marker reuse_stale_approval: committed/dispatched effect reused stale approval` +
-            (digest ? ` for action_digest=${digest}` : "") +
-            `.`,
-          [approved?.seq, ev.seq].filter((x): x is number => typeof x === "number"),
-          true,
-        );
-      }
-      if (ev.op === "effect.receipt" && outcome === "committed" && a.binding_changed_after_approval === true) {
-        const approved = digest
-          ? [...decisions].reverse().find((d) => d.kind === "grant" && d.snap.action_digest === digest)
-          : undefined;
-        push_violation(
-          `test-injected marker binding_changed_after_approval with committed receipt` +
-            (digest ? ` for action_digest=${digest}` : "") +
-            `.`,
-          [approved?.seq, ev.seq].filter((x): x is number => typeof x === "number"),
-          true,
-        );
-      }
-
-      // Binding-field compare against latest matching grant (existing rule; unchanged key set)
-      if (digest) {
-        const approved = [...decisions].reverse().find((d) => d.kind === "grant" && d.snap.action_digest === digest);
-        if (approved) {
-          const current = snap_from_attrs(ev.seq, digest, a);
-          const delta = changed_fields(approved.snap, current, BINDING_KEYS);
-          if (
-            delta.length > 0 &&
-            (outcome === "committed" || (ev.op === "effect.receipt" && outcome !== "rejected" && outcome !== "failed"))
-          ) {
-            if (ev.op === "effect.receipt" && outcome === "committed") {
-              push_violation(
-                `Effect committed with approval for action_digest=${digest} after binding fields changed (${delta.join(",")}).`,
-                [approved.snap.seq, approved.seq, ev.seq],
-              );
-            }
-          }
-        }
-      }
-
-      if (!is_committed_receipt) {
-        if (ev.op === "effect.receipt") {
-          inconclusive_witnesses.push(ev.seq);
-        }
+      if (outcome !== "committed") {
+        inconclusive_witnesses.push(ev.seq);
         continue;
       }
 
@@ -307,15 +248,12 @@ export const check_auth02: Checker = (ctx) => {
   if (violations.length > 0) {
     const witnesses = [...new Set(violations.flatMap((v) => v.witnesses))].sort((a, b) => a - b);
     const parts = violations.map((v) => v.text);
-    const marker_note = violations.some((v) => v.marker)
-      ? " At least one violation used a test-injected marker."
-      : "";
     return [
       finding(
         inv,
         cs,
         "violation",
-        parts.join(" ") + marker_note,
+        parts.join(" "),
         witnesses,
         basis(ctx),
       ),
