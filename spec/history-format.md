@@ -92,7 +92,6 @@ These keys appear under `attrs` and are consumed by checkers / vocabulary types.
 | `policy_version` | string | Binding policy version (AUTH-02) |
 | `nonce` | string | Binding nonce (AUTH-02) |
 | `expiry` | string | Binding / approval expiry (AUTH-02) |
-| `stale_fence` / `stale_controller` | boolean | AUTH-04 markers |
 | `terminal` / `resolved_terminal` | string | AUTH-07 terminal race. ACP live: the agent's own tool-call status (`completed` / `failed`) on the `session.attach` event that carried it, with `field_provenance.terminal = "target"` |
 | `replay` | boolean | ACP live: a tool-call update received while `session/load` replays the transcript. A replayed status is not a new report and carries no `terminal` |
 | `field_provenance` | object | Per-field origin of an attribute value: `derived` = computed by the probe or adapter; `target` = reported by the target itself. Keys name attributes, plus `ts` for the top-level timestamp. A field without an entry is not thereby `target`. |
