@@ -862,19 +862,6 @@ export function acp_events_to_history(
           action_digest = prior?.action_digest;
           tool_call_id = prior?.tool_call_id;
           request_runtime_generation = prior?.runtime_generation ?? runtime_generation;
-          if (action_digest === undefined) {
-            for (let i = out.length - 1; i >= 0; i--) {
-              const prev = out[i]!;
-              if (prev.op === "approval.request" && prev.attrs?.request_id === ev.requestId) {
-                if (typeof prev.attrs.runtime_generation === "number") {
-                  request_runtime_generation = prev.attrs.runtime_generation;
-                }
-                if (typeof prev.attrs.action_digest === "string") action_digest = prev.attrs.action_digest;
-                if (typeof prev.attrs.tool_call_id === "string") tool_call_id = prev.attrs.tool_call_id;
-                break;
-              }
-            }
-          }
         }
         next(
           {
@@ -904,23 +891,9 @@ export function acp_events_to_history(
       if (!linked) {
         // Orphan / stale reply: no pending request for this requestId.
         const prior = answered_by_request.get(ev.requestId);
-        // Fall back to scanning prior approval.request in history.
-        let request_runtime_generation = prior?.runtime_generation;
-        let action_digest = prior?.action_digest;
-        let tool_call_id = prior?.tool_call_id;
-        if (request_runtime_generation === undefined) {
-          for (let i = out.length - 1; i >= 0; i--) {
-            const prev = out[i]!;
-            if (prev.op === "approval.request" && prev.attrs?.request_id === ev.requestId) {
-              if (typeof prev.attrs.runtime_generation === "number") {
-                request_runtime_generation = prev.attrs.runtime_generation;
-              }
-              if (typeof prev.attrs.action_digest === "string") action_digest = prev.attrs.action_digest;
-              if (typeof prev.attrs.tool_call_id === "string") tool_call_id = prev.attrs.tool_call_id;
-              break;
-            }
-          }
-        }
+        const request_runtime_generation = prior?.runtime_generation;
+        const action_digest = prior?.action_digest;
+        const tool_call_id = prior?.tool_call_id;
         next(
           {
             kind: "ok",
