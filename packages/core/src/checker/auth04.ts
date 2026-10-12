@@ -31,7 +31,7 @@ export const check_auth04: Checker = (ctx) => {
 
   const live_fence = new Map<string, FenceRecord>();
   let global_epoch: FenceRecord | undefined;
-  const violations: { text: string; witnesses: number[]; marker?: boolean }[] = [];
+  const violations: { text: string; witnesses: number[] }[] = [];
   let saw_positive_after_change = false;
   let saw_positive_evaluated = false;
   const positive_witnesses: number[] = [];
@@ -202,16 +202,6 @@ export const check_auth04: Checker = (ctx) => {
 
       const live = attributed;
 
-      if (a.stale_fence === true || a.stale_controller === true) {
-        if (outcome === "committed") {
-          violations.push({
-            text: "test-injected marker: Stale fence/controller effect committed at gateway (UI/relay-only reject is insufficient).",
-            witnesses: [live?.seq, ev.seq].filter((x): x is number => typeof x === "number"),
-            marker: true,
-          });
-        }
-      }
-
       if (outcome === "committed" && fence_epoch != null && live && fence_epoch < live.epoch) {
         violations.push({
           text: `Committed effect used stale fence_epoch=${fence_epoch} < live ${live.epoch} at effect boundary.`,
@@ -246,29 +236,11 @@ export const check_auth04: Checker = (ctx) => {
     }
 
     if (ev.op === "effect.dispatch") {
-      const fence_epoch = num(a.fence_epoch);
       const scope_id = str(a.scope_id);
       const attributed = attribute(scope_id);
       if (attributed === "unattributed") continue;
       const live = attributed;
       const controller = str(a.controller) ?? str(a.holder) ?? ev.actor_id;
-
-      if ((a.stale_fence === true || a.stale_controller === true) && (ev.kind === "ok" || str(a.status) === "committed")) {
-        if (a.accepted_at_gateway === true) {
-          violations.push({
-            text: "test-injected marker: Stale controller dispatch accepted at effect gateway.",
-            witnesses: [live?.seq, ev.seq].filter((x): x is number => typeof x === "number"),
-            marker: true,
-          });
-        }
-      }
-      if (ev.kind === "ok" && fence_epoch != null && live && fence_epoch < live.epoch && a.accepted_at_gateway === true) {
-        violations.push({
-          text: `test-injected marker accepted_at_gateway: Stale fence_epoch=${fence_epoch} accepted at gateway (live=${live.epoch}).`,
-          witnesses: [live.seq, ev.seq],
-          marker: true,
-        });
-      }
 
       if (
         (ev.kind === "ok" || str(a.status) === "dispatched" || str(a.status) === "committed") &&
@@ -297,14 +269,13 @@ export const check_auth04: Checker = (ctx) => {
   if (violations.length > 0) {
     // violation witnesses = counterexamples only; unattributed tip in explanation OK
     const witnesses = uniq_sort(violations.flatMap((v) => v.witnesses));
-    const marker_note = violations.some((v) => v.marker) ? " Includes test-injected marker." : "";
     const tip = unattributed_note; // explanation tip only
     return [
       finding(
         inv,
         cs,
         "violation",
-        violations.map((v) => v.text).join(" ") + marker_note + tip,
+        violations.map((v) => v.text).join(" ") + tip,
         witnesses,
         basis(ctx),
       ),

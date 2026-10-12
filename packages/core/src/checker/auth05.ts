@@ -27,7 +27,7 @@ export const check_auth05: Checker = (ctx) => {
   const grant_seq = new Map<string, number>();
   /** Actors who held a lease before ever granting (independent controller). */
   const independent_controllers = new Set<string>();
-  const violations: { text: string; witnesses: number[]; marker?: boolean }[] = [];
+  const violations: { text: string; witnesses: number[] }[] = [];
   const evaluated: number[] = [];
 
   for (const ev of ctx.events) {
@@ -37,14 +37,6 @@ export const check_auth05: Checker = (ctx) => {
       const holder = str(a.holder) ?? ev.actor_id;
       if (!holder) continue;
       evaluated.push(ev.seq);
-
-      if (a.granted_because_approver === true) {
-        violations.push({
-          text: "test-injected marker granted_because_approver: ControlLease granted solely because actor is Approver.",
-          witnesses: [ev.seq],
-          marker: true,
-        });
-      }
 
       const prior_grant = grant_seq.get(holder);
       if (prior_grant != null && !independent_controllers.has(holder)) {
@@ -74,13 +66,6 @@ export const check_auth05: Checker = (ctx) => {
         grantors.add(approver);
         grant_seq.set(approver, ev.seq);
       }
-      if (a.auto_from_control === true) {
-        violations.push({
-          text: "test-injected marker auto_from_control: Control lease used as implicit blanket approval.",
-          witnesses: [ev.seq],
-          marker: true,
-        });
-      }
       continue;
     }
 
@@ -88,14 +73,6 @@ export const check_auth05: Checker = (ctx) => {
       evaluated.push(ev.seq);
       const actor = ev.actor_id ?? str(a.actor_id);
       if (!actor) continue;
-
-      if (a.used_approval_as_control === true) {
-        violations.push({
-          text: `test-injected marker used_approval_as_control: Approver ${actor} dispatched effect using approval as control.`,
-          witnesses: [ev.seq],
-          marker: true,
-        });
-      }
 
       // Derived: grantor dispatching without holding a lease
       if (grantors.has(actor) && !lease_holders.has(actor) && !independent_controllers.has(actor)) {
@@ -109,9 +86,8 @@ export const check_auth05: Checker = (ctx) => {
 
   if (violations.length > 0) {
     const witnesses = [...new Set(violations.flatMap((v) => v.witnesses))].sort((a, b) => a - b);
-    const marker_note = violations.some((v) => v.marker) ? " Includes test-injected marker." : "";
     return [
-      finding(inv, cs, "violation", violations.map((v) => v.text).join(" ") + marker_note, witnesses, basis(ctx)),
+      finding(inv, cs, "violation", violations.map((v) => v.text).join(" "), witnesses, basis(ctx)),
     ];
   }
 

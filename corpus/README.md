@@ -32,7 +32,7 @@ Intentional non-`pass*.jsonl` single-scenario files (ok to violate other invaria
 
 `fail` means guaranteed no effect. `info` means uncertain (unknown) and must not be treated as success.
 
-Marker-based violate corpora remain; marker-only findings must say `test-injected marker`. Each invariant also has ≥1 marker-free violate path (handwritten and/or acp-shaped).
+Every violation is derived from the recorded events; no attribute in a history can mark an event as a violation. The `violate-markerfree.jsonl` files keep the names they had when some corpora still used such markers.
 
 ## ACP-shaped path / effect_id
 

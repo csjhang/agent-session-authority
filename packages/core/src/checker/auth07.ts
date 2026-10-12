@@ -133,7 +133,7 @@ export const check_auth07: Checker = (ctx) => {
   const terminals = new Map<string, TerminalEvent[]>();
   const reconciles = new Map<string, { seq: number; resolved: string }>();
   const unfinished_by_session = new Map<string, Set<string>>();
-  const violations: { text: string; witnesses: number[]; marker?: boolean }[] = [];
+  const violations: { text: string; witnesses: number[] }[] = [];
 
   for (const ev of ctx.events) {
     const a = attrs(ev);
@@ -301,26 +301,14 @@ export const check_auth07: Checker = (ctx) => {
     }
   }
 
-  for (const ev of ctx.events) {
-    const a = attrs(ev);
-    if (a.ambiguous_terminal === true || a.terminal_guess === true) {
-      violations.push({
-        text: "test-injected marker ambiguous_terminal/terminal_guess: Terminal outcome was guessed without published rule or reconciliation.",
-        witnesses: [ev.seq],
-        marker: true,
-      });
-    }
-  }
-
   if (violations.length > 0) {
     const witnesses = [...new Set(violations.flatMap((v) => v.witnesses))].sort((a, b) => a - b);
-    const marker_note = violations.some((v) => v.marker) ? " Includes test-injected marker." : "";
     return [
       finding(
         inv,
         cs,
         "violation",
-        join_unique_sentences(violations.map((v) => v.text)) + marker_note,
+        join_unique_sentences(violations.map((v) => v.text)),
         witnesses,
         basis(ctx),
       ),
