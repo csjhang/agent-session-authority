@@ -25,8 +25,7 @@ export type ReceiptAskClass =
   | "standing_unscoped"
   | "standing_gen_unknown"
   | "bypass"
-  | "bypass_path_id_mismatch"
-  | "skipped_replay";
+  | "bypass_path_id_mismatch";
 
 export interface ExaminedReceipt {
   seq: number;
@@ -247,11 +246,8 @@ function correlate_attempt(
   return { status: "none" };
 }
 
-/**
- * Override A order for one committed non-replay receipt.
- * Exported for live detection tests.
- */
-export function classify_committed_receipt(
+/** Override A order for one committed non-replay receipt (examine_committed_receipts drops replays). */
+function classify_committed_receipt(
   events: HistoryEvent[],
   receipt: HistoryEvent,
   attempts: HistoryEvent[],
@@ -264,10 +260,6 @@ export function classify_committed_receipt(
     path: str(a.path),
     classification: "unmappable",
   };
-
-  if (is_replay(receipt)) {
-    return { ...base, classification: "skipped_replay" };
-  }
 
   // Correlate attempt early: own-request lookup may use attempt tool_call_id (rule 6).
   const corr_early = correlate_attempt(attempts, receipt);

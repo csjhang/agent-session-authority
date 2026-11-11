@@ -2,7 +2,6 @@
 export {
   AUTH08_NT_SETUP,
   classify_bypass_attempt,
-  classify_committed_receipt,
   count_asked,
   count_never_asked,
   count_unmappable,
