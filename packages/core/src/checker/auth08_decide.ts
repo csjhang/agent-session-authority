@@ -181,7 +181,7 @@ export const check_auth08: Checker = (ctx) => {
   // 5. attempts but none executed AND no examined receipt needing AUTH-08 axes
   // (ambiguous/unlinked receipts may lack attempt_seq; still examine them).
   const examined_relevant = examined.filter(
-    (e) => e.classification !== "asked" && e.classification !== "skipped_replay",
+    (e) => e.classification !== "asked",
   );
   if (executed.length === 0 && examined_relevant.length === 0) {
     const text = join_unique_sentences([
@@ -209,7 +209,7 @@ export const check_auth08: Checker = (ctx) => {
   > = [];
 
   for (const ex of examined) {
-    if (ex.classification === "asked" || ex.classification === "skipped_replay") {
+    if (ex.classification === "asked") {
       continue;
     }
     if (ex.classification === "standing_authorization") {

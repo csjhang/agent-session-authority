@@ -42,8 +42,6 @@ export function basis(ctx: CheckerContext): TestBasis {
  */
 export function claim_for(ctx: CheckerContext, invariant: string): ClaimStatus {
   const claims = claimed_set(ctx.profile);
-  if (!ctx.profile) return "not_declared";
-  if (claims.size === 0) return "not_declared";
   if (claims.has(invariant)) return "declared";
   for (const parent of INVARIANT_PARENTS) {
     if (claims.has(parent) && invariant.length === parent.length + 1) {
